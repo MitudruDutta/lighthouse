@@ -1,0 +1,28 @@
+[project]
+name = "lighthouse-memory"
+version = "0.0.0"
+description = "Agent memory on FalkorDB for structured events: versioned by rule, no LLM on the write path"
+requires-python = ">=3.12"
+dependencies = [
+    "falkordb",
+]
+
+[dependency-groups]
+dev = [
+    "pytest",
+    "ruff",
+]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["lighthouse", "lighthouse.recall", "lighthouse.write"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.ruff]
+line-length = 100
