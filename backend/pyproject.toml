@@ -1,0 +1,29 @@
+[project]
+name = "lighthouse-backend"
+version = "0.0.0"
+description = "Lighthouse API"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi",
+    "uvicorn[standard]",
+    "falkordb",
+    "lighthouse-memory",
+    "mcp>=1.26,<2",
+]
+
+[tool.uv.sources]
+lighthouse-memory = { path = "../lighthouse-memory", editable = true }
+
+[dependency-groups]
+dev = [
+    "pytest",
+    "httpx2",
+    "ruff",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.ruff]
+line-length = 100
