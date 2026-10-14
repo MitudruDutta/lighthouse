@@ -2,9 +2,9 @@ name: lighthouse
 
 services:
   falkordb:
-    # falkordb/falkordb:latest as pulled on 2026-10-12 (graph module version 60002)
+    # falkordb/falkordb:latest, pinned by digest (graph module version 60002)
     image: falkordb/falkordb@sha256:107455e862a824e45e8e9f5a7fbfdf5e00a08b14e13eae2577c72fd9e3f59ba6
-    # It crashed once under heavy test load on 2026-10-14 (SIGSEGV): come back on its own.
+    # It crashed once under heavy test load (SIGSEGV): come back on its own.
     restart: unless-stopped
     ports:
       - "127.0.0.1:${FALKORDB_PORT:-26379}:6379"
