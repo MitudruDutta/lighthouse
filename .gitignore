@@ -1,0 +1,21 @@
+.env
+.venv/
+__pycache__/
+*.egg-info/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+node_modules/
+.next/
+out/
+data/raw/
+# Copies that the mutation check makes and removes
+mutation/.work/
+# Planning and research documents stay out of the repository
+reports/
+research_notes/
+*PRD*
+*prd*
+# Editor settings and build state of one machine
+.vscode/
+*.tsbuildinfo
