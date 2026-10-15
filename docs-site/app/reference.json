@@ -1,0 +1,467 @@
+{
+ "package": "lighthouse",
+ "sections": [
+  {
+   "part": "kinds",
+   "about": "Kinds of entity. The application declares each kind once; every query is built from it.",
+   "names": [
+    {
+     "name": "Kind",
+     "kind": "class",
+     "signature": "(label: str, key: str = 'key', times: tuple[str, ...] = (), relations: dict = <factory>, text: tuple[str, ...] = (), dimensions: int = 0) -> None",
+     "doc": "A kind of entity, declared once by the application.\n\nlabel      node label\nkey        property that identifies one entity\ntimes      values that are stored as native time values\nrelations  {TYPE: Kind}: edges from this kind to another, each with a validity window.\n           Use SELF for a relation to the same kind: `{\"KNOWS\": SELF}`\ntext       values that can be searched by their words\ndimensions size of the vectors that stand for that text; 0 for no search by meaning\n\nA Kind cannot change after it is made: its names were checked once and go into queries."
+    },
+    {
+     "name": "SELF",
+     "kind": "constant",
+     "signature": "",
+     "doc": "= 'self'"
+    }
+   ]
+  },
+  {
+   "part": "graphs",
+   "about": "Which graph holds what, and the schema a graph needs before the first write.",
+   "names": [
+    {
+     "name": "WORLD",
+     "kind": "constant",
+     "signature": "",
+     "doc": "= 'world'"
+    },
+    {
+     "name": "ensure_schema",
+     "kind": "function",
+     "signature": "(graph: falkordb.graph.Graph, kinds=(), wait_seconds: float = 10.0, entry_dimensions: int = 0) -> None",
+     "doc": "Create a unique constraint on the key of every kind, a full-text index on the text\nof every kind and of its States, a vector index for every kind with dimensions, and the\nengine's own indexes, among them the full-text index of entries. With `entry_dimensions`,\nentries get a vector index of that size too, for embed_entries() and nearest_entries(). Give the graph its stamp, once.\nA duplicate key then fails the whole query. Safe to call on every start.\n\nCall it before the first write. When it adds a kind to a graph that is in use, stop\nthe writers first: a write during the build of an index is lost from that index."
+    },
+    {
+     "name": "tenant",
+     "kind": "function",
+     "signature": "(db: falkordb.falkordb.FalkorDB, tenant_id: str) -> falkordb.graph.Graph",
+     "doc": "The private graph of one tenant. FalkorDB accepts any graph name, so the identifier\nis checked here: a tenant can never name the world graph or another tenant's graph."
+    },
+    {
+     "name": "world",
+     "kind": "function",
+     "signature": "(db: falkordb.falkordb.FalkorDB) -> falkordb.graph.Graph",
+     "doc": "The graph every tenant may read."
+    }
+   ]
+  },
+  {
+   "part": "write",
+   "about": "The write path: rows become versions. No LLM is involved.",
+   "names": [
+    {
+     "name": "record_failure",
+     "kind": "function",
+     "signature": "(graph: falkordb.graph.Graph, reason: str, kind: str | None = None, key=None, detail=None, owner=None)",
+     "doc": "Store a write that did not happen, so it is never lost silently.\n\nWhat is stored is bounded and safe, whatever the refused write held: `detail` is cut to\n2,000 characters, and a kind or key that is not a valid one is left out. `owner` names\nthe user whose content the refused write held, so that it can be erased with the rest."
+    },
+    {
+     "name": "remember",
+     "kind": "function",
+     "signature": "(graph: falkordb.graph.Graph, kind: lighthouse.kinds.Kind, rows, by: str) -> list[dict]",
+     "doc": "Store what is true about entities of one kind, from the time `t` of each row.\n\nA row is {\"key\", \"t\", \"values\", \"relations\", \"entry\"}; key and t are required.\n  values     properties of the entity. Null or missing means the value is absent.\n  relations  {TYPE: key or list of keys} of the entities it points at, for the types\n             declared in the Kind. Missing means it points at none.\n  entry      the id of the entry the row comes from, such as an observation. A State\n             that the row adds points at that entry, as its evidence.\nA row is the full picture at time t: what it does not name is no longer true.\n`by` names the agent or source that writes. It is stored on every State and edge.\n\nReturns one receipt per row, in order: {\"key\", \"status\"} with status\n  created    first State of the entity\n  changed    the row differs: the current State is closed and a new one added\n  inserted   the row came late: it is put into the history at its time\n  unchanged  the row is already recorded for that time\n  stale      the row came late, after a row with a later time that repeated what held\n             before it: where it ends is not known, so it is refused\n  conflict   another row with other content has the same time: refused\n  missing    the entry it names does not exist: refused\n  invalid    the row cannot be stored\n  failed     the database refused the query\nStale, conflicting, missing, invalid, and failed rows leave a WriteFailure node."
+    },
+    {
+     "name": "update",
+     "kind": "function",
+     "signature": "(graph: falkordb.graph.Graph, kind: lighthouse.kinds.Kind, key, t, by: str, values=None, relations=None, entry=None) -> dict",
+     "doc": "Change the values and relations it names, from time `t` on. A value of None removes\nit. A relation that it names gets the targets it gives, and keeps none other. The rest\nstays as the current State says. An entity that does not exist starts with what the\nupdate names.\n\nReturns a receipt as remember() does. Besides, it can say\n  stale  `t` is before the current State: an update changes what is current. Send the\n         full row of that time to remember() instead.\n  busy   other writers changed the entity each time it was read: refused"
+    }
+   ]
+  },
+  {
+   "part": "read",
+   "about": "Reads of what was true: the versions of an entity, and its state at any time.",
+   "names": [
+    {
+     "name": "as_of",
+     "kind": "function",
+     "signature": "(graph: falkordb.graph.Graph, kind: lighthouse.kinds.Kind, key, when) -> dict | None",
+     "doc": "The State that was valid at `when`, or None if the entity was not known then."
+    },
+    {
+     "name": "history",
+     "kind": "function",
+     "signature": "(graph: falkordb.graph.Graph, kind: lighthouse.kinds.Kind, key) -> list[dict]",
+     "doc": "Every State of an entity, oldest first. A State that a row with an entry added has\n\"entry\": the id of that entry."
+    },
+    {
+     "name": "related",
+     "kind": "function",
+     "signature": "(graph: falkordb.graph.Graph, kind: lighthouse.kinds.Kind, key, relation: str, when=None) -> list",
+     "doc": "Keys of the entities that `key` pointed at through `relation` at `when` (default: now)."
+    }
+   ]
+  },
+  {
+   "part": "recall",
+   "about": "Recall: finding what is in memory, by the graph around an entity, by the words of its\ntext now and earlier, by the words of entries, and by the meaning of its text and of entries.",
+   "names": [
+    {
+     "name": "embed",
+     "kind": "function",
+     "signature": "(graph: falkordb.graph.Graph, kind: lighthouse.kinds.Kind, embedder, model: str, limit: int = 100) -> dict",
+     "doc": "Give a vector to entities of `kind` whose text has none, or whose text or model has\nchanged since. At most `limit` in one call. Returns {\"embedded\", \"waiting\"}: how many\ngot a vector now, and how many still wait. Run it off the write path until none wait.\n\n`embedder` takes a list of texts and returns one vector for each, of kind.dimensions\nnumbers. `model` names what made them."
+    },
+    {
+     "name": "embed_entries",
+     "kind": "function",
+     "signature": "(graph: falkordb.graph.Graph, embedder, model: str, limit: int = 100) -> dict",
+     "doc": "Give a vector to entries whose text has none of this model, at most `limit` in one\ncall. Returns {\"embedded\", \"waiting\"}, as embed() does. Run it off the write path until\nnone wait."
+    },
+    {
+     "name": "fuse",
+     "kind": "function",
+     "signature": "(rankings: dict[str, list[dict]], limit: int = 10) -> list[dict]",
+     "doc": "Merge rankings of the same kind of entity, best first:\n[{\"key\", \"score\", \"places\"}]. `rankings` maps a name to the result of similar(),\nsearch(), or nearest(). \"places\" maps each ranking's name to the place it gave the\nentity, from 1."
+    },
+    {
+     "name": "nearest",
+     "kind": "function",
+     "signature": "(graph: falkordb.graph.Graph, kind: lighthouse.kinds.Kind, question: str, embedder, model: str, limit: int = 10) -> list[dict]",
+     "doc": "Entities of `kind` whose text is closest in meaning to `question`, closest first:\n[{\"key\", \"score\", \"values\"}]. The score is the cosine similarity: 1 for the same\ndirection, 0 for none in common.\n\nAn entity whose text changed after its vector was made is left out until embed() runs\nagain. So is a vector of another model. A question without text finds nothing.\nAt most 1,000 vectors are read: after a change of model, run embed() to the end first."
+    },
+    {
+     "name": "nearest_entries",
+     "kind": "function",
+     "signature": "(graph: falkordb.graph.Graph, question: str, embedder, model: str, limit: int = 10) -> list",
+     "doc": "Entries whose text is closest in meaning to `question`, closest first:\n[{\"id\", \"score\", \"entry\"}], with the score as nearest() gives it. Vectors of another\nmodel are left out, and at most 1,000 vectors are read."
+    },
+    {
+     "name": "pointing_at",
+     "kind": "function",
+     "signature": "(graph: falkordb.graph.Graph, kind: lighthouse.kinds.Kind, relation: str, key, when=None) -> list",
+     "doc": "Keys of the entities of `kind` whose `relation` pointed at `key` at `when` (default:\nnow). The reverse of related(): related() asks where one entity points, this asks what\npoints at one target."
+    },
+    {
+     "name": "search",
+     "kind": "function",
+     "signature": "(graph: falkordb.graph.Graph, kind: lighthouse.kinds.Kind, question: str, limit: int = 10, match: str = 'all') -> list[dict]",
+     "doc": "Entities of `kind` whose text has the words of `question`, best first:\n[{\"key\", \"score\", \"values\"}]. \"values\" holds the current values of the entity.\n\n  match  \"all\": every word must be there. \"any\": one word is enough.\n\nWords are matched whole and in their base form: \"tankers\" finds \"tanker\". A question\nwithout a letter or digit finds nothing."
+    },
+    {
+     "name": "search_entries",
+     "kind": "function",
+     "signature": "(graph: falkordb.graph.Graph, question: str, limit: int = 10, match: str = 'all') -> list[dict]",
+     "doc": "Entries of episodes whose values had the words of `question`, best first:\n[{\"id\", \"score\", \"entry\"}]. \"entry\" holds the properties of the entry, as episode()\ngives them, without its evidence."
+    },
+    {
+     "name": "search_history",
+     "kind": "function",
+     "signature": "(graph: falkordb.graph.Graph, kind: lighthouse.kinds.Kind, question: str, limit: int = 10, match: str = 'all') -> list[dict]",
+     "doc": "States of entities of `kind` whose text had the words of `question`, the current one\nor an earlier one, best first: [{\"key\", \"score\", \"state\"}]. \"state\" is the State as\nhistory() gives it, with its validity window.\n\nWords are matched as search() matches them."
+    },
+    {
+     "name": "similar",
+     "kind": "function",
+     "signature": "(graph: falkordb.graph.Graph, kind: lighthouse.kinds.Kind, key, relations=None, limit: int = 10) -> list[dict]",
+     "doc": "Entities of the same kind that share relation targets with this one, most shared\nfirst: [{\"key\", \"shared\", \"through\"}]. \"through\" lists what is shared, as\n(relation, key of the target), so the reason can be shown.\n\nThis entity's current relations are compared with every relation the others ever had,\nso entities of the past are found. `relations` narrows the relations that count."
+    }
+   ]
+  },
+  {
+   "part": "episodes",
+   "about": "Episodes: the ordered record of one event, written by agents.",
+   "names": [
+    {
+     "name": "close_episode",
+     "kind": "function",
+     "signature": "(graph: falkordb.graph.Graph, episode_id: str, by: str, outcome=None, cites=(), at=None) -> dict",
+     "doc": "Record what the event ended in, and close the episode. The outcome is the last entry.\nReturns the same receipt as record()."
+    },
+    {
+     "name": "episode",
+     "kind": "function",
+     "signature": "(graph: falkordb.graph.Graph, episode_id: str) -> dict | None",
+     "doc": "An episode with its entries in order, or None if it does not exist. Each entry has\n\"cites\": the (label, key) pairs it rests on. \"about\" has the same form."
+    },
+    {
+     "name": "episodes_about",
+     "kind": "function",
+     "signature": "(graph: falkordb.graph.Graph, kind: lighthouse.kinds.Kind, key) -> list[dict]",
+     "doc": "The episodes about one entity, newest first. Each has \"outcome\": the entry that\nclosed it, or None while it is open."
+    },
+    {
+     "name": "open_episode",
+     "kind": "function",
+     "signature": "(graph: falkordb.graph.Graph, episode_id: str, by: str, about=(), at=None) -> dict",
+     "doc": "Start the record of one event. `about` lists the entities it concerns, as (Kind, key).\n\nReturns a receipt {\"id\", \"status\"} with status\n  opened   the episode was made\n  exists   an episode with this id is there already; nothing changed\n  missing  an entity in `about` does not exist: refused\n  invalid  `about` or `at` cannot be used: refused\n  failed   the database refused the query\nMissing, invalid, and failed leave a WriteFailure node."
+    },
+    {
+     "name": "record",
+     "kind": "function",
+     "signature": "(graph: falkordb.graph.Graph, episode_id: str, entry_type: str, by: str, values=None, cites=(), at=None) -> dict",
+     "doc": "Append one entry to an episode: an observation, a forecast, an action, or any other\ntype the application names.\n\n  values  properties of the entry\n  cites   the evidence: ids of earlier entries, entities as (Kind, key), and other\n          episodes as (\"Episode\", id)\n  at      when it happened (default: now)\n\nReturns a receipt. {\"id\", \"seq\", \"status\": \"recorded\"} when stored. Otherwise\n{\"id\": None, \"status\", \"reason\"} with status\n  unknown  the episode does not exist\n  closed   the episode is closed\n  full     the episode has 5,000 entries\n  missing  something in `cites` does not exist\n  invalid  `values`, `cites`, or `at` cannot be stored\n  failed   the database refused the query\nand a WriteFailure node that holds the refused entry."
+    }
+   ]
+  },
+  {
+   "part": "extraction",
+   "about": "The free-text path: what agents wrote in entries becomes rows, off the write path.",
+   "names": [
+    {
+     "name": "extract",
+     "kind": "function",
+     "signature": "(graph: falkordb.graph.Graph, kind: lighthouse.kinds.Kind, extractor, by: str, types=None, limit: int = 100) -> dict",
+     "doc": "Read entries with text that were not read for `kind` yet, oldest first, at most\n`limit` of them, and write the rows that `extractor` finds in each.\n\n  extractor  a function of one entry (its properties: id, type, at, by, and its values)\n             that returns a list of rows of `kind`, as remember() takes them. A row\n             without \"t\" is true from the time of the entry. Its \"entry\" is the entry.\n  types      the types of entries to read, such as [\"observation\"] (default: all)\n\nReturns {\"read\", \"rows\", \"waiting\"}: how many entries were read, how many rows came back\nwith each status of remember(), and how many entries still wait. An extractor that\nraises stops the call; the entry it read stays waiting, and the ones before it are done."
+    }
+   ]
+  },
+  {
+   "part": "handoffs",
+   "about": "Handoffs: one agent passes work to another by pointing at what the other must read.",
+   "names": [
+    {
+     "name": "accept",
+     "kind": "function",
+     "signature": "(graph: falkordb.graph.Graph, handoff_id: str, by: str) -> dict",
+     "doc": "Take a handoff. Returns a receipt {\"id\", \"status\"} with status\n  accepted  the handoff is now accepted by the agent it was given to\n  exists    that agent accepted it before; nothing changed\n  refused   it was given to another agent\n  unknown   there is no such handoff\nRefused and unknown leave a WriteFailure node that names who tried."
+    },
+    {
+     "name": "hand_off",
+     "kind": "function",
+     "signature": "(graph: falkordb.graph.Graph, handoff_id: str, by: str, to: str, points_to, values=None, at=None) -> dict",
+     "doc": "Pass work from agent `by` to agent `to`.\n\n  points_to  what the receiver must read: entry ids, (\"Episode\", id), and entities as\n             (Kind, key). At least one. An entity is pinned to the time of the handoff.\n  values     short properties of the handoff, such as what is asked\n  at         when it was given (default: now)\n\nReturns a receipt {\"id\", \"status\"} with status\n  given    the handoff was made\n  exists   a handoff with this id is there already; nothing changed\n  missing  something in `points_to` does not exist: refused\n  invalid  it points at nothing, or the values, references, or time cannot be stored\n  failed   the database refused the query\nMissing, invalid, and failed leave a WriteFailure node that holds the refused handoff."
+    },
+    {
+     "name": "handoffs_for",
+     "kind": "function",
+     "signature": "(graph: falkordb.graph.Graph, agent: str, waiting_only: bool = True) -> list[dict]",
+     "doc": "What was handed to an agent, oldest first. Each has \"points_to\": the (label, key)\npairs to read. By default only the handoffs the agent has not accepted yet."
+    }
+   ]
+  },
+  {
+   "part": "lessons",
+   "about": "Lessons: what was learned from episodes that ended. The semantic memory.",
+   "names": [
+    {
+     "name": "learn",
+     "kind": "function",
+     "signature": "(graph: falkordb.graph.Graph, lesson_id: str, by: str, statement: str, supported_by, about=(), values=None, at=None) -> dict",
+     "doc": "Store what was learned, with the episodes it was learned from.\n\n  statement     the lesson, in words\n  supported_by  ids of episodes that have ended. At least one.\n  about         the entities it is about, as (Kind, key)\n  values        other properties of the lesson\n\nReturns a receipt {\"id\", \"status\"} with status\n  learned  the lesson was stored\n  exists   a lesson with this id is there already; nothing changed\n  missing  an episode has not ended or does not exist, or an entity does not exist\n  invalid  no statement, no episode, or something that cannot be stored\n  failed   the database refused the query\nMissing, invalid, and failed leave a WriteFailure node that holds the refused lesson."
+    },
+    {
+     "name": "lesson",
+     "kind": "function",
+     "signature": "(graph: falkordb.graph.Graph, lesson_id: str) -> dict | None",
+     "doc": "A lesson with its weight, the episodes for and against it, and what it is about."
+    },
+    {
+     "name": "lessons_about",
+     "kind": "function",
+     "signature": "(graph: falkordb.graph.Graph, kind: lighthouse.kinds.Kind, key, at_least: int = 1, since=None) -> list[dict]",
+     "doc": "The lessons about one entity that still hold, heaviest first. Each has \"weight\".\n\nat_least  the least weight a lesson needs to be given out\nsince     leave out lessons that no episode has supported, contradicted, or used\n          since this time: a lesson that nothing touches fades"
+    },
+    {
+     "name": "retire",
+     "kind": "function",
+     "signature": "(graph: falkordb.graph.Graph, lesson_id: str, by: str, why: str, at=None) -> dict",
+     "doc": "Say that a lesson no longer holds. It stays in the graph with its evidence, and is no\nlonger given out. Status: retired, exists (it was retired before), or unknown."
+    },
+    {
+     "name": "used",
+     "kind": "function",
+     "signature": "(graph: falkordb.graph.Graph, lesson_id: str, by: str, episode_id: str, helped=None, at=None) -> dict",
+     "doc": "Record that a lesson was used in an episode. `helped` says whether acting on it led\nto a correct result: True, False, or None while that is not known. It can be said once,\nin this call or a later one. Status: used, judged, exists, or a refusal."
+    },
+    {
+     "name": "weigh",
+     "kind": "function",
+     "signature": "(graph: falkordb.graph.Graph, lesson_id: str, by: str, episode_id: str, agrees: bool, at=None) -> dict",
+     "doc": "Add an episode that ended as evidence for a lesson, or against it. An episode counts\nonce. Status: weighed, exists, or the refusals missing, retired, unknown."
+    }
+   ]
+  },
+  {
+   "part": "playbooks",
+   "about": "Playbooks: what to do when a situation comes again. The procedural memory.",
+   "names": [
+    {
+     "name": "playbook",
+     "kind": "function",
+     "signature": "(graph: falkordb.graph.Graph, name: str, version: int | None = None) -> dict | None",
+     "doc": "One version of a playbook with its trigger, steps, counts, and the episodes it rests\non. The newest version by default. None if there is none."
+    },
+    {
+     "name": "playbooks_for",
+     "kind": "function",
+     "signature": "(graph: falkordb.graph.Graph, situation: dict) -> list[dict]",
+     "doc": "The playbooks that are switched on and whose trigger fits a situation: every property\nof the trigger is in the situation with the same value. Best record first: successes\nminus failures, then runs."
+    },
+    {
+     "name": "ran",
+     "kind": "function",
+     "signature": "(graph: falkordb.graph.Graph, name: str, by: str, episode_id: str, succeeded=None, stop_after: int = 3, at=None) -> dict",
+     "doc": "Record that the newest version of a playbook ran in an episode. `succeeded` says how\nit ended: True, False, or None while that is not known. It can be said once, in this\ncall or a later one. After `stop_after` failures in a row the playbook switches off.\n\nReturns {\"id\", \"status\", \"enabled\"} with status recorded, judged, or exists; or a\nrefusal with status missing (the episode) or unknown (the playbook)."
+    },
+    {
+     "name": "switch",
+     "kind": "function",
+     "signature": "(graph: falkordb.graph.Graph, name: str, by: str, on: bool) -> dict",
+     "doc": "Switch the newest version of a playbook on or off. Switching on clears the count of\nfailures in a row. Status: on, off, exists (it was so already), or unknown."
+    },
+    {
+     "name": "write_playbook",
+     "kind": "function",
+     "signature": "(graph: falkordb.graph.Graph, name: str, by: str, trigger, steps, supported_by, needs: int = 3, at=None) -> dict",
+     "doc": "Write the next version of a playbook. The version before it is switched off.\n\n  trigger       the situation it is for: properties that must all be there\n  steps         what to do, in order: a list of property maps\n  supported_by  ids of the episodes it was drawn from. All must have ended.\n  needs         how many episodes it must rest on (default 3)\n\nReturns a receipt. {\"id\", \"version\", \"status\": \"written\"} when stored. Otherwise\n{\"id\": None, \"status\", \"reason\"} with status\n  missing      an episode in `supported_by` does not exist or has not ended\n  unsupported  it rests on fewer episodes than it needs\n  invalid      no trigger, no steps, or something that cannot be stored\n  failed       the database refused the query\nand a WriteFailure node that holds the refused playbook."
+    }
+   ]
+  },
+  {
+   "part": "promotion",
+   "about": "Promotion: what repeats in episodes that ended becomes a lesson or a playbook.",
+   "names": [
+    {
+     "name": "promote",
+     "kind": "function",
+     "signature": "(graph: falkordb.graph.Graph, by: str, rule, at_least: int = 3) -> dict",
+     "doc": "Read every episode that ended, ask `rule` what each one shows, and write what that\nadds up to. `at_least` is how many episodes must agree before a lesson is learned or a\nplaybook is written (default 3).\n\nReturns {\"episodes\", \"lessons\", \"playbooks\", \"runs\"}: how many episodes were read, and\na receipt for each lesson, playbook, and run that a claim named. Besides the statuses\nof the library, a receipt can say\n  waiting    fewer episodes agree than `at_least`; \"for\" says how many do\n  unchanged  nothing new: every episode is counted, or the playbook has these steps\nA lesson that is learned or weighed says how many episodes were \"new\" to it."
+    }
+   ]
+  },
+  {
+   "part": "algorithms",
+   "about": "Algorithms over the graph: what belongs together, what is central, and how two things\nare connected.",
+   "names": [
+    {
+     "name": "between",
+     "kind": "function",
+     "signature": "(graph: falkordb.graph.Graph, kinds, relations=None, limit: int = 10, sample: int | None = None, seed: int = 1, at=None) -> list[dict]",
+     "doc": "Entities by the shortest paths between other entities that run through them, highest\nfirst: [{\"entity\": (label, key), \"score\"}]. The score is the number of such paths; where\nseveral shortest paths join two entities, each counts for its part. Of equal scores,\nthe oldest entity comes first.\n\nA path follows the direction of the relations. So an entity scores only when relations\nlead into it and out of it: a relation from a kind to itself, or a chain of kinds. Where\none kind only points at another, every score is 0.\n\nPaths are counted from `sample` entities picked at random, and the counts are scaled up\nto all: an estimate, and the same one for the same `seed`. It finds the entities that\nstand out; it cannot order entities whose scores are close. The count is exact when the\nsample is as large as the number of entities. Without `sample`, it is as large as WORK\nallows and at least SAMPLE, so a small graph gets the exact count.\n\nWith `at`, over the relations that held at that time. The paths are counted here, not in\nFalkorDB: from fewer entities for the same work, picked by `seed` in another way."
+    },
+    {
+     "name": "connection",
+     "kind": "function",
+     "signature": "(graph: falkordb.graph.Graph, start, end, kinds=(), relations=None, max_hops: int = 6, at=None) -> list[dict] | None",
+     "doc": "The shortest chain of relations from `start` to `end`, as its steps in order. None\nwhen no chain of up to `max_hops` steps joins them, or one of them is not known. The\nsame thing twice is no step: [].\n\nstart, end  references: (Kind, key) for an entity, (label, id) for a record\nkinds       more kinds whose relations may be followed. The kinds of start and end,\n            and every kind they point at, are followed already: name a kind that\n            points at both\nrelations   the edge types to follow, in either direction. Default: every relation of\n            those kinds. Name ABOUT, CITES, and the like to go through records as well\n\nA step is {\"from\", \"relation\", \"to\", \"forward\", \"current\", \"since\", \"until\"}.\n  from, to  (label, key) pairs in the order of the walk. The key is None for an entity\n            of a kind that was not given\n  forward   False when the relation points from \"to\" to \"from\"\n  current   whether the relation holds now. \"since\" and \"until\" are the start and the\n            end of the last time it held; \"until\" is None while it holds\nWhere several relations join the two things of a step, the step tells of one that holds\nnow, and if none does, of the one that ended last.\n\nWith `at`, the shortest chain of relations that held at that time, between entities.\nA step tells of a relation that held then; \"current\" and \"until\" say whether it holds\nnow, and when it ended."
+    },
+    {
+     "name": "groups",
+     "kind": "function",
+     "signature": "(graph: falkordb.graph.Graph, kinds, relations=None, records=(), at_least: int = 2, limit=100, show=100, at=None) -> list[dict]",
+     "doc": "Sets of things that are linked, directly or through other things, largest first:\n[{\"size\", \"members\"}]. Two things are in one set when a chain of relations joins them,\nwhichever way the relations point.\n\nkinds      the entities that take part: these kinds and every kind they point at\nrecords    labels of records that take part too: Episode, Entry, Lesson, Playbook\nrelations  the edge types that link. Default: every relation of the kinds, and with\n           records also what a record is about, has, cites, and rests on\nat_least   the smallest set that is listed. 1 lists what is linked to nothing as well\n\"members\" holds up to `show` members as (label, key) pairs, oldest first. Sets of one\nsize come in the order of their oldest members.\n\nWith records=[\"Episode\"] and relations=[\"ABOUT\"], a set holds the episodes that are\nabout the same entities, and those entities.\n\nWith `at`, the sets that the relations joined at that time, of the entities that existed\nthen. Records have no time: they cannot take part."
+    },
+    {
+     "name": "important",
+     "kind": "function",
+     "signature": "(graph: falkordb.graph.Graph, kinds, relation=None, limit: int = 10, at=None) -> list[dict]",
+     "doc": "Entities by PageRank, highest first: [{\"entity\": (label, key), \"score\"}]. Of equal\nscores, the oldest entity comes first.\n\nAn entity scores high when many entities point at it, and higher when those score high\nthemselves. An entity shares its score evenly among what it points at; one that points\nat nothing shares it among all.\n\nThe rank is taken over the entities of every kind and the edges of `relation` (default:\nevery relation), so the scores of all entities add up to 1. Entities of `kinds`, and of\nthe kinds they point at, are listed. With `at`, over the entities that existed and the\nrelations that held at that time."
+    }
+   ]
+  },
+  {
+   "part": "conversation",
+   "about": "Conversations: what was said in the sessions of a user, in order.",
+   "names": [
+    {
+     "name": "context",
+     "kind": "function",
+     "signature": "(graph: falkordb.graph.Graph, user: str, session_id: str, last: int = 20) -> dict",
+     "doc": "What a model needs to go on with a session: {\"summary\", \"upto\", \"messages\", \"waiting\"}.\n\n  summary   what the messages up to number \"upto\" come to, or None\n  messages  the messages after those, oldest first, at most `last`\n  waiting   how many messages are in neither. Above 0, it is time to sum up again\n\nA session that the user does not have gives an empty context."
+    },
+    {
+     "name": "forget_session",
+     "kind": "function",
+     "signature": "(graph: falkordb.graph.Graph, user: str, session_id: str) -> dict",
+     "doc": "Delete one session of `user`: its messages, its summary, the references that nothing\nelse mentions, and what was kept of its refused messages.\n\nReturns {\"id\", \"status\", \"messages\"}: status \"forgotten\" with the number of messages\nthat were deleted, or \"unknown\" when the user has no such session.\n\nMessages that are said while this runs are deleted with the rest. One that is said\nafter the session is gone opens it again."
+    },
+    {
+     "name": "forget_user",
+     "kind": "function",
+     "signature": "(graph: falkordb.graph.Graph, user: str) -> dict",
+     "doc": "Delete everything `user` said in this graph: every session, as forget_session()\ndoes, and what was kept of every refused message. Returns {\"user\", \"sessions\",\n\"messages\"} with how many were deleted."
+    },
+    {
+     "name": "messages",
+     "kind": "function",
+     "signature": "(graph: falkordb.graph.Graph, user: str, session_id: str, last: int = 20, before=None) -> list[dict]",
+     "doc": "The last messages of a session of `user`, oldest first, at most `last` of them. Each\nhas \"mentions\": the (label, key) pairs it names. `before` is the number of a message:\nthe messages just before that one are given, to read further back.\n\nA session that the user does not have gives nothing."
+    },
+    {
+     "name": "said",
+     "kind": "function",
+     "signature": "(graph: falkordb.graph.Graph, user: str, question: str, limit: int = 10, match: str = 'all') -> list[dict]",
+     "doc": "The messages in the sessions of `user` whose text has the words of `question`, best\nfirst. Each has \"score\" and \"mentions\".\n\n  match  \"all\": every word must be there. \"any\": one word is enough.\n\nOnly the letters and digits of the question are used. A question without any finds\nnothing."
+    },
+    {
+     "name": "said_about",
+     "kind": "function",
+     "signature": "(graph: falkordb.graph.Graph, user: str, reference, limit: int = 20) -> list[dict]",
+     "doc": "The messages in the sessions of `user` that mention one thing, newest first.\n`reference` is (Kind, key) for an entity, or (label, id) for a record."
+    },
+    {
+     "name": "say",
+     "kind": "function",
+     "signature": "(graph: falkordb.graph.Graph, user: str, session_id: str, role: str, text: str, by: str, mentions=(), values=None, at=None) -> dict",
+     "doc": "Add one message to a session of `user`. The first message opens the session.\n\n  role      who speaks, as the application names it: the user, an agent, a tool\n  by        the agent or user that wrote the message\n  mentions  what the message is about: entities as (Kind, key), records as (label, id)\n  values    more properties of the message\n  at        when it was said (default: now)\n\nReturns a receipt. {\"id\", \"seq\", \"status\": \"said\"} when stored: the id of the session\nand the number of the message in it. Otherwise {\"id\": None, \"status\", \"reason\"} with\n  invalid  the text, the mentions, the values, or the time cannot be stored\n  failed   the database refused the query\nand a WriteFailure node that holds the refused message."
+    },
+    {
+     "name": "sessions",
+     "kind": "function",
+     "signature": "(graph: falkordb.graph.Graph, user: str, limit: int = 20) -> list[dict]",
+     "doc": "The sessions of `user`, the one written to last first: [{\"id\", \"opened_at\",\n\"active_at\", \"messages\"}]. \"messages\" is how many it holds."
+    },
+    {
+     "name": "summarize",
+     "kind": "function",
+     "signature": "(graph: falkordb.graph.Graph, user: str, session_id: str, text: str, upto: int, by: str) -> dict",
+     "doc": "Store what the messages of a session up to number `upto` come to. The text is the\napplication's: the library holds no model. A session has one summary, and a later one\ntakes its place.\n\nReturns a receipt. {\"id\", \"upto\", \"status\": \"summed\"} when stored. Otherwise\n{\"id\": None, \"status\", \"reason\"} with status\n  unknown  the user has no such session\n  stale    the summary that is there reaches further than `upto`\n  invalid  the text cannot be stored, or `upto` is not the number of a message\n  failed   the database refused the query\nand a WriteFailure node that holds the refused summary."
+    }
+   ]
+  },
+  {
+   "part": "tasks",
+   "about": "Tasks that agents hand to each other through the graph.",
+   "names": [
+    {
+     "name": "add_task",
+     "kind": "function",
+     "signature": "(graph: falkordb.graph.Graph, task_id: str, kind: str, ref=None, after=()) -> bool",
+     "doc": "Add an open task. `ref` is the key of the graph entity the task is about. `after`\nlists the ids of tasks that must be done before this one can be claimed.\n\nReturns False, and changes nothing, if a task with this id exists. Raises ValueError,\nand adds nothing, if a task in `after` does not exist."
+    },
+    {
+     "name": "claim",
+     "kind": "function",
+     "signature": "(graph: falkordb.graph.Graph, agent: str, kind: str, lease: int | None = None) -> dict | None",
+     "doc": "Give the oldest free task of `kind` to `agent`: {\"id\", \"kind\", \"ref\", \"until\"}. None if\nno task is free.\n\n`lease` is how many seconds the claim holds (default: until it is done or released).\nAfter that, another agent can claim the task, and the first can no longer complete it.\n\"until\" is the time the lease runs out, or None."
+    },
+    {
+     "name": "complete",
+     "kind": "function",
+     "signature": "(graph: falkordb.graph.Graph, agent: str, task_id: str) -> bool",
+     "doc": "Mark a task done. Only its owner can, once; returns False otherwise. An owner whose\nlease ran out can still complete the task while no other agent has claimed it."
+    },
+    {
+     "name": "release",
+     "kind": "function",
+     "signature": "(graph: falkordb.graph.Graph, agent: str, task_id: str) -> bool",
+     "doc": "Give a claimed task back, open for another agent. Only its owner can; returns False\notherwise."
+    }
+   ]
+  },
+  {
+   "part": "clock",
+   "about": "Times in the one form the library sends to FalkorDB.",
+   "names": [
+    {
+     "name": "now",
+     "kind": "function",
+     "signature": "() -> str",
+     "doc": ""
+    },
+    {
+     "name": "stamp",
+     "kind": "function",
+     "signature": "(value: str | datetime.datetime | None) -> str | None",
+     "doc": "A time as `YYYY-MM-DDTHH:MM:SS` in UTC, the form FalkorDB's localdatetime() parses.\n\nFalkorDB keeps whole seconds, so fractions are dropped. A time without an offset is\ntaken as UTC. The client cannot send datetime parameters, so queries get this string."
+    }
+   ]
+  }
+ ]
+}

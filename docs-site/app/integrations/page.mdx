@@ -1,0 +1,59 @@
+export const metadata = { title: "Models and agent integration" };
+
+# Models and agent integration
+
+Lighthouse Memory has no required language model and stores no provider API keys. Structured facts, history, episodes, and task coordination work without model calls. Your application owns the model client and passes the results or callbacks to the library.
+
+## Three integration points
+
+| Purpose                  | Library contract                                                                          | Your responsibility                                                                            |
+| ------------------------ | ----------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| Semantic recall          | `embed()` and `nearest()` receive a function mapping a list of texts to a list of vectors | Choose an embedding model, keep its API key private, and declare the matching vector dimension |
+| Extract structured facts | `extract()` receives your extractor function                                              | Validate model output against your schema and preserve source references                       |
+| Conversation summaries   | `context()` returns messages and a waiting count; `summarize()` stores your summary       | Choose the model and prompt, call it, and check the result before storage                      |
+
+## Keep the model boundary explicit
+
+```python
+from lighthouse import context, messages, summarize
+
+def compact_session(graph, user, session_id, summarize_texts):
+    held = context(graph, user, session_id, last=20)
+    if not held["waiting"]:
+        return
+    older = messages(
+        graph, user, session_id, last=held["waiting"],
+        before=held["messages"][0]["seq"],
+    )
+    text = summarize_texts(held["summary"], older)  # your model client
+    summarize(
+        graph, user, session_id, text,
+        upto=held["upto"] + held["waiting"], by="summarizer",
+    )
+```
+
+`summarize_texts` can call any provider or run locally. It must return a string. Resolve `user` and the tenant graph from authentication before calling this function.
+
+## Embedding models
+
+Declare a `Kind` with `text` fields and the vector dimension returned by your embedder. Use one stable model identifier for indexing and retrieval. Changing model or dimension requires re-embedding; vectors from different models must not be mixed.
+
+See [semantic recall](/recall#by-meaning) and the exact [embed API](/reference#embed). Embedding calls happen off the structured write path.
+
+## Tool-using agents
+
+Expose a small set of memory operations through your agent framework or [an MCP wrapper](/mcp). The model can choose a tool; trusted code executes it against an authorized graph and returns bounded evidence. Record observations, decisions, and outcomes in [episodes](/episodes).
+
+Keep model credentials on your server. Apply timeouts, spending limits, retries, and output validation in the client that owns the request. Lighthouse's write receipts describe storage outcomes; they do not certify a model's answer.
+
+## Provider references
+
+These are model-client references, not dependencies or adapters shipped inside Lighthouse Memory:
+
+- [OpenAI API](https://developers.openai.com/api/docs/): language models, function calling, and embeddings.
+- [Anthropic Claude API](https://platform.claude.com/docs/en/models/overview): messages and tool use.
+- [Google Gemini API](https://ai.google.dev/gemini-api/docs): generation, function calling, and embeddings.
+- [Ollama](https://docs.ollama.com/): local and hosted model APIs.
+- [MCP specification and SDKs](https://modelcontextprotocol.io/docs/getting-started/intro): typed tools for agent clients.
+
+Continue with [conversation memory](/conversations), [recall](/recall), or the [Python API](/reference).

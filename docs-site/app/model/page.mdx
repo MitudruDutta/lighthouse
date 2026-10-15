@@ -1,0 +1,45 @@
+export const metadata = { title: "The memory model" };
+
+# The memory model
+
+Everything the memory holds is nodes and edges of one FalkorDB graph. Knowing them lets you read the graph in the FalkorDB browser, and write your own queries where the API has none.
+
+## Things and their versions
+
+- An **entity** is a node with the label and key of its `Kind`, and the label `Entity` that all entities share. It holds the current values, so a query or an index on the entity sees what is true now.
+- A **State** is one version of the entity's values. It has `valid_from`, and `valid_to` once a later version replaced it. The States of one entity form a chain through `NEXT`, and the entity points at each with `HAS_STATE`. `seen_last` is the last time a row repeated the State.
+- A **relation** is an edge from one entity to another with its own `valid_from` and `valid_to`. A relation that did not change keeps its edge when another value changes.
+- `by` on every State and relation edge names who wrote it. `recorded_at` is when the memory stored it; `valid_from` is when the fact became true.
+
+```text
+(Device d1) -HAS_STATE-> (State, valid_from 1 Jan, valid_to 2 Jan) -NEXT-> (State, valid_from 2 Jan)
+(Device d1) -LOCATED_IN {valid_from 1 Jan, valid_to 2 Jan}-> (Room r1)
+(Device d1) -LOCATED_IN {valid_from 2 Jan}-> (Room r2)
+```
+
+## What agents saw and did
+
+- An **episode** is the record of one event, `ABOUT` the entities it concerns. Its **entries** are numbered in the order they were written, through `HAS` and `NEXT`: an observation, a forecast, an action, or any type the application names. The entry of type `outcome` closes the episode.
+- An entry **cites** its evidence with `CITES` edges: earlier entries, other episodes, lessons, and entities. A cited entity is pinned to the time of the entry, so `as_of()` gives the version the agent saw. The **Agent** that wrote an entry has a `WROTE` edge to it.
+- A **lesson** is what was learned from episodes that ended. It points at the episodes for it and against it, and at the episodes where it was used.
+- A **playbook** is what to do when a situation comes again: a trigger, ordered steps, and the episodes it was drawn from. A new version replaces the one before; no version is ever changed.
+
+## How agents work together
+
+- A **task** is work that one agent claims. It can wait for other tasks (`AFTER`), and every claim stays as a `CLAIMED_BY` edge.
+- A **handoff** passes work from one agent (`GAVE`) to another (`TO`). It points at entries, episodes, and entities with `POINTS_TO`, and holds no copy of them.
+
+## What people said
+
+- A **session** holds what was said with one user, as **messages** in order, and one summary of the messages up to a number.
+- A message **mentions** things by name: a **Reference** holds the label and key of a thing, and no edge to it, because the thing may be in another graph.
+
+## Bookkeeping
+
+- A **WriteFailure** is a write that did not happen: the reason, the kind, the key, and up to 2,000 characters of what was refused. The same refusal again is counted on the same node (`times`, `last_at`).
+- A **Stamp** is one node with a random id that `ensure_schema()` gives a graph once. A graph that is deleted and made again under its name has another stamp.
+- Times are FalkorDB `localdatetime` values in UTC, in whole seconds.
+
+## Graphs
+
+One FalkorDB holds many graphs. The application chooses which: by default one graph, `world`, that everyone may read, and one graph for each tenant. See [tenants](/tenants).

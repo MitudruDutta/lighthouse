@@ -1,0 +1,48 @@
+export const metadata = { title: "Recall" };
+
+# Recall
+
+Four ways to find what is in memory: by the graph, by words, by meaning, and one ranking from all three.
+
+| Function                                                       | Finds                                                                                                   |
+| -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `pointing_at(graph, kind, relation, key, when=None)`           | The entities whose relation pointed at a target, now or at `when`                                       |
+| `similar(graph, kind, key, relations=None, limit=10)`          | Entities of the same kind that share relation targets with one, most shared first, with what they share |
+| `search(graph, kind, question, limit=10, match="all")`         | Entities whose text has the words of a question                                                         |
+| `search_history(graph, kind, question, limit=10, match="all")` | Versions whose text had the words, now or earlier, with when each held                                  |
+| `search_entries(graph, question, limit=10, match="all")`       | Entries of episodes whose text has the words                                                            |
+| `nearest(graph, kind, question, embedder, model, limit=10)`    | Entities whose text is closest in meaning, with the similarity                                          |
+| `nearest_entries(graph, question, embedder, model, limit=10)`  | Entries whose text is closest in meaning                                                                |
+| `fuse(rankings, limit=10)`                                     | One ranking from several, by the place each gave                                                        |
+
+## By words
+
+`search()` reads FalkorDB's full-text index over the values a `Kind` names in `text`. A question is never sent to the index as it is: only its letters and digits, at most 20 words. So `*` does not list everything, and a question cannot choose a field. `match="any"` finds what has one of the words.
+
+A renamed thing is found by its new name with `search()`, and by its old one with `search_history()`, which says when each name held.
+
+## By meaning
+
+The memory holds no model: you pass a function that turns texts into vectors.
+
+```python
+MANUAL = Kind("Manual", key="code", text=("title", "body"), dimensions=384)
+
+def embedder(texts):  # your model: a list of texts in, one vector for each out
+    ...
+
+embed(graph, MANUAL, embedder, model="name-of-the-model")   # off the write path
+nearest(graph, MANUAL, "the seal of my pump leaks", embedder, model="name-of-the-model")
+```
+
+- `embed()` gives a vector to each entity whose text has none. `remember()` never asks a model.
+- A write that changes the text takes its vector out of the index in the same query, so `nearest()` never answers from text that is gone.
+- Vectors of another model are never compared.
+
+## All three
+
+```python
+fuse({"graph": similar(...), "words": search(...), "meaning": nearest(...)})
+```
+
+The scores of the three cannot be compared, so `fuse()` uses only the places (reciprocal rank fusion), and says which ranking put each result where.

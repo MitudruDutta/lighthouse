@@ -1,0 +1,70 @@
+export const metadata = { title: "Lessons and playbooks" };
+
+# Lessons and playbooks
+
+An episode is what happened. A lesson is what was learned from episodes. A playbook is what to do. The memory writes no lesson and no playbook of its own: an agent or a rule of your application says what was learned; the memory keeps the evidence, counts it, and ranks by it.
+
+## Lessons
+
+```python
+from lighthouse import learn, weigh, used, lessons_about
+
+learn(graph, "hot-in-r2", by="reviewer", statement="A hot device in room r2 did not fail.",
+      supported_by=["d1-overheat"], about=[(DEVICE, "d1")])
+lessons_about(graph, DEVICE, "d1")[0]["weight"]  # 1
+```
+
+| Function                                                           | Does                                                                                                  |
+| ------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------- |
+| `learn(graph, id, by, statement, supported_by, about, values, at)` | Stores a lesson that rests on episodes that ended. At least one; a claim with no evidence is refused. |
+| `weigh(graph, id, by, episode_id, agrees)`                         | One more episode for the lesson or against it. An episode counts once.                                |
+| `used(graph, id, by, episode_id, helped=None)`                     | The lesson was used in an episode, and whether that helped.                                           |
+| `retire(graph, id, by, why)`                                       | The lesson no longer holds. It stays, and is no longer given out.                                     |
+| `lesson(graph, id)`                                                | The lesson with its weight and evidence.                                                              |
+| `lessons_about(graph, kind, key, at_least=1, since=None)`          | The lessons about an entity that still hold, heaviest first.                                          |
+
+The **weight** is the episodes that agree, minus those that do not, plus the uses that helped, minus those that did not. A lesson below `at_least` is no longer given out. With `since`, lessons that nothing touched since then fade.
+
+## Playbooks
+
+Writing what an agent will do is riskier than writing what it knows. A playbook has four guards.
+
+| Guard             | How                                                                                      |
+| ----------------- | ---------------------------------------------------------------------------------------- |
+| Enough evidence   | `write_playbook()` needs 3 episodes that ended (`needs` changes it, never below 1).      |
+| Never changed     | A write makes the next version and switches the one before off.                          |
+| An off switch     | `switch(graph, name, by, on=False)`.                                                     |
+| A stop of its own | After 3 failures in a row it switches itself off, in the query that records the failure. |
+
+```python
+from lighthouse import write_playbook, playbooks_for, ran
+
+write_playbook(graph, "hot-device", by="reviewer", trigger={"status": "hot"},
+               steps=[{"do": "check the fan"}], supported_by=["e1", "e2", "e3"])
+playbooks_for(graph, {"status": "hot", "room": "r2"})[0]["steps"]  # [{"do": "check the fan"}]
+ran(graph, "hot-device", by="watcher", episode_id="e4", succeeded=True)
+```
+
+A trigger fits a situation when every property of the trigger is in the situation with the same value.
+
+## Promotion
+
+What repeats in episodes that ended becomes a lesson or a playbook. The memory cannot tell what a repeat is, so you pass a rule: a function of one ended episode that says what it shows.
+
+```python
+def rule(episode):
+    outcome = episode["entries"][-1]
+    return [
+        {"lesson": "d1-fan", "statement": "d1 gets hot because of its fan",
+         "about": [(DEVICE, "d1")], "agrees": outcome["cause"] == "fan"},
+        {"playbook": "cool-d1", "trigger": {"status": "hot", "device": "d1"},
+         "steps": [{"do": outcome["step"]}]},
+        {"ran": "cool-d1", "succeeded": outcome["fixed"]},
+    ]
+
+promote(graph, "reviewer", rule, at_least=3)
+```
+
+- A lesson is learned when `at_least` episodes agree with it; after that each episode weighs it.
+- A playbook is written when `at_least` episodes show the same trigger and steps.
+- Every episode counts once, so `promote()` can run after every read of a source and writes nothing twice.

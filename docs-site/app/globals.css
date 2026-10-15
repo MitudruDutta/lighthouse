@@ -1,0 +1,828 @@
+@import "tailwindcss";
+@import "fumadocs-ui/css/shadcn.css";
+@import "fumadocs-ui/css/preset.css";
+
+/* Notebook shell and prose styles adapted from Rehearsal docs so the docs and the console look like one
+   product: warm ivory canvas, plum surfaces, one burnt-orange accent for things the reader can act on, and four
+   status colours that carry meaning and nothing else (green = verified or a tip, amber = costs money or a caution,
+   red = rule violated or cannot be undone, a lighter azure = a note). */
+:root {
+  --radius: 0.6rem;
+  --background: #f6f2e9;
+  --foreground: #30252c;
+  --card: #fbf8f2;
+  --card-foreground: #30252c;
+  --popover: #fbf8f2;
+  --popover-foreground: #30252c;
+  --primary: #b73f20;
+  --primary-foreground: #fbf8f2;
+  --secondary: #f0e8dc;
+  --secondary-foreground: #403129;
+  --muted: #f1eade;
+  --muted-foreground: #756357;
+  --accent: #f6e3d0;
+  --accent-foreground: #403129;
+  --destructive: #d93036;
+  --success: #12875a;
+  --warning: #a35c00;
+  --info: #2f66d8;
+  --border: #dfd4c5;
+  --input: #d3c3b0;
+  --ring: #b73f20;
+  --sidebar: #f6f2e9;
+  --sidebar-foreground: #403129;
+  --sidebar-primary: #b73f20;
+  --sidebar-primary-foreground: #fbf8f2;
+  --sidebar-accent: #f6e3d0;
+  --sidebar-accent-foreground: #30252c;
+  --sidebar-border: #dfd4c5;
+  --sidebar-ring: #b73f20;
+  /* body text that is quieter than headings but still passes AA on the page colour */
+  --prose: #514337;
+  --code-surface: #fffaf2;
+}
+
+.dark {
+  --background: #241c23;
+  --foreground: #f8efdf;
+  --card: #30252c;
+  --card-foreground: #f8efdf;
+  --popover: #382a32;
+  --popover-foreground: #f8efdf;
+  --primary: #dc8054;
+  --primary-foreground: #fbf8f2;
+  --secondary: #3b2d35;
+  --secondary-foreground: #f8efdf;
+  --muted: #30252c;
+  --muted-foreground: #baa695;
+  --accent: #4a312e;
+  --accent-foreground: #f8efdf;
+  --destructive: #ff6363;
+  --success: #3ecf8e;
+  --warning: #f5a524;
+  --info: #4c9aff;
+  --border: #514039;
+  --input: #655046;
+  --ring: #eab58b;
+  --sidebar: #241c23;
+  --sidebar-foreground: #d9c9b8;
+  --sidebar-primary: #dc8054;
+  --sidebar-primary-foreground: #fbf8f2;
+  --sidebar-accent: #443139;
+  --sidebar-accent-foreground: #f8efdf;
+  --sidebar-border: #514039;
+  --sidebar-ring: #eab58b;
+  --prose: #d9c9b8;
+  --code-surface: #30252c;
+}
+
+/* The accent as text: links and the current navigation item. The button orange is too dark to read on the dark
+   canvas, so text uses the lighter step there. */
+:root {
+  --link: #b73f20;
+}
+.dark {
+  --link: #f1bd95;
+}
+
+/* Fumadocs reads these; point its status colours at ours so callouts match the console. */
+:root,
+.dark {
+  --color-fd-info: var(--info);
+  --color-fd-warning: var(--warning);
+  --color-fd-error: var(--destructive);
+  --color-fd-success: var(--success);
+  --color-fd-idea: var(--success);
+}
+
+@theme inline {
+  --font-sans: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-heading:
+    var(--font-sans), var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-mono), ui-monospace, "SF Mono", Menlo, monospace;
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--destructive);
+  --color-info: var(--info);
+  --color-link: var(--link);
+  --color-prose: var(--prose);
+  --color-code-surface: var(--code-surface);
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+  html {
+    scroll-padding-top: 5rem;
+  }
+  body {
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  ::selection {
+    background: color-mix(in oklab, var(--primary) 28%, transparent);
+  }
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+}
+
+/* ---- Layout. The page is used from edge to edge at every width: the sidebar is at the window's left edge, the
+   list of the page's headings is at the right edge, and the page itself is in the middle of what is between them.
+   On a wide screen the page column and its type grow a step (see .lh-prose), so the middle does not look lost. ---- */
+/* --lh-column is the page: its title, tables and samples. --lh-measure is a line of body text. They are set on the
+   layout, not on :root, because the build drops a :root setting that no theme colour or font refers to. */
+#nd-notebook-layout {
+  --fd-layout-width: 100vw;
+  --lh-column: 50rem;
+  --lh-measure: 45rem;
+}
+@media (min-width: 110rem) {
+  #nd-notebook-layout {
+    --lh-column: 54rem;
+    --lh-measure: 47rem;
+  }
+}
+@media (min-width: 48rem) {
+  #nd-notebook-layout:has([data-sidebar-placeholder]) {
+    --fd-sidebar-width: 280px;
+  }
+}
+@media (min-width: 80rem) {
+  #nd-notebook-layout:has(#nd-toc) {
+    --fd-toc-width: 264px;
+  }
+}
+
+/* Sidebar: every section in one list. Quiet until needed; the current page is the only item in the accent orange. */
+#nd-sidebar {
+  width: var(--fd-sidebar-width);
+  background: var(--background);
+  border-inline-end: 1px solid var(--border);
+}
+#nd-sidebar a[data-active="true"],
+#nd-sidebar-mobile a[data-active="true"] {
+  color: var(--link);
+  background: color-mix(in oklab, var(--primary) 10%, transparent);
+  font-weight: 500;
+}
+/* the first level (Overview and the six sections): icon and name read as headings, a section's pages hang under it */
+:is(#nd-sidebar, #nd-sidebar-mobile)
+  [data-radix-scroll-area-viewport]
+  > div
+  > a,
+:is(#nd-sidebar, #nd-sidebar-mobile)
+  [data-radix-scroll-area-viewport]
+  > div
+  > [data-state]
+  > :is(a, button) {
+  color: var(--foreground);
+  font-weight: 500;
+}
+:is(#nd-sidebar, #nd-sidebar-mobile)
+  [data-radix-scroll-area-viewport]
+  > div
+  > a:not([data-active="true"])
+  > svg:first-child,
+:is(#nd-sidebar, #nd-sidebar-mobile)
+  [data-radix-scroll-area-viewport]
+  > div
+  > [data-state]
+  > :is(a, button):not([data-active="true"])
+  > svg:first-child {
+  color: var(--muted-foreground);
+}
+/* a group inside a section ("First result", "Understand"): a small label, close to the pages it names */
+:is(#nd-sidebar, #nd-sidebar-mobile) [data-state] p {
+  margin-top: 0.875rem;
+  margin-bottom: 0.25rem;
+  font-size: 0.6875rem;
+  line-height: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+:is(#nd-sidebar, #nd-sidebar-mobile) [data-state] p:first-child {
+  margin-top: 0.5rem;
+}
+
+/* The Ask AI panel takes the place of the right rail. */
+#nd-notebook-layout > aside {
+  background: var(--background);
+}
+
+/* ---- Type: section 9.3. Scoped to the page body (.lh-prose): Fumadocs also puts "prose" on small things such as
+   table-of-contents items, which must keep their own size and colour. ---- */
+.lh-prose {
+  color: var(--prose);
+  font-size: 1rem;
+  line-height: 1.6875; /* 27px */
+  max-width: var(
+    --lh-column
+  ); /* the title, the body and the footer share one left edge */
+}
+@media (min-width: 110rem) {
+  .lh-prose {
+    font-size: 1.0625rem;
+  }
+}
+.lh-prose :where(h1, h2, h3, h4) {
+  color: var(--foreground);
+  scroll-margin-top: 5.5rem;
+  text-wrap: balance;
+}
+.lh-prose :where(h2) {
+  font-family: var(--font-heading);
+  font-size: 1.625rem;
+  line-height: 2.125rem;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  margin-top: 3rem;
+  margin-bottom: 1rem;
+}
+.lh-prose :where(h3) {
+  font-family: var(--font-heading);
+  font-size: 1.25rem;
+  line-height: 1.75rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin-top: 2rem;
+  margin-bottom: 0.625rem;
+}
+.lh-prose :where(h4) {
+  font-size: 1rem;
+  line-height: 1.5rem;
+  font-weight: 600;
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+}
+.lh-prose :where(p, ul, ol, blockquote, dl) {
+  max-width: var(--lh-measure); /* 60 to 75 characters of body text */
+}
+.lh-prose :where(strong) {
+  color: var(--foreground);
+  font-weight: 600;
+}
+/* Links are the only text in the accent orange in the body. */
+.lh-prose :where(a):not([data-card], .not-prose *) {
+  color: var(--link);
+  text-decoration-line: underline;
+  text-decoration-color: color-mix(in oklab, var(--link) 35%, transparent);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  font-weight: 500;
+}
+.lh-prose :where(a):not([data-card], .not-prose *):hover {
+  text-decoration-color: var(--link);
+}
+.lh-prose :where(:not(pre) > code):not(.not-prose *) {
+  font-family: var(--font-mono);
+  font-size: 0.875em;
+  font-weight: 400;
+  color: var(--foreground);
+  background: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 0.375rem;
+  padding: 0.1em 0.35em;
+}
+.lh-prose :where(hr) {
+  border-color: var(--border);
+  margin-block: 2.5rem;
+}
+
+/* Tables scroll inside their own frame, never the page. */
+.lh-prose :where(table) {
+  font-size: 0.9375rem;
+  line-height: 1.5rem;
+}
+.lh-prose :where(thead th) {
+  background: var(--muted);
+  color: var(--foreground);
+  font-weight: 600;
+  text-align: start;
+  white-space: nowrap;
+}
+.lh-prose :where(td, th) {
+  vertical-align: top;
+}
+.lh-prose :where(td:first-child) > :where(code):first-child {
+  white-space: nowrap;
+}
+.lh-prose :where(td:not(:first-child)) :where(code) {
+  overflow-wrap: anywhere;
+}
+
+/* Code blocks: 14 / 22 px. */
+.lh-prose :where(pre) {
+  font-size: 0.875rem;
+  line-height: 1.375rem;
+}
+figure.shiki {
+  background: var(--code-surface);
+  border-color: var(--border);
+  border-radius: var(--radius);
+  box-shadow: none;
+}
+
+/* An empty line in a sample keeps its height. */
+figure.shiki .line {
+  min-height: 1lh;
+}
+
+/* A value the reader must replace, written <like_this>: amber and slanted, so it is not typed as it is. */
+.shiki .lh-placeholder,
+.lh-prose code .lh-placeholder {
+  color: var(--warning) !important;
+  font-style: italic;
+}
+
+/* What the reader should see after a step: quieter than a command, and nothing to copy. */
+.lh-output figure.shiki {
+  background: transparent;
+  border-style: dashed;
+  margin-block: 0;
+}
+.lh-output figure.shiki button {
+  display: none;
+}
+.lh-output pre {
+  color: var(--muted-foreground);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Lighthouse product chrome; Rehearsal's notebook columns remain the layout engine. */
+:root {
+  --rule: var(--border);
+  --ink: var(--foreground);
+  --ink-2: var(--muted-foreground);
+  --ink-3: var(--muted-foreground);
+  --light: var(--link);
+  --font-display: var(--font-sans);
+}
+body {
+  font-size: 16px;
+}
+a {
+  text-decoration: none;
+}
+.skip {
+  position: fixed;
+  top: -100px;
+  left: 12px;
+  z-index: 100;
+  background: var(--primary);
+  color: #fff4e6;
+  padding: 12px 16px;
+  border-radius: 6px;
+}
+.skip:focus {
+  top: 12px;
+}
+#nd-notebook-layout {
+  --fd-layout-width: 100vw;
+  --lh-column: 56rem;
+  --lh-measure: 47rem;
+}
+@media (min-width: 48rem) {
+  #nd-notebook-layout:has([data-sidebar-placeholder]) {
+    --fd-sidebar-width: 280px;
+  }
+}
+@media (min-width: 80rem) {
+  #nd-notebook-layout:has(#nd-toc) {
+    --fd-toc-width: 250px;
+  }
+}
+.lh-header {
+  height: 72px;
+  background: color-mix(in oklab, var(--background) 94%, transparent);
+  backdrop-filter: blur(15px);
+  border-bottom: 1px solid var(--border);
+}
+.lh-header-inner {
+  height: 100%;
+  display: grid;
+  grid-template-columns: minmax(max-content, 1fr) minmax(0, 36rem) minmax(
+      max-content,
+      1fr
+    );
+  gap: 25px;
+  align-items: center;
+  padding: 0 25px;
+}
+.lh-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  width: max-content;
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.04em;
+}
+.lh-brand svg {
+  color: var(--primary);
+}
+.lh-brand small {
+  display: block;
+  font-size: 11px;
+  color: var(--muted-foreground);
+  font-weight: 400;
+  letter-spacing: 0.03em;
+}
+.lh-search {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 12px;
+  min-height: 42px;
+  padding: 10px 14px;
+  background: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--muted-foreground);
+  font-size: 14px;
+  cursor: pointer;
+  text-align: left;
+}
+.lh-search span {
+  flex: 1;
+}
+.lh-search kbd {
+  font-size: 11px;
+  white-space: nowrap;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 4px;
+}
+.lh-header-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 13px;
+}
+.lh-header-actions svg {
+  flex-shrink: 0;
+}
+.lh-source {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 14px;
+  color: var(--muted-foreground);
+  white-space: nowrap;
+}
+.lh-console-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  background: var(--primary);
+  color: #fff6e9;
+  min-height: 42px;
+  padding: 10px 15px;
+  border-radius: 8px;
+  font-size: 14px;
+  white-space: nowrap;
+}
+.lh-icon {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: 7px;
+  color: var(--muted-foreground);
+  cursor: pointer;
+}
+.lh-icon:hover {
+  background: var(--muted);
+}
+.lh-mobile-search,
+.lh-nav-trigger {
+  display: none;
+}
+#nd-sidebar,
+#nd-sidebar-mobile {
+  font-size: 15px;
+}
+.lh-page {
+  padding-top: 32px;
+  padding-inline: clamp(24px, 3vw, 60px);
+}
+#nd-sidebar a,
+#nd-sidebar button {
+  min-height: 38px;
+  font-size: 14px;
+  line-height: 1.55;
+}
+#nd-toc {
+  font-size: 13px;
+  border-left: 1px solid var(--border);
+  padding-left: 25px;
+}
+.lh-prose {
+  color: var(--prose);
+  font-size: 17px;
+  line-height: 1.75;
+}
+.lh-prose h1 {
+  font-size: clamp(36px, 3vw, 48px);
+  line-height: 1.15;
+  font-weight: 550;
+  letter-spacing: -0.045em;
+  margin: 12px 0 25px;
+}
+.lh-prose h2 {
+  font-size: 28px;
+  font-weight: 550;
+  letter-spacing: -0.03em;
+  margin-top: 35px;
+  margin-bottom: 15px;
+}
+.lh-prose h3 {
+  font-size: 20px;
+  font-weight: 550;
+  margin-top: 25px;
+}
+.lh-prose strong {
+  font-weight: 600;
+}
+.lh-prose p {
+  color: var(--prose);
+  margin-block: 17px;
+}
+.lh-prose li {
+  margin-block: 7px;
+}
+.lh-prose table {
+  font-size: 15px;
+}
+.lh-prose table th,
+.lh-prose table td {
+  padding: 13px;
+  border-bottom: 1px solid var(--border);
+}
+.table-wrap {
+  overflow-x: auto;
+  position: relative;
+  margin-block: 24px;
+  max-width: 100%;
+}
+.table-wrap table {
+  width: 100%;
+  min-width: 500px;
+}
+.lh-code-block {
+  position: relative;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: #30252c;
+  color: #f0d0ad;
+  overflow: hidden;
+  margin-block: 22px;
+}
+.lh-code-block > button {
+  position: absolute;
+  z-index: 1;
+  right: 12px;
+  top: 12px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  color: #e5c5a9;
+  background: #46323d;
+  border: 1px solid #6e4b44;
+  border-radius: 5px;
+  min-height: 32px;
+  padding: 5px 9px;
+  cursor: pointer;
+}
+.lh-code-block pre {
+  font:
+    14px/1.8 var(--font-mono),
+    monospace;
+  background: transparent;
+  color: inherit;
+  overflow: auto;
+  margin: 0;
+  padding: 50px 23px 23px;
+  border-radius: 0;
+}
+.lh-code-block pre code {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+}
+.page-tools {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 15px;
+  color: var(--primary);
+  font-size: 13px;
+  margin-bottom: 15px;
+}
+.page-tools button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 11px;
+  background: var(--muted);
+  color: var(--muted-foreground);
+  font-size: 12px;
+  cursor: pointer;
+}
+.lh-article-footer {
+  font-size: 13px;
+  color: var(--muted-foreground);
+  border-top: 1px solid var(--border);
+  padding-top: 22px;
+  margin-top: 28px;
+}
+.docs-home-hero {
+  border-bottom: 1px solid var(--border);
+  padding: 8px 0 28px;
+  margin-bottom: 28px;
+}
+.docs-home-hero h1 {
+  max-width: 20ch;
+  font-size: clamp(38px, 3.4vw, 54px);
+}
+.hero-kicker {
+  font: 12px var(--font-mono);
+  color: var(--link);
+  letter-spacing: 0.06em;
+}
+.docs-home-hero > p {
+  max-width: var(--lh-measure);
+}
+.button-quiet {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 7px 11px;
+  font-size: 13px;
+}
+.docs-home-hero .button-quiet {
+  background: var(--primary);
+  color: #fff5e6;
+  border-color: var(--primary);
+  padding: 11px 17px;
+  font-size: 15px;
+  text-decoration: none;
+}
+.docs-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin: 23px 0;
+}
+.docs-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 22px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card);
+  transition:
+    border-color 0.2s,
+    background 0.2s;
+}
+.lh-prose .docs-card {
+  text-decoration: none;
+}
+.docs-card:hover {
+  border-color: var(--primary);
+  background: var(--accent);
+}
+.docs-card > svg {
+  color: var(--primary);
+}
+.lh-prose .docs-card h3 {
+  font-size: 17px;
+  margin: 0;
+}
+.lh-prose .docs-card p {
+  font-size: 14px;
+  margin: 0;
+  line-height: 1.7;
+}
+.docs-card span {
+  font-size: 13px;
+  margin-top: auto;
+  padding-top: 8px;
+  color: var(--link);
+}
+@media (max-width: 1100px) {
+  .lh-header-inner {
+    gap: 20px;
+  }
+  .lh-source {
+    display: none;
+  }
+  .lh-console-link {
+    padding-inline: 12px;
+  }
+  .lh-brand {
+    font-size: 18px;
+  }
+}
+@media (max-width: 767px) {
+  .lh-header-inner {
+    display: flex;
+    padding-inline: 17px;
+    gap: 14px;
+  }
+  .lh-header-actions {
+    gap: 7px;
+    margin-left: auto;
+  }
+  .lh-search,
+  .lh-source,
+  .lh-console-link {
+    display: none;
+  }
+  .lh-mobile-search,
+  .lh-nav-trigger {
+    display: grid;
+  }
+  .lh-brand {
+    font-size: 18px;
+  }
+  .lh-brand small {
+    font-size: 10px;
+  }
+  .lh-page {
+    padding: 25px 20px 35px;
+  }
+  .lh-prose {
+    font-size: 16px;
+  }
+  .lh-prose h1 {
+    font-size: 36px;
+  }
+  .lh-prose h2 {
+    font-size: 26px;
+    margin-top: 30px;
+  }
+  .lh-prose h3 {
+    font-size: 19px;
+  }
+  .docs-cards {
+    grid-template-columns: 1fr;
+  }
+  .docs-home-hero h1 {
+    font-size: 38px;
+  }
+  .lh-code-block pre {
+    font-size: 13px;
+    padding-inline: 18px;
+  }
+  .page-tools {
+    font-size: 12px;
+  }
+}
+
+.dark .lh-console-link,
+.dark .docs-home-hero .button-quiet {
+  color: #241c23;
+}

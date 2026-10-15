@@ -1,0 +1,83 @@
+export const metadata = { title: "Quickstart" };
+
+# Quickstart
+
+The memory is the Python package `lighthouse` in `lighthouse-memory/`. It depends on one package, the FalkorDB client, and needs Python 3.12 or later and a running FalkorDB.
+
+Using project API keys instead? See the [Memory HTTP API](/memory-api). This quickstart covers direct Python access.
+
+## Install
+
+From your project, with uv:
+
+```bash
+uv add --editable ../lighthouse-memory
+```
+
+or with pip:
+
+```bash
+pip install -e ../lighthouse-memory
+```
+
+Connect to a running FalkorDB instance. Follow the [official installation guide](https://docs.falkordb.com/) or use a managed instance. The example below assumes a local database on port `6379`; use your own host, port, and credentials.
+
+## Declare what you remember
+
+A `Kind` is a kind of thing: its label, the property that identifies one, the values that are times, the relations it has to other kinds, and the values that can be searched by their words.
+
+```python
+from falkordb import FalkorDB
+from lighthouse import Kind, ensure_schema, remember, history, as_of, related
+
+ROOM = Kind("Room", key="code")
+DEVICE = Kind(
+    "Device",
+    key="serial",
+    times=("last_seen",),
+    text=("note",),
+    relations={"LOCATED_IN": ROOM},
+)
+
+graph = FalkorDB(host="127.0.0.1", port=6379).select_graph("world")
+ensure_schema(graph, [DEVICE])  # once, before the first write
+```
+
+`ensure_schema()` makes the unique key of each kind and the indexes the memory reads, and returns only when they are ready. Call it on every start; it changes nothing that is there.
+
+## Write rows
+
+A row is the whole picture of one thing at one time. Send rows as they come; the memory works out what changed.
+
+```python
+remember(graph, DEVICE, by="inventory", rows=[
+    {"key": "d1", "t": "2026-01-01T00:00:00Z",
+     "values": {"status": "ok", "note": "pump room sensor"},
+     "relations": {"LOCATED_IN": "r1"}},
+])
+# [{"key": "d1", "status": "created"}]
+
+remember(graph, DEVICE, by="inventory", rows=[
+    {"key": "d1", "t": "2026-01-02T00:00:00Z",
+     "values": {"status": "hot", "note": "pump room sensor"},
+     "relations": {"LOCATED_IN": "r2"}},
+])
+# [{"key": "d1", "status": "changed"}]
+```
+
+Each row gets a receipt. A row that cannot be stored is never lost silently: it is kept as a `WriteFailure` in the graph, with the reason.
+
+## Read it back, at any time
+
+```python
+history(graph, DEVICE, "d1")                                # both versions, oldest first
+as_of(graph, DEVICE, "d1", "2026-01-01T12:00:00Z")["status"]  # "ok"
+related(graph, DEVICE, "d1", "LOCATED_IN")                    # ["r2"]
+related(graph, DEVICE, "d1", "LOCATED_IN", "2026-01-01T12:00:00Z")  # ["r1"]
+```
+
+## Next
+
+- [The memory model](/model): what is in the graph.
+- [Remember and read history](/history): the write rule, late rows, and partial updates.
+- [Episodes and evidence](/episodes): what agents saw and did.

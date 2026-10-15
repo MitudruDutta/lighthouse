@@ -1,0 +1,56 @@
+export const metadata = { title: "Tasks and handoffs" };
+
+# Tasks and handoffs
+
+Agents work together through the graph: a task is claimed by one agent, and a handoff passes a piece of the record to another.
+
+## Tasks
+
+```python
+from lighthouse import add_task, claim, complete, release
+
+add_task(graph, "check-d1", "check", ref="d1")
+add_task(graph, "report-d1", "report", ref="d1", after=["check-d1"])  # waits for the first
+
+task = claim(graph, "agent-a", "check", lease=600)  # the oldest free task of the kind, or None
+complete(graph, "agent-a", task["id"])               # only its owner can
+```
+
+| Function                                        | Does                                                                                 |
+| ----------------------------------------------- | ------------------------------------------------------------------------------------ |
+| `add_task(graph, id, kind, ref=None, after=())` | Adds an open task that waits for the tasks in `after`. `False` if the id exists.     |
+| `claim(graph, agent, kind, lease=None)`         | Gives the oldest free task of a kind to an agent, for `lease` seconds or until done. |
+| `complete(graph, agent, task_id)`               | Marks a task done. Only its owner can, once.                                         |
+| `release(graph, agent, task_id)`                | Gives a claimed task back. Only its owner can.                                       |
+
+- **A task is claimed once.** The claim is one query, and FalkorDB runs one write at a time on a graph: twelve agents racing for sixty tasks end with one owner each.
+- A task can only come after tasks that exist, so the order has no cycle. It is free once every task it comes after is done.
+- A claim with a `lease` holds that many seconds, at most seven days. After that another agent can claim it, and the first can no longer complete it.
+
+## Handoffs
+
+A handoff points at what the receiver must read; it holds no copy.
+
+```python
+from lighthouse import hand_off, handoffs_for, accept
+
+hand_off(graph, "h1", by="watcher", to="desk",
+         points_to=[("Episode", "d1-overheat"), (DEVICE, "d1")],
+         values={"ask": "Is d1 about to fail?"})
+handoffs_for(graph, "desk")      # what waits for the desk, oldest first
+accept(graph, "h1", by="desk")   # {"id": "h1", "status": "accepted"}
+```
+
+| Status     | Meaning                                                                     |
+| ---------- | --------------------------------------------------------------------------- |
+| `given`    | The handoff was made                                                        |
+| `exists`   | A handoff with this id is there already, or its receiver accepted it before |
+| `accepted` | The receiver took it                                                        |
+| `refused`  | An agent that is not the receiver tried to accept it                        |
+| `unknown`  | There is no such handoff                                                    |
+| `missing`  | Something it points at does not exist                                       |
+| `invalid`  | It points at nothing, or its values cannot be stored                        |
+
+- A handoff must point at something that exists: one that only carries text is refused.
+- `accept()` reads the receiver and marks the handoff in one query, so it is accepted once, by its receiver.
+- The names of agents are names your code gives. Set them from who is signed in, never from what a model wrote. See [security](/security).

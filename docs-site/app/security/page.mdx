@@ -1,0 +1,34 @@
+export const metadata = { title: "Security and limits" };
+
+# Security and limits
+
+The memory was attacked with query text in every input, bytes the database cannot parse, values too deep or too large, oversized rows, and rows dated in the future. No input changed a query. Inputs are validated before reaching query syntax, and writes return explicit receipts. These checks do not replace application authorization or resource limits. Every attack that once did damage is now a test in `lighthouse-memory/tests/test_attacks.py`.
+
+## What the memory does not do, and your application must
+
+- **It does not know who is calling.** `by`, the agent of a task, the receiver of a handoff, and the user of a conversation are names your code gives. Set them from an authenticated identity, in server code; never from a model's output or a person's message.
+- **It does not decide who may read.** Whoever holds a graph reads all of it. Give each tenant only its own graph.
+- **It does not limit how often a caller writes or asks a heavy question.** Each call is bounded; the number of calls is not. FalkorDB cannot stop the graph algorithms while they run, and writes wait for them.
+- **It does not judge what a message says.** Give a model what people and feeds wrote as data, never as instructions.
+- **It erases conversations only.** Do not put what a person may ask to have erased into entities, episodes, or lessons.
+- **It does not hide refused input.** Up to 2,000 characters of a refused write are kept in the graph.
+
+## Integrating safely
+
+Authenticate callers before choosing a graph, user, or agent name. Expose a small set of typed functions instead of unrestricted Cypher. Validate model-proposed actions before executing them. Apply request budgets and concurrency limits outside the library, and keep database credentials and model keys on your server.
+
+See [MCP integration](/mcp), [tenant graphs](/tenants), and [model integration](/integrations). Use the [official FalkorDB security guidance](https://docs.falkordb.com/) when configuring database access.
+
+## Limits on input
+
+| Limit                                            | Value                                                    | Why                                                             |
+| ------------------------------------------------ | -------------------------------------------------------- | --------------------------------------------------------------- |
+| Key, id, or name                                 | 1 to 200 visible characters                              | A NUL made the database refuse a whole batch                    |
+| Property name                                    | A letter or `_`, then letters, digits, `_`; at most 100  | The only input that reaches query syntax                        |
+| Text value                                       | 100,000 characters, no NUL                               |                                                                 |
+| Targets of one relation; references of one entry | 200                                                      | One row with 20,000 targets held the write lock for 227 seconds |
+| One row or entry                                 | 200,000 characters                                       |                                                                 |
+| Time of a row or entry                           | Not more than 5 minutes ahead                            | One row dated in the year 9999 froze its entity                 |
+| Entries of one episode                           | 5,000                                                    |                                                                 |
+| Question of a search                             | 1,000 characters read, 20 words, letters and digits only | A question in the index's own language listed everything        |
+| Detail kept of a refused write                   | 2,000 characters                                         | A refused 10 MB value was once stored whole                     |

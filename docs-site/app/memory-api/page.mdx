@@ -1,0 +1,49 @@
+export const metadata = { title: "Memory HTTP API" };
+
+# Memory HTTP API
+
+The Lighthouse Memory service exposes project-scoped structured memories over HTTP. Its developer console is a separate website from this documentation. The Python library connects directly to FalkorDB; it does not require a Lighthouse API key.
+
+## Create a project key
+
+Open the Memory console, create a project, then choose **API keys → Create API key**. Name the key, select read and/or write access, and choose its expiry. Copy the secret once and keep it in your application server’s environment. The console lists only a prefix after creation. Revoke unused keys from the same page.
+
+A key selects exactly one project graph. Clients cannot change the project using a request parameter. Account sessions and project keys are different credentials: sessions access your console; keys access the `/v1` memory endpoints.
+
+## Store a memory
+
+Use your service address as `LIGHTHOUSE_MEMORY_URL` and your key as `LIGHTHOUSE_MEMORY_KEY`. This example is a request format; no request is sent by this page.
+
+```bash
+curl "$LIGHTHOUSE_MEMORY_URL/v1/memories" \
+  -H "Authorization: Bearer $LIGHTHOUSE_MEMORY_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"key":"decision-001","title":"Preferred language","text":"Use Python examples.","metadata":{"source":"user preference"},"links":[]}'
+```
+
+Reusing an identifier writes a new version when its values change. Writes use UTC whole-second observation times. Conflicting updates to one identifier within the same second are refused; retry after the clock advances. Earlier versions remain available through history. `links` contains identifiers already stored in the same project and replaces that memory’s current outgoing connections.
+
+## Read and follow connections
+
+| Method | Endpoint                                          | Scope          | Result                                                  |
+| ------ | ------------------------------------------------- | -------------- | ------------------------------------------------------- |
+| POST   | `/v1/memories`                                    | `memory:write` | Write receipt: created, changed, unchanged, or inserted |
+| GET    | `/v1/memories?q=python`                           | `memory:read`  | Up to 100 memories; optional full-text search           |
+| GET    | `/v1/memories/decision-001/history`               | `memory:read`  | Stored versions in `data`                               |
+| GET    | `/v1/connections?start=note-002&end=decision-001` | `memory:read`  | Connection paths, bounded to six hops, in `data`        |
+
+List responses include `data` and `limit`. No pagination is currently available. The console’s usage page records successful memory operations; it is an activity record, not a billing meter. Failed and refused requests are not included in those totals.
+
+## Limits and errors
+
+Requests are bounded to 64 KiB. Identifiers contain 1–100 characters: letters, digits, `_`, `.`, `:`, `/`, or `-`, starting with a letter or digit. Titles support 200 characters, memory text 12,000 characters, metadata 12,000 JSON characters, and each memory up to 50 outgoing connections.
+
+Each project key permits 120 authenticated requests per UTC minute. Invalid credentials return `401`; insufficient scope returns `403`; invalid input returns `422`; excessive request size returns `413`; request limits return `429`. Service failures return a safe `503` message, with diagnostic details kept in server logs.
+
+The HTTP service currently covers structured writes, text search, history, and connection paths. Episodes, lessons, playbooks, conversations, semantic recall, and coordination are available through the [Python library](/reference), not these HTTP endpoints.
+
+## Preview status
+
+The current service is a local developer preview. Paid subscriptions, managed cloud hosting, email verification, password recovery, and team invitations are not active. Each account has a private workspace; each project has a separate graph. The preview supports 20 projects per workspace and 20 active keys per project, with expiry between 1 and 365 days.
+
+See [security and limits](/security), [tenant graphs](/tenants), and [the library quickstart](/library) for direct FalkorDB integration.

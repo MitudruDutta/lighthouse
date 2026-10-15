@@ -1,0 +1,48 @@
+export const metadata = { title: "Conversations" };
+
+# Conversations
+
+What was said, for each user, in order. The functions take the graph that holds the conversations: with one graph for each tenant, that is the graph of the tenant.
+
+```python
+from lighthouse import say, messages, context, summarize, said, said_about
+
+say(graph, "ann", "main", "user", "why is d1 hot?", by="ann", mentions=[(DEVICE, "d1")])
+say(graph, "ann", "main", "assistant", "the fan stopped", by="desk", mentions=[(DEVICE, "d1")])
+[m["text"] for m in messages(graph, "ann", "main")]  # ["why is d1 hot?", "the fan stopped"]
+said_about(graph, "ann", (DEVICE, "d1"))[0]["text"]   # "the fan stopped": newest first
+```
+
+| Function                                                                          | Does                                                                                                |
+| --------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| `say(graph, user, session_id, role, text, by, mentions=(), values=None, at=None)` | Adds one message. The first message opens the session.                                              |
+| `messages(graph, user, session_id, last=20, before=None)`                         | The last messages, oldest first. `before` reads further back.                                       |
+| `sessions(graph, user, limit=20)`                                                 | The sessions of the user, the one written to last first.                                            |
+| `said_about(graph, user, reference, limit=20)`                                    | The messages that mention one thing, newest first.                                                  |
+| `said(graph, user, question, limit=10, match="all")`                              | The messages whose text has the words of a question.                                                |
+| `summarize(graph, user, session_id, text, upto, by)`                              | Stores what the messages up to number `upto` come to.                                               |
+| `context(graph, user, session_id, last=20)`                                       | What a model needs to go on: the summary, the messages after it, and how many wait to be summed up. |
+| `forget_session(graph, user, session_id)`                                         | Deletes one session and everything of it.                                                           |
+| `forget_user(graph, user)`                                                        | Deletes everything the user said in the graph.                                                      |
+
+## What holds
+
+- **A session belongs to one user, and every call names the user.** Two users can both have a session `main`, and no id that one asks for reaches a session of the other.
+- A message takes its number and its place in one query: messages written at once by several writers get one order.
+- A mention is a name, not an edge: the thing may be in another graph.
+- The summary is your model's text; the memory holds no model. `context()` says with `waiting` when it is time to sum up again.
+
+## A long session
+
+```python
+found = context(graph, "ann", "main", last=20)
+# {"summary": None, "upto": 0, "messages": [the last 20], "waiting": 37}
+older = messages(graph, "ann", "main", last=37, before=found["messages"][0]["seq"])
+summarize(graph, "ann", "main", your_model_sums_up(older), upto=37, by="desk")
+```
+
+## Forgetting
+
+Forgetting is the one place where the memory deletes what was written. `forget_session()` deletes the messages, the session and its summary, each reference that nothing else mentions, and what was kept of refused messages. After it, no property of any node or edge holds what the session held.
+
+Entities, episodes, and lessons are never deleted. Do not put there what a person may ask to have erased.

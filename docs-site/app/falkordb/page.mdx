@@ -1,0 +1,46 @@
+export const metadata = { title: "FalkorDB behaviour" };
+
+# FalkorDB behaviour
+
+Lighthouse Memory builds its records and coordination rules on FalkorDB. The database supplies graph storage, traversal, indexes, and algorithms; the library supplies time-aware state, evidence records, write receipts, and agent memory semantics.
+
+## Capabilities used by memory
+
+| FalkorDB capability                                         | Lighthouse Memory use                                           | Guide                                 |
+| ----------------------------------------------------------- | --------------------------------------------------------------- | ------------------------------------- |
+| Property graph and Cypher traversal                         | Follow entities, evidence, and versioned relationships          | [Memory model](/model)                |
+| `shortestPath`, connected components, PageRank, betweenness | Explain connections and inspect graph structure                 | [Algorithms](/algorithms)             |
+| Full-text indexes                                           | Recall entities, earlier states, entries, and messages by words | [Recall](/recall)                     |
+| Vector indexes                                              | Retrieve semantic neighbours using your embedder                | [Semantic recall](/recall#by-meaning) |
+| Independent graphs                                          | Separate tenant memory from shared context                      | [Tenants](/tenants)                   |
+| Atomic single-query writes                                  | Allocate task claims and ordered record entries                 | [Coordination](/coordination)         |
+
+Native algorithm results describe graph structure, not causal proof or business risk. Historical algorithm queries use the library's snapshot path because native algorithms cannot filter every relation by its validity window.
+
+Official references: [FalkorDB documentation](https://docs.falkordb.com/), [indexing](https://docs.falkordb.com/cypher/indexing), and [FalkorDB Python client](https://github.com/FalkorDB/falkordb-py).
+
+## Tested behaviour
+
+The following observations were found by tests on the project's pinned image (graph module 60002, falkordb-py 1.7.1). They are version-specific observations, not claims about every FalkorDB release. The library works around them; revalidate when upgrading.
+
+| Behaviour                                                                                                                                                | What the memory does                                                                 |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| A node written while its index is being built is never added to that index: `MATCH` and `MERGE` by key miss it for good. Seen in 68 of 150 fresh graphs. | `ensure_schema()` waits until every index is operational.                            |
+| Making an index or constraint while another is being made is refused: "another write is in progress".                                                    | `ensure_schema()` asks again, until its deadline.                                    |
+| Rows of one `UNWIND` do not see writes made for earlier rows of the same query.                                                                          | An entity is sent at most once per query.                                            |
+| A pattern comprehension inside a `FOREACH` list corrupts the loop variable, with no error.                                                               | Open edges are read with `OPTIONAL MATCH` and `collect()` before the writes.         |
+| A pattern with an unnamed edge matches two nodes once, even with several parallel edges.                                                                 | Queries that count edges name the edge.                                              |
+| `localdatetime()` rejects `...:11Z` and keeps whole seconds; the client cannot send a `datetime`.                                                        | Times are sent as text in UTC and converted in the query.                            |
+| A NUL byte in any parameter makes the server refuse the whole query.                                                                                     | Text with a NUL is refused for its row only, before the query.                       |
+| A write cannot be stopped by a timeout, and it blocks every other writer of the graph.                                                                   | Each query carries a bounded load.                                                   |
+| The full-text index does not split words at a line break, a no-break space, or `_`.                                                                      | The index reads the letters and digits of the text, one space between them.          |
+| The full-text index reads a question as a query: `*` matches everything.                                                                                 | Only the letters and digits of a question are sent.                                  |
+| A vector of another size than its index is stored without an error and never found.                                                                      | Vectors are checked against the kind's size first.                                   |
+| The vector index searches with `efRuntime` 10 by default, and filters after the nearest `k`.                                                             | The index is made with `efRuntime` 100; outdated vectors are taken out at the write. |
+| A timeout does not stop `algo.WCC`, `algo.pageRank`, or `algo.betweenness`.                                                                              | Each has a bounded cost, and answers are kept until the graph grows.                 |
+| An empty list of labels or edge types in an algorithm means all of them.                                                                                 | No kind, or no relation, is an error before a query is built.                        |
+| An `OPTIONAL MATCH` right after an aggregating `WITH` finds nothing when it filters on a property of the node it matches.                                | A plain `WITH` passes the aggregate on first.                                        |
+| Aggregates beside a grouping key computed from the same variable all come back as the first aggregate.                                                   | Keys are named in a `WITH` before the aggregates.                                    |
+| `algo.SPpaths` took 240 to 2,500 ms for the fewest steps between two of 100,000 nodes.                                                                   | `connection()` uses `shortestPath`: 1 ms.                                            |
+| `UNWIND $ids AS i MATCH (x)-[o]-(y) WHERE id(x) = i` traverses every edge: 970 ms where a seek takes 3 ms.                                               | Each node is found by its id first, then its edges.                                  |
+| A result longer than 10,000 rows is cut without a sign.                                                                                                  | Long reads are taken in pages.                                                       |

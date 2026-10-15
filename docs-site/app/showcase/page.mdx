@@ -1,0 +1,48 @@
+export const metadata = { title: "Memory use cases" };
+
+# Memory use cases
+
+Lighthouse Memory provides reusable building blocks for connected reasoning and persistent agent state. The patterns below describe ways to compose the library; they are not separate products shipped by the package.
+
+## Security finding triage
+
+Model repositories, services, findings, and owners as `Kind` entities. Store each incoming observation with `remember()`, preserving changes and ownership history. Use `pointing_at()` to find findings affecting a service and `connection()` to explain how an exposed dependency reaches another component.
+
+Open an episode for a triage decision, append observations and proposed actions with `record()`, and cite the entities that support each step. A remediation worker can claim a task and receive a handoff pointing at the episode. Your integration controls whether a proposed remediation runs.
+
+Read [history](/history), [episodes](/episodes), [graph algorithms](/algorithms), and [task coordination](/coordination).
+
+## Fraud investigation
+
+Represent accounts, transfers, devices, and merchants with explicit relationships. Connected components can surface groups sharing evidence; PageRank can identify structurally central entities. Neither result establishes fraud by itself.
+
+Keep investigations as episodes. Record the rule or model assessment, the supporting entities, and the human-reviewed outcome. Completed investigations can support lessons; repeated successful procedures can become playbooks under your promotion policy.
+
+Read [recall](/recall), [graph algorithms](/algorithms), and [lessons and playbooks](/learning).
+
+## Codebase reasoning
+
+Represent files, symbols, dependencies, and owners as versioned entities. A dependency update becomes a new state rather than erasing the old one. Traverse connections to collect impacted components, then record the proposed change and its evidence in an episode.
+
+Your parser creates rows; your agent chooses tools; your test runner checks changes. Lighthouse stores the history, references, and coordination state between those steps.
+
+Read [the memory model](/model), [history](/history), and [MCP integration](/mcp).
+
+## Agents that remember across sessions
+
+Choose a tenant graph from authenticated identity. Store messages with `say()` and retrieve recent context with `context()`. Summarize older messages using your own model, then store the result with `summarize()`. Use `said()` or `said_about()` to recall relevant earlier conversations.
+
+Memory persists in FalkorDB subject to the database's persistence configuration. The library does not deploy the database, authenticate a user, or choose a language model.
+
+Read [conversation memory](/conversations), [tenant isolation](/tenants), and [model integration](/integrations).
+
+## A shared workflow
+
+1. Ingest a structured observation and inspect its write receipt.
+2. Retrieve connected evidence and relevant history.
+3. Record the agent's decision and references in an episode.
+4. Claim a task and hand context to the next worker.
+5. Record the actual outcome.
+6. Promote repeated evidence into lessons or playbooks using your rules.
+
+This supports both agents acting on connected data and agents sharing persistent memory. The [Python API](/reference) lists the functions behind each step.

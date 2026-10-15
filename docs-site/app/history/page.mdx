@@ -1,0 +1,60 @@
+export const metadata = { title: "Remember and read history" };
+
+# Remember and read history
+
+## The write rule
+
+A row is the full picture of one entity at time `t`: `{"key", "t", "values", "relations", "entry"}`, with `key` and `t` required. What the row does not name is no longer true: a missing value is removed, a missing relation is closed. No model decides what a new fact replaces: a value replaces the same value of the same entity.
+
+`remember(graph, kind, rows, by)` returns one receipt per row, in order.
+
+| Status      | Meaning                                                                     | Stored                                                                |
+| ----------- | --------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| `created`   | First State of the entity                                                   | Entity, State, relation edges                                         |
+| `changed`   | The row differs from the current State and is later                         | New State; the old one closed; changed relations closed or opened     |
+| `inserted`  | The row came late: its time is inside an earlier State, or before the first | A State in between, with relation edges cut or added for that stretch |
+| `unchanged` | The content is already recorded for time `t`                                | `seen_last` of the State, when `t` is later                           |
+| `stale`     | The row came late, after a later row that repeated the State it falls in    | WriteFailure                                                          |
+| `conflict`  | Another row with other content has the same time                            | WriteFailure                                                          |
+| `missing`   | The entry the row names does not exist                                      | WriteFailure                                                          |
+| `invalid`   | The row cannot be stored                                                    | WriteFailure                                                          |
+| `failed`    | The database refused the query                                              | WriteFailure                                                          |
+
+What follows from the rule:
+
+- The same rows give the same history, however often they are sent. A replay is `unchanged`, not an error. So a feed can be read again and again, and only changes are written.
+- Rows that arrive in another order give the history of their times. The entity keeps the current values: a late row is never the current version.
+- A late row with a time before the State's `seen_last` is `stale`: the State held again after it, at a time the memory no longer knows exactly, so it is refused, never placed wrong. A source that sends only changes never repeats a State, and its late rows are always `inserted`.
+- A row can name the entry it comes from (`"entry": "look/3"`). The State it adds points at that entry with a `FROM` edge: the evidence of a fact.
+
+## Reading
+
+| Function                                             | Gives                                             |
+| ---------------------------------------------------- | ------------------------------------------------- |
+| `history(graph, kind, key)`                          | Every State of an entity, oldest first            |
+| `as_of(graph, kind, key, when)`                      | The State valid at `when`, or `None`              |
+| `related(graph, kind, key, relation, when=None)`     | The keys the entity pointed at, now or at `when`  |
+| `pointing_at(graph, kind, relation, key, when=None)` | The keys of the entities that pointed at a target |
+
+```python
+as_of(graph, DEVICE, "d1", "2026-01-01T12:00:00Z")["status"]    # "ok"
+related(graph, DEVICE, "d1", "LOCATED_IN", "2026-01-01T12:00:00Z")  # ["r1"]
+pointing_at(graph, DEVICE, "LOCATED_IN", "r2")                    # ["d1"]
+```
+
+## Partial updates
+
+`update(graph, kind, key, t, by, values=None, relations=None, entry=None)` changes what it names from `t` on and keeps the rest as the current State says.
+
+```python
+update(graph, DEVICE, "d1", "2026-01-01T13:00:00Z", by="agent", values={"status": "hot"})
+update(graph, DEVICE, "d1", "2026-01-01T14:00:00Z", by="agent", relations={"LOCATED_IN": "r2"})
+```
+
+- A value of `None` is removed. A relation it names gets the targets it gives; a relation it does not name keeps its edges.
+- It reads the current State, makes the full row, and writes it by the rule. If another writer added a State in between, nothing is written and it reads again: a change is never written over one it did not see. After 5 tries it is `busy`, refused and stored.
+- It changes what is current: for an earlier time, send the full row to `remember()`.
+
+## Times
+
+Send times as ISO text: `2026-01-01T00:00:00Z`. The memory keeps whole seconds in UTC. A time more than five minutes ahead of the clock is refused: one row dated in the year 9999 would make every true row after it stale.

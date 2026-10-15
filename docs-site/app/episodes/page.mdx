@@ -1,0 +1,58 @@
+export const metadata = { title: "Episodes and evidence" };
+
+# Episodes and evidence
+
+An episode is the record of one event: what agents saw, forecast, and did about it, in order, and how it ended. Each entry cites what it rested on, as it was at that moment.
+
+```python
+from lighthouse import open_episode, record, close_episode, episode, episodes_about
+
+open_episode(graph, "d1-overheat", by="watcher", about=[(DEVICE, "d1")])
+record(graph, "d1-overheat", "observation", by="watcher",
+       values={"status": "hot"}, cites=[(DEVICE, "d1")])
+# {"id": "d1-overheat/1", "seq": 1, "status": "recorded"}
+record(graph, "d1-overheat", "forecast", by="forecaster",
+       values={"fails_in_hours": 6}, cites=["d1-overheat/1"])
+close_episode(graph, "d1-overheat", by="reviewer",
+              outcome={"failed": False}, cites=["d1-overheat/2"])
+
+episode(graph, "d1-overheat")["entries"]         # all three, in order, with what each cites
+episodes_about(graph, DEVICE, "d1")[0]["outcome"]  # {"failed": False, ...}
+```
+
+## Receipts
+
+| Status     | Meaning                                                   |
+| ---------- | --------------------------------------------------------- |
+| `opened`   | The episode was made                                      |
+| `exists`   | An episode with this id is there already: nothing changed |
+| `recorded` | The entry took the next number of the episode             |
+| `unknown`  | The episode does not exist                                |
+| `closed`   | The episode has its outcome                               |
+| `missing`  | Something in `about` or `cites` does not exist            |
+| `invalid`  | The values, references, or time cannot be stored          |
+| `failed`   | The database refused the query                            |
+
+Every refusal is kept as a WriteFailure, with what was refused.
+
+## What holds
+
+- An entry is appended with one query. Entries written at the same moment by several agents get one order, and no number is used twice.
+- Evidence must exist: an entry cannot cite a thing that is not in the graph.
+- A cited entity is pinned to the time of the entry. Reading it with `as_of()` at that time gives the version the agent saw, also after it changed.
+- An episode cannot be opened again after it is closed, and an entry cannot be changed.
+
+## References
+
+Entries, episodes, and handoffs point at things with references, and `episode()` gives them back in the same form, so what is read can be cited.
+
+| Reference                                  | Points at                                             |
+| ------------------------------------------ | ----------------------------------------------------- |
+| `(Kind, key)`                              | An entity, pinned to the time of the entry or handoff |
+| `"ep/3"` or `("Entry", "ep/3")`            | One entry                                             |
+| `("Episode", "ep")`                        | A whole episode                                       |
+| `("Lesson", id)`, `("Playbook", "name#2")` | A lesson, or one version of a playbook                |
+
+## Rows from what agents wrote
+
+`extract(graph, kind, extractor, by, types=None, limit=100)` reads entries it has not read yet and writes the rows that your function finds in them, by the write rule. Each State it adds points at its entry with `FROM`. The memory holds no model: the extractor is yours, a model or plain code.

@@ -1,0 +1,57 @@
+export const metadata = { title: "Expose memory through MCP" };
+
+# Expose memory through MCP
+
+Lighthouse Memory is a Python library, not a bundled MCP server. Wrap the memory functions your agent needs with the [Model Context Protocol](https://modelcontextprotocol.io/docs/getting-started/intro). Keep graph selection and agent identity in trusted server code.
+
+## A read-only tool
+
+This minimal wrapper exposes current state and history for one declared entity kind. Install the MCP Python SDK separately; it is not a dependency of Lighthouse Memory.
+
+```python
+import json
+import os
+from falkordb import FalkorDB
+from mcp.server.fastmcp import FastMCP
+from lighthouse import Kind, as_of, ensure_schema, history, now
+
+DEVICE = Kind("Device", key="serial", text=("note",))
+graph = FalkorDB(
+    host=os.environ.get("FALKORDB_HOST", "127.0.0.1"),
+    port=int(os.environ.get("FALKORDB_PORT", "6379")),
+).select_graph("equipment-memory")
+ensure_schema(graph, [DEVICE])
+server = FastMCP("equipment-memory")
+
+@server.tool()
+def device_state(serial: str, at: str | None = None) -> str:
+    """Read a device now or at a UTC timestamp."""
+    return json.dumps(as_of(graph, DEVICE, serial, at or now()), default=str)
+
+@server.tool()
+def device_history(serial: str) -> str:
+    """Read the recorded state changes of a device."""
+    return json.dumps(history(graph, DEVICE, serial), default=str)
+
+if __name__ == "__main__":
+    server.run(transport="stdio")
+```
+
+## Choose tools by task
+
+| Agent needs                              | Library functions                                 |
+| ---------------------------------------- | ------------------------------------------------- |
+| Resolve an entity from text              | `search()`, `search_history()`                    |
+| Inspect state and changes                | `as_of()`, `history()`, `related()`               |
+| Follow shared evidence                   | `pointing_at()`, `similar()`, `connection()`      |
+| Inspect a group or structural importance | `groups()`, `important()`                         |
+| Read prior outcomes                      | `episode()`, `lessons_about()`, `playbooks_for()` |
+| Append a decision or hand off work       | `record()`, `add_task()`, `hand_off()`            |
+
+## Bound access
+
+For a multi-tenant service, choose the graph from authenticated identity before calling a tool. Do not accept raw queries, graph names, credentials, or arbitrary agent identities from model arguments. Bound the number of results and tool calls. Catch infrastructure errors in your wrapper and return a safe explanation to the agent; keep diagnostics in operator logs.
+
+A write tool should expose only the operation your workflow authorizes. The library checks evidence and input shape; your application decides whether that caller may perform the action.
+
+See [model integration](/integrations), [security](/security), the [Python API](/reference), and the [official MCP Python SDK](https://github.com/modelcontextprotocol/python-sdk).

@@ -1,0 +1,37 @@
+export const metadata = { title: "Graph algorithms" };
+
+# Graph algorithms
+
+Four questions about the graph as a whole. FalkorDB computes the answers; the memory names what it finds and bounds the cost.
+
+| Function                                                                                     | Answers                                                                      | By                 |
+| -------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- | ------------------ |
+| `groups(graph, kinds, relations=None, records=(), at_least=2, limit=100, show=100, at=None)` | Which things are linked, directly or through others: the sets, largest first | `algo.WCC`         |
+| `important(graph, kinds, relation=None, limit=10, at=None)`                                  | Which entities much points at, most of all when that is important itself     | `algo.pageRank`    |
+| `between(graph, kinds, relations=None, limit=10, sample=None, seed=1, at=None)`              | Which entities lie on the shortest paths between others                      | `algo.betweenness` |
+| `connection(graph, start, end, kinds=(), relations=None, max_hops=6, at=None)`               | How two things are connected: the shortest chain, step by step               | `shortestPath`     |
+
+```python
+groups(graph, [DEVICE], ["ABOUT"], records=["Episode"])  # the episodes about the same devices
+important(graph, [DEVICE], "LOCATED_IN", limit=3)        # the rooms most devices were in
+connection(graph, (DEVICE, "d1"), (DEVICE, "d7"))        # through which rooms and teams
+```
+
+## A chain says what holds
+
+Without `at`, the four see every relation that was ever true. `connection()` says for each step whether the relation holds now, since when, and until when:
+
+```python
+[{"from": ("Device", "d1"), "relation": "LOCATED_IN", "to": ("Room", "r1"),
+  "forward": True, "current": False, "since": ..., "until": ...}]
+```
+
+## At one time
+
+With `at`, each sees only the relations that held then and the entities that existed then. FalkorDB's algorithms cannot keep to the edges of one time, so the memory reads those relations in one query and runs the same algorithms itself. The tests check both against plain implementations.
+
+## Fast the second time
+
+`groups()`, `important()`, and `between()` keep their answers until the graph grows where the question reads it. A graph only grows, so equal counts of nodes and edges mean the same graph; FalkorDB has those counts without a scan. On 100,000 entities and 550,000 relations on one laptop, the first answer took 77 ms for `groups()`, 64 ms for `important()`, and 233 ms for `between()` from 32 entities; the same question again took 0.2 to 0.3 ms. `connection()` took 0.5 ms for four steps.
+
+FalkorDB cannot stop these searches while they run, and writes wait for them. Do not let a model or a user choose their arguments without a limit on how often they ask.

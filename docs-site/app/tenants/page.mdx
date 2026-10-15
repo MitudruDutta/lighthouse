@@ -1,0 +1,23 @@
+export const metadata = { title: "Tenants" };
+
+# Tenants
+
+One FalkorDB holds many graphs, and a query never spans two. The memory uses that to keep tenants apart.
+
+```python
+from lighthouse import world, tenant
+
+shared = world(db)              # the graph every tenant may read: "world"
+mine = tenant(db, "acme")       # the private graph of one tenant: "tenant:acme"
+```
+
+- A tenant id is checked before it becomes a graph name: lowercase letters, digits, `_`, and `-`, starting with a letter or digit, at most 63. No id can name the shared graph or another tenant's.
+- Give each tenant its own graph for what is theirs, such as conversations and notes, and read what everyone shares from the world graph.
+- A mention in a message names a thing by label and key, not by an edge, so a message in a tenant's graph can name a ship in the world graph.
+- The memory does not decide who may read: whoever holds a graph reads all of it. Hand each tenant only its own.
+
+## Application boundary
+
+Resolve the tenant and user from your authenticated identity before selecting a graph. Never let a model or request parameter choose an arbitrary graph name. The library validates names and scopes queries; connection credentials, authorization, and transport security belong to the host application.
+
+See [conversation memory](/conversations), [security limits](/security), and the [tenant API](/reference#tenant).
