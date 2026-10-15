@@ -52,10 +52,15 @@ def test_episodes_are_listed_and_read_whole(desk, graph):
     close_episode(graph, "past", "watcher", {"held": True}, at=when(2))
     (listed,) = desk.get("/api/episodes", params={"state": "open"}).json()
     assert listed["id"] == desk.episode and ["Berth", VC2] in listed["about"]
+    assert (listed["first"]["type"], listed["first"]["berth"]) == ("observation", VC2)
     assert [e["id"] for e in desk.get("/api/episodes", params={"state": "closed"}).json()] == [
         "past"
     ]
     assert len(desk.get("/api/episodes").json()) == 2
+    overloads = desk.get("/api/episodes", params={"situation": "berth-overload"}).json()
+    assert [e["id"] for e in overloads] == [desk.episode]
+    assert desk.get("/api/episodes", params={"situation": "port-activity"}).json() == []
+    assert desk.get("/api/episodes", params={"situation": "other"}).status_code == 422
     found = desk.get(f"/api/episodes/{desk.episode}").json()  # the id holds slashes
     assert found["id"] == desk.episode and found["entries"][0]["type"] == "observation"
     assert desk.get("/api/episodes/nothing").status_code == 404

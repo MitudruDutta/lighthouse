@@ -6,6 +6,7 @@ wrong form, an unknown kind) is a 422 with the reason.
 """
 
 import os
+from datetime import date, timedelta
 from typing import Annotated
 
 import lighthouse
@@ -14,6 +15,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from lighthouse.episodes import pairs
 from lighthouse.values import without_words
 
+from app import portwatch
 from app.berths import loads
 from app.db import get_db
 from app.poller import last_poll
@@ -21,6 +23,8 @@ from app.portcalls import BERTH, PORT, PORT_CALL, VESSEL, key_for, kind_named
 
 router = APIRouter(prefix="/api")
 HIDDEN = {"fp"}  # of a State: a fingerprint that says nothing to a reader
+# The numbers of a day of a port, as portwatch.py names them.
+NUMBERS = list(portwatch.DAY.values())
 MOST = 200  # items in one answer
 
 
@@ -72,18 +76,33 @@ def berths(graph: Desk, at: str | None = None) -> list[dict]:
 def episodes(
     graph: Desk,
     state: Annotated[str, Query(pattern="^(open|closed|all)$")] = "all",
+    situation: Annotated[str | None, Query(pattern="^(berth-overload|port-activity)$")] = None,
     limit: Annotated[int, Query(ge=1, le=MOST)] = 50,
 ) -> list[dict]:
-    """The episodes, newest first, each with what it is about and how many entries it has."""
+    """The episodes, newest first, each with what it is about, how many entries it has, and
+    its first entry. `situation` keeps to the overloads of berths or the unusual days of
+    ports."""
     where = {"open": "ep.closed_at IS NULL", "closed": "ep.closed_at IS NOT NULL", "all": "true"}
     rows = graph.ro_query(
-        f"MATCH (ep:Episode) WHERE {where[state]} "
+        f"MATCH (ep:Episode) WHERE {where[state]} AND ep.id STARTS WITH $prefix "
         "WITH ep ORDER BY ep.opened_at DESC, ep.id LIMIT $limit "
         "OPTIONAL MATCH (ep)-[a:ABOUT]->() "
-        "RETURN ep, collect([a.label, a.key]) ORDER BY ep.opened_at DESC, ep.id",
-        {"limit": limit},
+        "WITH ep, collect([a.label, a.key]) AS about "
+        # FalkorDB finds nothing in an optional match right after an aggregate: a plain WITH.
+        "WITH ep, about "
+        "OPTIONAL MATCH (ep)-[:HAS]->(first:Entry {seq: 1}) "
+        "RETURN ep, about, first ORDER BY ep.opened_at DESC, ep.id",
+        {"limit": limit, "prefix": f"{situation}:" if situation else ""},
     ).result_set
-    return [{**node.properties, "about": pairs(about)} for node, about in rows]
+    return [
+        {
+            **node.properties,
+            "about": pairs(about),
+            # What was seen first, so that a list can say what the episode is about.
+            "first": without_words(first.properties) if first else None,
+        }
+        for node, about, first in rows
+    ]
 
 
 @router.get("/episodes/{episode_id:path}")
@@ -230,10 +249,43 @@ def ports(
     ]
 
 
+@router.get("/world")
+def world(graph: Desk) -> dict:
+    """Every port with a place, for a map: [key, name, iso3, country, lat, lon, calls], and the
+    ports that are unusual now, with their open episode."""
+    rows = graph.ro_query(
+        "MATCH (p:Port) WHERE p.lat IS NOT NULL AND p.lon IS NOT NULL "
+        "RETURN p.locode, p.name, p.iso3, p.country, p.lat, p.lon, p.calls ORDER BY p.locode"
+    ).result_set
+    unusual = dict(
+        graph.ro_query(
+            "MATCH (ep:Episode)-[:ABOUT]->(p:Port) "
+            "WHERE ep.closed_at IS NULL AND ep.id STARTS WITH 'port-activity:' "
+            "RETURN p.locode, ep.id"
+        ).result_set
+    )
+    return {"newest_day": portwatch.newest(graph), "ports": rows, "unusual": unusual}
+
+
+def _daily(versions: list[dict], newest: str | None, days: int) -> list[dict]:
+    """The last `days` days of a port, one entry a day. A version holds every day from its
+    start until the next one; the open one until the newest day that was read."""
+    found = {}
+    last = date.fromisoformat(newest) if newest else None
+    for state in versions:
+        day = state["valid_from"].date()
+        end = state["valid_to"].date() - timedelta(days=1) if state.get("valid_to") else last
+        while end is not None and day <= end:
+            found[day] = {"day": day.isoformat(), **{k: state.get(k) for k in NUMBERS}}
+            day += timedelta(days=1)
+    return [found[day] for day in sorted(found)[-days:]]
+
+
 @router.get("/ports/{key:path}")
 def port(graph: Desk, key: str, days: Annotated[int, Query(ge=1, le=366)] = 30) -> dict:
-    """One port: its last `days` days of port calls, and the port calls of the feed that
-    called there, came from there, or are bound there."""
+    """One port: where it is, its last `days` days of port calls, what was learned about it,
+    its episodes, and the port calls of the feed that called there, came from there, or are
+    bound there."""
     versions = lighthouse.history(graph, PORT, key)
     calls = {
         relation: lighthouse.pointing_at(graph, PORT_CALL, relation, key)
@@ -241,8 +293,12 @@ def port(graph: Desk, key: str, days: Annotated[int, Query(ge=1, le=366)] = 30) 
     }
     if not versions and not any(calls.values()):
         raise HTTPException(status_code=404, detail="no such port")
+    place = versions[-1] if versions else {}
     return {
         "key": key,
-        "days": [_shown(state) for state in versions[-days:]],
+        "place": {k: place.get(k) for k in ("name", "country", "iso3", "continent", "lat", "lon")},
+        "days": _daily(versions, portwatch.newest(graph), days),
+        "lessons": lighthouse.lessons_about(graph, PORT, key),
+        "episodes": lighthouse.episodes_about(graph, PORT, key),
         "port_calls": calls,
     }

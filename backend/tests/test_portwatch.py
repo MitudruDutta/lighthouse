@@ -7,7 +7,7 @@ import re
 import pytest
 from fastapi.testclient import TestClient
 from feed import poll, record
-from lighthouse import as_of, history
+from lighthouse import as_of, close_episode, history, learn, open_episode
 
 from app import portwatch
 from app.api import get_graph
@@ -220,19 +220,47 @@ def test_ports_of_a_country_and_one_port_over_http(graph, service, client):
     busiest = client.get("/api/ports", params={"limit": 1}).json()
     assert [p["key"] for p in busiest] == ["CNQDG"]
     helsinki = client.get("/api/ports/FIHEL").json()
-    assert [d["calls"] for d in helsinki["days"]] == [5]
+    assert [(d["day"], d["calls"]) for d in helsinki["days"]] == [
+        ("2026-10-08", 5),
+        ("2026-10-09", 5),  # one version holds both days; each day is given
+    ]
+    assert helsinki["place"]["name"] == "Helsinki" and helsinki["place"]["lat"] == 60.1
     mumbai = client.get("/api/ports/INNSA", params={"days": 1}).json()
     assert [d["calls"] for d in mumbai["days"]] == [32]  # the last day only
     assert helsinki["port_calls"]["CALLS_AT"] == [1]
     qingdao = client.get("/api/ports/CNQDG").json()
     assert qingdao["port_calls"]["CAME_FROM"] == [1]
-    (same,) = qingdao["days"]  # two days with the same numbers are one version
-    assert same["valid_from"].startswith("2026-10-08") and same["seen_last"].startswith(
-        "2026-10-09"
-    )
-    assert client.get("/api/ports/portwatch:port2").json()["days"][-1]["name"] == "Chennai"
+    assert [d["calls"] for d in qingdao["days"]] == [600, 600]
+    assert qingdao["lessons"] == [] and qingdao["episodes"] == []
+    assert client.get("/api/ports/portwatch:port2").json()["place"]["name"] == "Chennai"
     assert [
         p["key"] for p in client.get("/api/search", params={"q": "chennai", "kind": "Port"}).json()
     ] == ["portwatch:port2"]
     assert client.get("/api/ports/XXNONE").status_code == 404
     assert client.get("/api/ports", params={"country": "india"}).status_code == 422
+
+
+def test_the_world_gives_every_port_with_a_place(graph, service, client):
+    portwatch.update(graph, service, backfill=1)
+    found = client.get("/api/world").json()
+    assert found["newest_day"] == "2026-10-09" and found["unusual"] == {}
+    rows = {row[0]: row for row in found["ports"]}
+    assert rows["INNSA"] == ["INNSA", "Mumbai (Nhava Sheva)", "IND", "India", 18.9, 72.9, 32]
+    assert rows["CLVAP"][4:6] == [-33.0, -71.6] and len(rows) == 6
+
+
+def test_the_world_and_a_port_show_their_episodes_and_lessons(graph, service, client):
+    portwatch.update(graph, service, backfill=1)
+    poll(graph, 0, record(port="FIHEL", prev="SEGOT"))  # Gothenburg: a port with no place
+    now, ended = "port-activity:INNSA:2026-10-09", "port-activity:CNQDG:2026-10-08"
+    open_episode(graph, now, "port-watcher", [(PORT, "INNSA")], at="2026-10-09T00:00:00")
+    open_episode(graph, ended, "port-watcher", [(PORT, "CNQDG")], at="2026-10-08T00:00:00")
+    close_episode(graph, ended, "port-watcher", {"back_to_usual": True}, at="2026-10-09T00:00:00")
+    open_episode(graph, "other", "desk", [(PORT, "FIHEL")], at="2026-10-09T00:00:00")
+    learn(graph, "innsa-passes", "reviewer", "Quiet days there pass", [ended], [(PORT, "INNSA")])
+    found = client.get("/api/world").json()
+    assert found["unusual"] == {"INNSA": now}  # not one that ended, nor of another kind
+    assert "SEGOT" not in {row[0] for row in found["ports"]}
+    mumbai = client.get("/api/ports/INNSA").json()
+    assert [e["id"] for e in mumbai["episodes"]] == [now]
+    assert [lesson["id"] for lesson in mumbai["lessons"]] == ["innsa-passes"]
