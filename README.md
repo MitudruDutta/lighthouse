@@ -4,8 +4,30 @@ Agent memory on FalkorDB, where the graph does the remembering.
 
 Lighthouse is a memory layer for a crew of agents that work on live, structured data. The agents share one memory, hand work to each other through it, and get better as it fills. The first product built on Lighthouse is a port desk: agents that watch real ship arrivals and learn from what happens.
 
-**Status: the memory library, the port call ingest, the ports of the world from IMF PortWatch, three agents (the Watcher and the Port Watcher act on the graph, the Reviewer learns from what ended), the port desk tools for agents over MCP, and a read-only screen. No agent that is driven by a model yet.**
+**Status: the memory library, automatic public-feed imports, the Watcher, Port Watcher and Reviewer, the model-driven Desk over MCP, connected investigations, data-quality reporting, the operations workspace, and an independent documentation site are implemented. Model-based investigations require a configured, reachable service; operational rules and imports work without a model.**
 Entry for Graph Hacks (WeMakeDevs x FalkorDB), in two tracks: Track 01, Agents That Act on Connected Data, and Track 02, Agent Memory and Coordination.
+
+## Run locally
+
+Install [Docker Desktop or Docker Engine with Compose](https://docs.docker.com/get-docker/), open a terminal in this folder, and run:
+
+```bash
+./setup.sh
+```
+
+Setup creates private local credentials, optionally asks for your model API key, builds the eight services, and checks readiness. No Python or Node installation is needed. On Windows, use WSL or Git Bash.
+
+Open Lighthouse Memory at **http://localhost:3003**, the operations app at **http://localhost:3000** and the independent docs at **http://localhost:3002**. Public data imports continue in the background. Monitoring works without a model key; the Desk assistant needs a configured provider.
+
+Run setup again to apply changes; it preserves your settings and graph data. Use `./setup.sh --status` to check services, `./setup.sh --stop` to stop them, or `./setup.sh --help` for options. Build details stay in `.lighthouse/setup.log`. The older `./start.sh` command still works.
+
+## Lighthouse Memory developer preview
+
+The independent Memory website includes accounts, private workspaces, projects, scoped expiring API keys, a memory explorer with version history and connections, usage records, and profile preferences. Each project owns a separate FalkorDB graph. Account and key metadata persist in the `memory_control` Docker volume; graph data persist in `falkordb_data`.
+
+Create an account at http://localhost:3003/signup, create a project, and issue a key under **API keys**. Use the dashboard’s **Connect** example against http://localhost:8200. Project keys authenticate the HTTP service; the Python library connects directly to FalkorDB and requires no Lighthouse API key. The HTTP service currently exposes structured memory writes, search, history, and connection paths; the Python library provides the broader episodes, learning, coordination, and conversation APIs.
+
+This is a local developer preview. Billing, managed hosting, email verification, password recovery, and team invitations are not active. Do not expose this preview directly to the public internet. The API reference is available at http://localhost:8200/docs. Diagnostics remain in server logs; customers receive safe messages.
 
 ## Layout
 
@@ -14,6 +36,8 @@ Entry for Graph Hacks (WeMakeDevs x FalkorDB), in two tracks: Track 01, Agents T
 | `lighthouse-memory/` | The memory library, Python package `lighthouse`. Generic: it has no code for ports or for any other product. See its README for the model, the write rule, and the API. |
 | `backend/` | The port desk. `app/portcalls.py` maps the port call feed to library rows. `app/berths.py` works out what a berth has held and where more is expected. `app/watcher.py` is the agent that acts on that. `app/reviewer.py` turns overloads that ended into lessons and playbooks. `app/mcp_server.py` offers the graph to agents as tools over MCP. `app/portwatch.py` reads the ports of the world from IMF PortWatch. `app/portwatcher.py` is the agent that acts on unusual days at them. `app/poller.py` reads the feed every few minutes and runs the two agents after each read, and PortWatch once an hour. `app/web.py` reads public JSON without trusting it. `app/api.py` serves the screen: read-only routes under `/api`. |
 | `frontend/` | The screen of the port desk, in Next.js: it reads the API from the server and writes nothing. An overview with a map of the ports of the world, the ports of a country and the days of one port, the berth board of Finland, the episodes with their evidence, and what was learned. |
+| `memory-site/` | Independent Lighthouse Memory landing page and authenticated developer console, served on port 3003. |
+| `docs-site/` | Memory-only documentation on port 3002, using the Fumadocs notebook shell adapted from Rehearsal, with Lighthouse’s warm product palette. |
 | `mutation/` | The mutation check: deliberate bugs planted in copies of both projects, each of which the tests must catch. |
 
 Built and tested so far:
@@ -26,7 +50,7 @@ Built and tested so far:
 - Recall by the graph and by text: what points at an entity, the entities that share its relation targets with the reason for each, and full-text search on the properties a kind names. On the live feed: a vessel is found by a word of its name, and the port calls most like a given one are listed with the berth, ports, and vessel they share.
 - Recall by meaning, in the library only: vectors from a function the application passes in, in a FalkorDB vector index with `efRuntime` 100, and one ranking from the three ways of recall. The port desk has no embedding model yet, so it does not use this.
 - Graph algorithms that run inside FalkorDB (item 10): the sets of things that relations join, such as the episodes about the same entities; entities by PageRank; entities by the shortest paths that run through them; and the shortest chain of relations between two things, with what still holds at each step. An answer is kept until the graph grows where the question reads it. On 100,000 entities and 550,000 relations on one laptop, the first answer took 77 ms for the sets, 64 ms for the rank, 233 ms for the paths counted from 32 entities, and 0.5 ms for a chain of four steps; the same question again took 0.2 to 0.3 ms. Three runs. On port call data: the port with the most port calls, the berths between port calls and their port, and how two ships are connected through a port.
-- Conversation history, in the library: sessions that belong to one user, messages in one order, mentions of things by name so that a message in the graph of a tenant can name a ship in the shared graph, search by words, a summary for a long session, and erasure of a session or of everything a user said. A session of another user cannot be reached by its id. The port desk does not use it yet: it has no Desk agent.
+- Conversation history, in the library: sessions that belong to one user, messages in one order, mentions of things by name so that a message in the graph of a tenant can name a ship in the shared graph, search by words, a summary for a long session, and erasure of a session or of everything a user said. A session of another user cannot be reached by its id. The Desk uses tenant-scoped sessions and relevant conversation recall.
 - Search in what was true earlier and in what agents wrote: the words of past versions, and the words and meaning of entries. FalkorDB's full-text index does not split words at a line break, so the library indexes the words alone.
 - Graph algorithms at one point in time: the sets, the ranks, the paths through, and the shortest chain over the relations that held then.
 - The free-text path, in the library: a function the application passes in reads entries and gives rows, which are written by the write rule with the entry as their evidence.
@@ -38,7 +62,7 @@ Built and tested so far:
 - **The Port Watcher, an agent for the world.** For each new day it compares every port with the median of its 28 days before: a port that usually has at least 6 port calls a day and fell to half of that, or rose to twice that, is an episode. On the last day read, about 2% of ports were unusual, such as Piraeus at 6 port calls against a usual 13. The episode ends when the port is back to usual, and the Reviewer learns from it.
 - **A live desk.** The poller reads the feed every few minutes and runs the Watcher and the Reviewer after each read; a failed read is logged and the next comes on time. Read-only API routes give the screen the berth board, the episodes with their evidence, lessons, playbooks, a port call or a vessel at any time, search by name now and earlier, and the chain between two things now or at a time.
 - **A screen.** A map of every port with a place, as large as its port calls on the last day, the unusual ones in red; the ports that are unusual now, with their port calls against the usual; the Finnish berths where more ships are expected than ever held; each episode in order, each entry with its evidence as it was then; and the lessons. Every page reads the running graph.
-- **Tools for agents over MCP.** 16 typed tools: 13 questions (find, look at any time, versions, what points at a thing, what is alike, how two things are connected, PageRank, incidents, overloads, episodes, lessons, playbooks) and 3 additions to the record (an entry, a task, a handoff). No tool takes a query and none deletes. The name on every write comes from the server. Over a real stdio session against the live graph, a tool call took 2 to 5 ms.
+- **Tools for agents over MCP.** 20 typed tools: 17 questions (find, look at any time, versions, what points at a thing, what is alike, how two things are connected, PageRank, incidents, overloads, episodes, lessons, playbooks) and 3 additions to the record (an entry, a task, a handoff). No tool takes a query and none deletes. The name on every write comes from the server. Over a real stdio session against the live graph, a tool call took 2 to 5 ms.
 - The live port call feed is stored through the library: 273 port calls in 241 ms on one laptop, 0 LLM calls, 0 personal fields in the graph. One run.
 
 ## Why
@@ -126,13 +150,13 @@ Points the model has to hold:
 
 ## How this meets Track 01
 
-Track 01 asks for an agent that uses the graph to decide and act. One agent does that by rule, and the tools for an agent that is driven by a model are served over MCP. No model is wired to them yet: that needs a provider and a key.
+Track 01 asks for an agent that uses the graph to decide and act. One agent does that by rule, and the tools for an agent that is driven by a model are served over MCP. The Desk selects fixed graph tools through MCP and records its assessment and tool trace. A reachable configured model is required.
 
 | Track 01 key focus | In Lighthouse | State |
 | --- | --- | --- |
 | Multi-hop reasoning | `connection()` gives the shortest chain of relations between two things; `similar()` goes two hops through what entities share; `pointing_at()` and `related()` go one hop at any time in the past | Built, and offered as the tools `connected`, `alike`, `pointing`, `look` |
 | Graph queries and algorithms as agent tools | `important()` (`algo.pageRank`) as `central`, `groups()` (`algo.WCC`) as `incidents`, `connection()` (`shortestPath`) as `connected`, and the berth load rule as `overloaded` | Built. `between()` is in the library and not offered as a tool: on this graph every score is 0 unless the relations are narrowed |
-| Tool selection through MCP | `app/mcp_server.py`: 16 typed tools, with what each one is for | Server built and tested through MCP sessions. The model that selects is not wired |
+| Tool selection through MCP | `app/mcp_server.py`: 20 typed tools, with what each one is for | Built and exercised by the model-driven Desk through MCP sessions |
 | Actions based on what the graph shows | The Watcher: sees an overload, opens an episode, recalls lessons, follows a playbook or hands over to the desk, and closes the episode when the overload is gone | Built, by rule. Through the tools a model can add entries, tasks, and handoffs |
 | Explainable results | Each observation says what the berth held, which port calls showed that, and which are expected, and cites them as they were then; each step of `connection()` says which relation, which way, whether it holds, and since when | Built |
 
@@ -227,6 +251,18 @@ What the library does not do, and the application must:
 - **The tools for agents take no query and delete nothing.** `app/mcp_server.py` offers typed questions and three kinds of addition. The name of a vessel comes from a public feed, and a model can be talked into things by such text. So the worst a model can do through these tools is ask more questions and add entries, tasks, and handoffs under the name the server gave it. Erasure of conversations is not offered as a tool.
 - **It does not protect the database.** The Compose file binds FalkorDB to 127.0.0.1 and sets no password. For any database that another machine can reach, set `FALKORDB_USERNAME` and `FALKORDB_PASSWORD`, and use TLS.
 - **It does not limit how often a caller writes.** Each call is bounded; the number of calls is not.
+
+## Product workspace and documentation
+
+The operations workspace runs at **http://localhost:3000**. Documentation is an independent Next.js site at **http://localhost:3002**, with its own build and Docker service in `docs-site/`. Old `/docs` links redirect there.
+
+- **Agent control room** (`/agents`) exposes real task claims, handoffs, assessments, native FalkorDB PageRank, and connected incident groups.
+- **Investigate** (`/investigate`) visualizes bounded entity neighbourhoods and traces shortest known chains with direction and current/historical status.
+- **Data sources** (`/sources`) separates source publication delay from update availability and reports missing coverage and accepted observations. Backend diagnostics are available only through the separately authenticated operator API and local logs.
+- The Desk receives an additional fixed `data_quality` MCP tool to check coverage before making claims. Model-based investigations require a configured model; the control room shows worker health separately from configuration.
+- PortWatch saves a checkpoint after each complete day and stops at an empty or rejected day. Tests cover interruptions, partial writes, retries, graph bounds, query input safety, and missing observations.
+
+Use `scripts/capture_ui.py` to regenerate screenshots against the running sites. See `screenshots/README.md`.
 
 ## Local setup
 
