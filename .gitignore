@@ -19,3 +19,6 @@ research_notes/
 # Editor settings and build state of one machine
 .vscode/
 *.tsbuildinfo
+screenshots/
+.lighthouse/
+.env.setup-tmp

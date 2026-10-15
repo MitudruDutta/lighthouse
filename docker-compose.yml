@@ -1,5 +1,25 @@
 name: lighthouse
 
+# Everything runs on this computer and listens on 127.0.0.1 only. ./setup.sh writes .env
+# and starts it; `docker compose down` stops it and keeps the data.
+
+x-backend: &backend
+  image: lighthouse-backend
+  build:
+    context: .
+    dockerfile: backend/Dockerfile
+  env_file:
+    - path: .env
+      required: false
+  environment:
+    # Inside Compose the database is the service below, whatever .env says for the host.
+    FALKORDB_HOST: falkordb
+    FALKORDB_PORT: "6379"
+  depends_on:
+    falkordb:
+      condition: service_healthy
+  restart: unless-stopped
+
 services:
   falkordb:
     # falkordb/falkordb:latest, pinned by digest (graph module version 60002)
@@ -18,5 +38,89 @@ services:
       timeout: 5s
       retries: 5
 
+  # The read-only routes for the screen, and the desk's routes for people who sign in.
+  api:
+    <<: *backend
+    ports:
+      - "127.0.0.1:${API_PORT:-8100}:8100"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8100/readyz')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # Reads the ships due in Finland every five minutes and the ports of the world every hour,
+  # and runs the Watcher, the Port Watcher, and the Reviewer after each read.
+  poller:
+    <<: *backend
+    command: ["python", "-m", "app.poller", "world"]
+
+  # The Desk agent: takes what the Watchers handed to the desk, every minute.
+  desk:
+    <<: *backend
+    command: ["python", "-m", "app.desk", "world"]
+
+  screen:
+    build:
+      context: frontend
+      args:
+        NEXT_PUBLIC_LIGHTHOUSE_DOCS_URL: ${LIGHTHOUSE_DOCS_URL:-http://localhost:3002}
+    image: lighthouse-screen
+    environment:
+      LIGHTHOUSE_API: http://api:8100
+      # Signs in the person at this computer by itself. Leave it out for a screen that
+      # others can reach: then each person signs in with their own token.
+      LIGHTHOUSE_TOKEN: ${LIGHTHOUSE_TOKEN:-}
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${SCREEN_PORT:-3000}:3000"
+    restart: unless-stopped
+
+  docs:
+    build:
+      context: docs-site
+      args:
+        NEXT_PUBLIC_MEMORY_CONSOLE_URL: ${MEMORY_SITE_URL:-http://localhost:3003}
+    image: lighthouse-docs
+    ports:
+      - "127.0.0.1:${DOCS_PORT:-3002}:3002"
+    restart: unless-stopped
+
+  memory-api:
+    <<: *backend
+    command: ["uvicorn", "app.memory_main:app", "--host", "0.0.0.0", "--port", "8200"]
+    environment:
+      FALKORDB_HOST: falkordb
+      FALKORDB_PORT: "6379"
+      LIGHTHOUSE_MEMORY_CONTROL_DB: /data/memory-control.sqlite3
+    volumes:
+      - memory_control:/data
+    ports:
+      - "127.0.0.1:${MEMORY_API_PORT:-8200}:8200"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8200/readyz')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  memory-screen:
+    build:
+      context: memory-site
+      args:
+        NEXT_PUBLIC_MEMORY_DOCS_URL: ${LIGHTHOUSE_DOCS_URL:-http://localhost:3002}
+    image: lighthouse-memory-screen
+    environment:
+      MEMORY_API: http://memory-api:8200
+      MEMORY_PUBLIC_API: ${MEMORY_PUBLIC_API:-http://localhost:8200}
+    ports:
+      - "127.0.0.1:${MEMORY_SITE_PORT:-3003}:3003"
+    depends_on:
+      memory-api:
+        condition: service_healthy
+    restart: unless-stopped
+
 volumes:
   falkordb_data:
+  memory_control:
