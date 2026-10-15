@@ -38,6 +38,8 @@ def test_status_counts_what_the_graph_holds(desk):
     found = desk.get("/api/status").json()
     assert found["counts"]["PortCall"] == 3 and found["counts"]["Berth"] == 2
     assert found["open_episodes"] == 1 and found["last_poll"] is None
+    assert found["last_desk"] is None and isinstance(found["availability"]["desk"], bool)
+    assert not {"model", "graph", "import_errors"} & found.keys()
 
 
 def test_berths_come_overloaded_first_with_their_names(desk):
@@ -162,3 +164,16 @@ def test_screen_may_read_from_its_own_origin_only(desk):
     assert allowed.headers["access-control-allow-origin"] == "http://localhost:3000"
     other = desk.get("/api/status", headers={"Origin": "http://evil.example"})
     assert "access-control-allow-origin" not in other.headers
+
+
+def test_activity_gives_what_the_agents_wrote_last(desk, graph):
+    open_episode(graph, "past", "watcher", [(BERTH, VC2)], at=when(1))
+    close_episode(graph, "past", "watcher", {"held": True}, at=when(2))
+    found = desk.get("/api/activity", params={"limit": 3}).json()
+    assert [(e["episode"], e["type"]) for e in found["entries"]] == [
+        ("past", "outcome"),
+        (desk.episode, "action"),
+        (desk.episode, "observation"),
+    ]
+    assert found["opened"] == [{"day": "2026-10-12", "count": 2}]
+    assert desk.get("/api/activity", params={"limit": 0}).status_code == 422

@@ -6,7 +6,7 @@ wrong form, an unknown kind) is a 422 with the reason.
 """
 
 import os
-from datetime import date, timedelta
+from collections import Counter
 from typing import Annotated
 
 import lighthouse
@@ -15,16 +15,15 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from lighthouse.episodes import pairs
 from lighthouse.values import without_words
 
-from app import portwatch
+from app import intelligence, portwatch, portwatcher
 from app.berths import loads
 from app.db import get_db
+from app.model import readiness
 from app.poller import last_poll
 from app.portcalls import BERTH, PORT, PORT_CALL, VESSEL, key_for, kind_named
 
 router = APIRouter(prefix="/api")
 HIDDEN = {"fp"}  # of a State: a fingerprint that says nothing to a reader
-# The numbers of a day of a port, as portwatch.py names them.
-NUMBERS = list(portwatch.DAY.values())
 MOST = 200  # items in one answer
 
 
@@ -46,17 +45,42 @@ def _count(graph: Graph, label: str) -> int:
 
 @router.get("/status")
 def status(graph: Desk) -> dict:
-    """What the graph holds, and what the last read of the feed did."""
+    """Customer-facing counts, source dates and availability. No operator diagnostics."""
     labels = ("PortCall", "Vessel", "Berth", "Port", "Episode", "Lesson", "Playbook")
     open_episodes = graph.ro_query(
         "MATCH (ep:Episode) WHERE ep.closed_at IS NULL RETURN count(ep)"
     ).result_set[0][0]
+    feed, world, desk = (last_poll(graph, source) for source in ("feed", "portwatch", "desk"))
+
+    def available(source, success):
+        failure = last_poll(graph, f"{source}-error")
+        return bool(success and (not failure or failure["at"] <= success["at"]))
+
+    def shown(summary, fields):
+        if summary is None:
+            return None
+        result = {field: summary[field] for field in fields if field in summary}
+        for field in ("port_calls", "rows", "did"):
+            if field in result:
+                result[field] = {key: value for key, value in result[field].items() if key in {
+                    "created", "changed", "inserted", "unchanged", "assessed", "ended before the desk looked"
+                }}
+        if result.get("state") == "partial":
+            result["state"] = "updating"
+        return result
+
     return {
-        "graph": graph.name,
+        "now": lighthouse.now(),  # for "how long ago", by the clock of the graph's writers
         "counts": {label: _count(graph, label) for label in labels},
         "open_episodes": open_episodes,
-        "last_poll": last_poll(graph),
-        "last_world_poll": last_poll(graph, "portwatch"),
+        "last_poll": shown(feed, ("at", "feed_time", "port_calls")),
+        "last_world_poll": shown(world, ("at", "ports", "days", "rows", "newest", "state")),
+        "last_desk": shown(desk, ("at", "did", "waiting")),
+        "availability": {
+            "feed": available("feed", feed),
+            "portwatch": available("portwatch", world),
+            "desk": readiness()["ready"] and not bool(desk and desk.get("failed")),
+        },
     }
 
 
@@ -70,6 +94,21 @@ def berths(graph: Desk, at: str | None = None) -> list[dict]:
         name, area = names.get(load["berth"], [None, None])
         load |= {"name": name, "area": area}
     return sorted(found, key=lambda load: (load["overload"] is None, load["berth"]))
+
+
+@router.get("/network")
+def network(graph: Desk, kind: Annotated[str, Query(pattern="^(Episode|Entry|Lesson|Playbook|Port|PortCall|Vessel|Berth)$")] = "Episode", key: Annotated[str | None, Query(max_length=300)] = None) -> dict:
+    return intelligence.network(graph, kind, key)
+
+
+@router.get("/intelligence")
+def intelligence_overview(graph: Desk) -> dict:
+    return intelligence.overview(graph)
+
+
+@router.get("/quality")
+def data_quality(graph: Desk) -> dict:
+    return intelligence.quality(graph)
 
 
 @router.get("/episodes")
@@ -238,15 +277,37 @@ def ports(
 ) -> list[dict]:
     """Ports of the world with what happened on their last day, busiest first. `country`
     keeps to one country, by its ISO 3166 code, such as IND."""
+    return [_shown(port) for port in portwatch.busiest(graph, country, limit)]
+
+
+@router.get("/activity")
+def activity(graph: Desk, limit: Annotated[int, Query(ge=1, le=MOST)] = 30) -> dict:
+    """What the agents wrote last, newest first, each entry with its episode; and how many
+    episodes were opened on each of the last 14 days that have any."""
     rows = graph.ro_query(
-        "MATCH (p:Port) WHERE p.calls IS NOT NULL AND ($country IS NULL OR p.iso3 = $country) "
-        "RETURN p ORDER BY p.calls DESC, p.locode LIMIT $limit",
-        {"country": country, "limit": limit},
+        "MATCH (ep:Episode)-[:HAS]->(e:Entry) "
+        "WITH ep, e ORDER BY e.recorded_at DESC, e.id DESC LIMIT $limit "
+        "RETURN ep.id, e ORDER BY e.recorded_at DESC, e.id DESC",
+        {"limit": limit},
     ).result_set
-    return [
-        {"key": node.properties["locode"], **_shown(without_words(node.properties))}
-        for (node,) in rows
-    ]
+    opened = Counter(
+        at.date().isoformat()
+        for (at,) in graph.ro_query("MATCH (ep:Episode) RETURN ep.opened_at").result_set
+        if at is not None
+    )
+    return {
+        "entries": [
+            {"episode": episode_id, **without_words(entry.properties)} for episode_id, entry in rows
+        ],
+        "opened": [{"day": day, "count": opened[day]} for day in sorted(opened)[-14:]],
+    }
+
+
+@router.get("/unusual")
+def unusual(graph: Desk, limit: Annotated[int, Query(ge=1, le=MOST)] = 50) -> dict:
+    """The ports that are unusual now, the newest spells first, each with its port calls
+    on the day it began against the usual, and its open episode."""
+    return {"ports": portwatcher.unusual(graph, limit)}
 
 
 @router.get("/world")
@@ -267,20 +328,6 @@ def world(graph: Desk) -> dict:
     return {"newest_day": portwatch.newest(graph), "ports": rows, "unusual": unusual}
 
 
-def _daily(versions: list[dict], newest: str | None, days: int) -> list[dict]:
-    """The last `days` days of a port, one entry a day. A version holds every day from its
-    start until the next one; the open one until the newest day that was read."""
-    found = {}
-    last = date.fromisoformat(newest) if newest else None
-    for state in versions:
-        day = state["valid_from"].date()
-        end = state["valid_to"].date() - timedelta(days=1) if state.get("valid_to") else last
-        while end is not None and day <= end:
-            found[day] = {"day": day.isoformat(), **{k: state.get(k) for k in NUMBERS}}
-            day += timedelta(days=1)
-    return [found[day] for day in sorted(found)[-days:]]
-
-
 @router.get("/ports/{key:path}")
 def port(graph: Desk, key: str, days: Annotated[int, Query(ge=1, le=366)] = 30) -> dict:
     """One port: where it is, its last `days` days of port calls, what was learned about it,
@@ -297,7 +344,7 @@ def port(graph: Desk, key: str, days: Annotated[int, Query(ge=1, le=366)] = 30) 
     return {
         "key": key,
         "place": {k: place.get(k) for k in ("name", "country", "iso3", "continent", "lat", "lon")},
-        "days": _daily(versions, portwatch.newest(graph), days),
+        "days": portwatch.daily(versions, portwatch.newest(graph), days),
         "lessons": lighthouse.lessons_about(graph, PORT, key),
         "episodes": lighthouse.episodes_about(graph, PORT, key),
         "port_calls": calls,
