@@ -1,5 +1,6 @@
 """The schema of a graph, and the separation of tenants."""
 
+import time
 import types
 import uuid
 
@@ -84,7 +85,7 @@ def test_schema_has_a_text_index_for_the_text_of_a_kind(graph):
     assert by_label["State"] == ({"words": ["FULLTEXT"]}, "OPERATIONAL")
     assert by_label["Session"] == ({"key": ["RANGE"], "user": ["RANGE"]}, "OPERATIONAL")
     assert by_label["Reference"] == ({"key": ["RANGE"]}, "OPERATIONAL")
-    assert by_label["WriteFailure"] == ({"owner": ["RANGE"]}, "OPERATIONAL")
+    assert by_label["WriteFailure"] == ({"owner": ["RANGE"], "same": ["RANGE"]}, "OPERATIONAL")
     others = [row for row in indexed if row[0] not in ("Manual", "Message", "Entry", "State")]
     assert all("FULLTEXT" not in str(row[1]) for row in others)
 
@@ -220,3 +221,29 @@ def test_entry_vector_index_of_another_size_stops_the_start(graph):
     ensure_schema(graph, [MANUAL], entry_dimensions=8)  # safe to apply again
     with pytest.raises(RuntimeError, match="8 dimensions"):
         ensure_schema(graph, [MANUAL], entry_dimensions=16)
+
+
+def test_a_schema_that_another_process_is_making_is_waited_for():
+    from lighthouse.graphs import _create
+
+    asked = []
+
+    def busy_twice(label, prop):
+        asked.append((label, prop))
+        if len(asked) < 3:
+            raise ResponseError("another write is in progress, retry the query")
+
+    _create(busy_twice, "Task", "id", time.monotonic() + 5)
+    assert asked == [("Task", "id")] * 3
+
+    def always_busy(label, prop):
+        raise ResponseError("another write is in progress, retry the query")
+
+    with pytest.raises(ResponseError, match="in progress"):
+        _create(always_busy, "Task", "id", time.monotonic())  # the deadline has passed
+
+    def other(label, prop):
+        raise ResponseError("something else")
+
+    with pytest.raises(ResponseError, match="something else"):
+        _create(other, "Task", "id", time.monotonic() + 5)

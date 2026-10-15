@@ -1,5 +1,10 @@
 """Failures: a write that did not happen is stored as a WriteFailure node, so that it is never
-lost silently."""
+lost silently. The same refusal again, such as a bad record that a feed sends on every
+read, is counted on the node it made the first time: `times` and `last_at` grow, and the
+graph does not."""
+
+import hashlib
+import json
 
 from falkordb import Graph
 
@@ -28,8 +33,13 @@ def record_failure(
         "detail": detail,
         "owner": owner if is_name(owner) else None,
     }
+    fields = [params[name] for name in ("reason", "kind", "key", "detail", "owner")]
+    params["same"] = hashlib.sha256(json.dumps(fields, default=str).encode()).hexdigest()
     graph.query(
-        "CREATE (:WriteFailure {at: localdatetime($now), reason: $reason, kind: $kind, "
-        "key: $key, detail: $detail, owner: $owner})",
+        "MERGE (f:WriteFailure {same: $same}) "
+        "ON CREATE SET f.at = localdatetime($now), f.reason = $reason, f.kind = $kind, "
+        "f.key = $key, f.detail = $detail, f.owner = $owner, f.times = 1 "
+        "ON MATCH SET f.times = f.times + 1 "
+        "SET f.last_at = localdatetime($now)",
         params,
     )

@@ -49,6 +49,23 @@ def _vector_index(graph: Graph, label: str, dimensions: int) -> None:
         raise RuntimeError(f"{label} is indexed for {found[0][0]} dimensions, not {dimensions}")
 
 
+def _create(create, label: str, prop: str, deadline: float) -> None:
+    """Make one index or constraint, unless it is there. FalkorDB refuses to make one while
+    another is being made ("another write is in progress"), as when two processes start on
+    one graph together: then ask again, until `deadline`."""
+    while True:
+        try:
+            create(label, prop)
+            return
+        except ResponseError as exc:
+            text = str(exc)
+            if "already indexed" in text or "already exists" in text:
+                return
+            if "another write is in progress" not in text or time.monotonic() > deadline:
+                raise
+        time.sleep(0.05)
+
+
 def ensure_schema(
     graph: Graph, kinds=(), wait_seconds: float = 10.0, entry_dimensions: int = 0
 ) -> None:
@@ -70,16 +87,14 @@ def ensure_schema(
     indexes += [(graph.create_node_range_index, "Playbook", "name")]
     indexes += [(graph.create_node_range_index, "Session", "user")]
     indexes += [(graph.create_node_range_index, "WriteFailure", "owner")]
+    indexes += [(graph.create_node_range_index, "WriteFailure", "same")]
     # Full-text indexes read the words a node keeps of its text, never the text as it is.
     searched = ["Message", "Entry"] + [k.label for k in declared if k.text]
     searched += ["State"] if any(k.text for k in declared) else []  # every version, all kinds
     indexes += [(graph.create_node_fulltext_index, label, WORDS) for label in searched]
+    deadline = time.monotonic() + wait_seconds
     for create, label, prop in indexes:
-        try:
-            create(label, prop)
-        except ResponseError as exc:
-            if "already indexed" not in str(exc):
-                raise
+        _create(create, label, prop, deadline)
     for kind in declared:
         if kind.dimensions:
             _vector_index(graph, f"{kind.label}{VECTOR}", kind.dimensions)
@@ -88,15 +103,10 @@ def ensure_schema(
     if entry_dimensions:
         _vector_index(graph, f"Entry{VECTOR}", entry_dimensions)
     for label, prop in sorted(keys):
-        try:
-            graph.create_node_unique_constraint(label, prop)
-        except ResponseError as exc:
-            if "already exists" not in str(exc):
-                raise
+        _create(graph.create_node_unique_constraint, label, prop, deadline)
     # Indexes and constraints are built in the background. A node written while its index
     # is under construction is never added to it (FalkorDB 6.0.2): MATCH and MERGE by key
     # then miss the node for good. So do not return before everything is operational.
-    deadline = time.monotonic() + wait_seconds
     while True:
         states = {
             (c["label"], tuple(c["properties"])): c["status"] for c in graph.list_constraints()

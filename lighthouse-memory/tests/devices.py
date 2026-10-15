@@ -62,7 +62,11 @@ def windows(graph, relation: str, key="d1") -> list[tuple]:
 
 
 def failures(graph) -> list[list]:
-    query = "MATCH (f:WriteFailure) RETURN f.reason, f.kind, f.key, f.detail ORDER BY f.reason"
+    # Each refusal once, also those that were counted on the node of the same refusal.
+    query = (
+        "MATCH (f:WriteFailure) UNWIND range(1, f.times) AS n "
+        "RETURN f.reason, f.kind, f.key, f.detail ORDER BY f.reason"
+    )
     return graph.ro_query(query).result_set
 
 
