@@ -85,3 +85,23 @@ def test_reads_closer_than_a_minute_are_refused(every, monkeypatch):
     monkeypatch.setattr(poller, "get_db", no_database)
     with pytest.raises(SystemExit):
         poller.main(["test_graph_never_made", "--every", every])
+
+
+def test_the_new_days_of_the_world_are_watched(graph):
+    stop = threading.Event()
+    looked = []
+
+    def look(graph, days):
+        looked.append(days)
+        stop.set()
+        return [{"did": "opened"}]
+
+    poller.run(
+        graph,
+        every=0,
+        stop=stop,
+        read=lambda: feed(5),
+        world=lambda graph: {"days": ["2026-10-09"]},
+        look=look,
+    )
+    assert looked == [["2026-10-09"]]

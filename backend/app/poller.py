@@ -1,6 +1,6 @@
 """The poller: reads the port call feed again and again. After each read, the Watcher looks
 at the berths and the Reviewer learns from the overloads that ended. Once an hour it also
-reads the ports of the world from PortWatch.
+reads the ports of the world from PortWatch, and the Port Watcher looks at the new days.
 
     python -m app.poller [graph_name] [--every SECONDS] [--once]
 
@@ -19,7 +19,7 @@ from collections import Counter
 from falkordb import Graph
 from lighthouse import ensure_schema, now
 
-from app import portwatch
+from app import portwatch, portwatcher
 from app.db import get_db
 from app.portcalls import KINDS, PORT_CALL, fetch, ingest
 from app.reviewer import review
@@ -73,9 +73,10 @@ def run(
     read=fetch,
     world=portwatch.update,
     world_every: int = WORLD_EVERY,
+    look=portwatcher.watch,
 ):
     """Read the feed every `every` seconds, and the world every `world_every` seconds,
-    until `stop` is set."""
+    until `stop` is set. After each read of the world, `look` watches the new days."""
     stop = stop or threading.Event()
     world_read = None
     while not stop.is_set():
@@ -88,7 +89,10 @@ def run(
         if world_read is None or time.monotonic() - world_read >= world_every:
             world_read = time.monotonic()
             try:
-                log.info("read PortWatch: %s", json.dumps(world(graph)))
+                summary = world(graph)
+                log.info("read PortWatch: %s", json.dumps(summary))
+                done = look(graph, summary["days"])
+                log.info("watched the ports: %s", json.dumps(_counts(done, "did")))
             except Exception:
                 log.exception("reading PortWatch failed")
         stop.wait(every)
@@ -107,7 +111,9 @@ def main(argv=None) -> None:
     ensure_schema(graph, KINDS)
     if args.once:
         print(json.dumps(poll_once(graph), indent=2))
-        print(json.dumps(portwatch.update(graph), indent=2))
+        world = portwatch.update(graph)
+        print(json.dumps(world, indent=2))
+        print(json.dumps(_counts(portwatcher.watch(graph, world["days"]), "did"), indent=2))
     else:
         run(graph, args.every)
 
