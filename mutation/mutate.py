@@ -34,9 +34,10 @@ A = "lighthouse/algorithms.py"
 CV = "lighthouse/conversation.py"
 B, WA, M = "app/berths.py", "app/watcher.py", "app/mcp_server.py"
 PR, RV = "lighthouse/promotion.py", "app/reviewer.py"
+PO, AP, MN = "app/poller.py", "app/api.py", "app/main.py"
 S, X = "lighthouse/snapshot.py", "lighthouse/extraction.py"
 # The tests most likely to catch a bug in a file run first; the whole suite runs only if they pass.
-FIRST = {X: "test_extraction", S: "test_snapshot test_algorithms", WP: "test_partial", WB: "test_batches test_late test_partial test_attacks test_vector", WL: "test_late test_batches", WF: "test_failures test_attacks test_conversation", WR: "test_rows test_attacks test_batches", V: "test_values test_attacks test_write", C: "test_clock test_attacks",
+FIRST = {PO: "test_poller", AP: "test_api", MN: "test_api test_health", X: "test_extraction", S: "test_snapshot test_algorithms", WP: "test_partial", WB: "test_batches test_late test_partial test_attacks test_vector", WL: "test_late test_batches", WF: "test_failures test_attacks test_conversation", WR: "test_rows test_attacks test_batches", V: "test_values test_attacks test_write", C: "test_clock test_attacks",
          R: "test_read test_attacks", G: "test_graphs", K: "test_kinds test_graphs", E: "test_episodes test_attacks test_handoffs test_lessons",
          H: "test_handoffs", T: "test_tasks", TR: "test_traverse", TX: "test_text", VE: "test_vector", RK: "test_rank",
          L: "test_lessons", PB: "test_playbooks", A: "test_algorithms", CV: "test_conversation",
@@ -896,6 +897,30 @@ LIBRARY = [
 ]
 
 BACKEND = [
+    # --- the poller and the API for the screen
+    ("poll: watcher not run", PO, "    watched = watch(graph, observed)\n", "    watched = []\n"),
+    ("poll: reviewer not run", PO, "    learned = review(graph)\n", '    learned = {"lessons": [], "playbooks": [], "runs": []}\n'),
+    ("poll: summary not kept", PO, "    graph.query(\n        \"MERGE (p:Poll {id: 'feed'})", "    (lambda *a: None)(\n        \"MERGE (p:Poll {id: 'feed'})"),
+    ("poll: feed time lost", PO, '        "feed_time": observed,', '        "feed_time": None,'),
+    ("poll: a failed read ends the loop", PO, "        except Exception:\n", "        except KeyError:\n"),
+    ("poll: reads as often as asked", PO, "    if args.every < LEAST:", "    if False:"),
+    ("poll: summary of nothing", PO, '    return json.loads(rows[0][0]) if rows else None', '    return None'),
+    ("api: berths not overloaded first", AP, '    return sorted(found, key=lambda load: (load["overload"] is None, load["berth"]))', '    return sorted(found, key=lambda load: load["berth"])'),
+    ("api: berths without names", AP, '        load |= {"name": name, "area": area}', '        load |= {"area": area}'),
+    ("api: open episodes are all", AP, '"open": "ep.closed_at IS NULL"', '"open": "true"'),
+    ("api: closed episodes are all", AP, '"closed": "ep.closed_at IS NOT NULL"', '"closed": "true"'),
+    ("api: unknown episode is empty", AP, '        raise HTTPException(status_code=404, detail="no such episode")\n', '        return {}\n'),
+    ("api: fingerprint shown", AP, 'HIDDEN = {"fp"}', "HIDDEN = set()"),
+    ("api: lessons by name", AP, '    return sorted(found, key=lambda item: (-item["weight"], item["id"]))', "    return found"),
+    ("api: retired lessons listed", AP, '"MATCH (l:Lesson) WHERE l.retired_at IS NULL RETURN l.id', '"MATCH (l:Lesson) RETURN l.id'),
+    ("api: port call is always now", AP, "    when = at or lighthouse.now()", "    when = lighthouse.now()"),
+    ("api: unknown port call is empty", AP, '        raise HTTPException(status_code=404, detail="no such port call")\n', '        return {}\n'),
+    ("api: earlier names never searched", AP, "    if earlier:\n", "    if False:\n"),
+    ("api: chain is always now", AP, "        at=at,\n", "        at=None,\n"),
+    ("api: vessel without its port calls", AP, '    calls = lighthouse.pointing_at(graph, PORT_CALL, "MADE_BY", number)', "    calls = []"),
+    ("api: berth without its lessons", AP, '        "lessons": lighthouse.lessons_about(graph, BERTH, key),', '        "lessons": [],'),
+    ("api: refusal is a crash", MN, "@app.exception_handler(ValueError)\n", ""),
+    ("api: any origin may read", MN, 'allow_origins=os.environ.get("LIGHTHOUSE_ORIGINS", "http://localhost:3000").split(","),', 'allow_origins=["*"],'),
     ("vessel not searchable", P, 'VESSEL = Kind("Vessel", key="imo", text=("name",))', 'VESSEL = Kind("Vessel", key="imo")'),
     ("berth not searchable by its area", P, 'text=("name", "area_name"))', 'text=("name",))'),
     ("personal field kept", P, '"name": _text(rec.get("vesselName")),', '"name": _text(rec.get("shipMasterArrival")),'),
@@ -979,24 +1004,24 @@ BACKEND = [
     ("desk: refusal told without its reason", WA, '"did": "failed", "reason": str(exc)})', '"did": "failed"})'),
     # --- the tools
     ("desk: agent of the tools unchecked", M, "    named(agent=agent)\n", ""),
-    ("desk: unknown kind crashes", M, '    if label not in KINDS:\n        raise ValueError(f"kind must be one of {sorted(KINDS)}")\n', ""),
-    ("desk: number as text stays text", M, "        return int(key)\n", "        return key\n"),
+    ("desk: unknown kind crashes", P, '    if label not in BY_LABEL:\n        raise ValueError(f"kind must be one of {sorted(BY_LABEL)}")\n', ""),
+    ("desk: number as text stays text", P, "        return int(key)\n", "        return key\n"),
     ("desk: record cannot be cited", M, "    if isinstance(item, list) and len(item) == 2 and item[0] in RECORDS:\n        return (item[0], item[1])\n", ""),
     ("desk: entry id cannot be cited", M, "    if isinstance(item, str):\n        return item\n", ""),
     ("desk: anything is a reference", M, '    raise ValueError("a reference is [kind, key], [record label, id], or the id of an entry")', "    return None"),
     ("desk: fingerprint shown", M, 'HIDDEN = {"fp"}', "HIDDEN = set()"),
     ("desk: times not in ISO form", M, "return thing.isoformat() if isinstance(thing, datetime) else str(thing)", "return str(thing)"),
     ("desk: answer not JSON", M, "            return _text(function(*args, **kwargs))", "            return str(function(*args, **kwargs))"),
-    ("desk: find needs every word", M, 'return lighthouse.search(graph, _kind(kind), words, limit, match="any")', 'return lighthouse.search(graph, _kind(kind), words, limit)'),
-    ("desk: find ignores the limit", M, 'return lighthouse.search(graph, _kind(kind), words, limit, match="any")', 'return lighthouse.search(graph, _kind(kind), words, match="any")'),
+    ("desk: find needs every word", M, 'return lighthouse.search(graph, kind_named(kind), words, limit, match="any")', 'return lighthouse.search(graph, kind_named(kind), words, limit)'),
+    ("desk: find ignores the limit", M, 'return lighthouse.search(graph, kind_named(kind), words, limit, match="any")', 'return lighthouse.search(graph, kind_named(kind), words, match="any")'),
     ("desk: look always now", M, "state = lighthouse.as_of(graph, found, name, at or lighthouse.now())", "state = lighthouse.as_of(graph, found, name, lighthouse.now())"),
     ("desk: relations always of now", M, "relation: lighthouse.related(graph, found, name, relation, at)", "relation: lighthouse.related(graph, found, name, relation)"),
     ("desk: look without relations", M, '"values": _shown(state), "relations": relations}', '"values": _shown(state), "relations": {}}'),
-    ("desk: every version given", M, "lighthouse.history(graph, found, _key(found, key))[-last:]", "lighthouse.history(graph, found, _key(found, key))"),
+    ("desk: every version given", M, "lighthouse.history(graph, found, key_for(found, key))[-last:]", "lighthouse.history(graph, found, key_for(found, key))"),
     ("desk: number of versions unchecked", M, '        if type(last) is not int or not 1 <= last <= 100:\n            raise ValueError("last must be a whole number from 1 to 100")\n', ""),
     ("desk: relation of pointing unchecked", M, '        if relation not in found.relations:\n            raise ValueError(f"{kind} has the relations {sorted(found.relations)}")\n', ""),
     ("desk: pointing always now", M, "return lighthouse.pointing_at(graph, found, relation, target, at)", "return lighthouse.pointing_at(graph, found, relation, target)"),
-    ("desk: target key as the model gave it", M, "        target = _key(found.relations[relation], key)\n", "        target = key\n"),
+    ("desk: target key as the model gave it", M, "        target = key_for(found.relations[relation], key)\n", "        target = key\n"),
     ("desk: chain without the port calls", M, "lighthouse.connection(graph, *ends, kinds=[PORT_CALL], max_hops=max_hops)", "lighthouse.connection(graph, *ends, max_hops=max_hops)"),
     ("desk: chain of any length", M, "lighthouse.connection(graph, *ends, kinds=[PORT_CALL], max_hops=max_hops)", "lighthouse.connection(graph, *ends, kinds=[PORT_CALL])"),
     ("desk: rank over every relation", M, "return lighthouse.important(graph, [PORT_CALL], relation, limit)", "return lighthouse.important(graph, [PORT_CALL], None, limit)"),
