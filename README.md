@@ -4,7 +4,7 @@ Agent memory on FalkorDB, where the graph does the remembering.
 
 Lighthouse is a memory layer for a crew of agents that work on live, structured data. The agents share one memory, hand work to each other through it, and get better as it fills. The first product built on Lighthouse is a port desk: agents that watch real ship arrivals and learn from what happens.
 
-**Status: the memory library, the port call ingest, two agents (the Watcher acts on the graph, the Reviewer learns from what ended), and the port desk tools for agents over MCP. No agent that is driven by a model yet, and no product pages.**
+**Status: the memory library, the port call ingest, the ports of the world from IMF PortWatch, three agents (the Watcher and the Port Watcher act on the graph, the Reviewer learns from what ended), the port desk tools for agents over MCP, and a read-only screen. No agent that is driven by a model yet.**
 Entry for Graph Hacks (WeMakeDevs x FalkorDB), in two tracks: Track 01, Agents That Act on Connected Data, and Track 02, Agent Memory and Coordination.
 
 ## Layout
@@ -13,7 +13,7 @@ Entry for Graph Hacks (WeMakeDevs x FalkorDB), in two tracks: Track 01, Agents T
 | --- | --- |
 | `lighthouse-memory/` | The memory library, Python package `lighthouse`. Generic: it has no code for ports or for any other product. See its README for the model, the write rule, and the API. |
 | `backend/` | The port desk. `app/portcalls.py` maps the port call feed to library rows. `app/berths.py` works out what a berth has held and where more is expected. `app/watcher.py` is the agent that acts on that. `app/reviewer.py` turns overloads that ended into lessons and playbooks. `app/mcp_server.py` offers the graph to agents as tools over MCP. `app/portwatch.py` reads the ports of the world from IMF PortWatch. `app/portwatcher.py` is the agent that acts on unusual days at them. `app/poller.py` reads the feed every few minutes and runs the two agents after each read, and PortWatch once an hour. `app/web.py` reads public JSON without trusting it. `app/api.py` serves the screen: read-only routes under `/api`. |
-| `frontend/` | Unmodified `create-next-app` output. |
+| `frontend/` | The screen of the port desk, in Next.js: it reads the API from the server and writes nothing. An overview with a map of the ports of the world, the ports of a country and the days of one port, the berth board of Finland, the episodes with their evidence, and what was learned. |
 | `mutation/` | The mutation check: deliberate bugs planted in copies of both projects, each of which the tests must catch. |
 
 Built and tested so far:
@@ -37,6 +37,7 @@ Built and tested so far:
 - **Ports of the world.** Every day of 2,065 ports in 180 countries from IMF PortWatch: port calls by ship type, and tonnes unloaded and loaded. A day of a port is a version of the port, so its history is its days, and the port that a Finnish port call came from or is bound for is the same node. Thirty days load in under a minute.
 - **The Port Watcher, an agent for the world.** For each new day it compares every port with the median of its 28 days before: a port that usually has at least 6 port calls a day and fell to half of that, or rose to twice that, is an episode. On the last day read, about 2% of ports were unusual, such as Piraeus at 6 port calls against a usual 13. The episode ends when the port is back to usual, and the Reviewer learns from it.
 - **A live desk.** The poller reads the feed every few minutes and runs the Watcher and the Reviewer after each read; a failed read is logged and the next comes on time. Read-only API routes give the screen the berth board, the episodes with their evidence, lessons, playbooks, a port call or a vessel at any time, search by name now and earlier, and the chain between two things now or at a time.
+- **A screen.** A map of every port with a place, as large as its port calls on the last day, the unusual ones in red; the ports that are unusual now, with their port calls against the usual; the Finnish berths where more ships are expected than ever held; each episode in order, each entry with its evidence as it was then; and the lessons. Every page reads the running graph.
 - **Tools for agents over MCP.** 16 typed tools: 13 questions (find, look at any time, versions, what points at a thing, what is alike, how two things are connected, PageRank, incidents, overloads, episodes, lessons, playbooks) and 3 additions to the record (an entry, a task, a handoff). No tool takes a query and none deletes. The name on every write comes from the server. Over a real stdio session against the live graph, a tool call took 2 to 5 ms.
 - The live port call feed is stored through the library: 273 port calls in 241 ms on one laptop, 0 LLM calls, 0 personal fields in the graph. One run.
 
@@ -249,7 +250,7 @@ uv run uvicorn app.main:app --port 8100  # http://127.0.0.1:8100/readyz, and the
 
 cd ../frontend
 bun install
-bun run dev                              # http://localhost:3000
+bun run dev                              # http://localhost:3000, reading the API on 127.0.0.1:8100 (LIGHTHOUSE_API names another)
 ```
 
 `/readyz` returns 200 only when FalkorDB itself answers; a plain Redis on the same port gets 503.
