@@ -1,11 +1,12 @@
 """The poller: reads the port call feed again and again. After each read, the Watcher looks
-at the berths and the Reviewer learns from the overloads that ended.
+at the berths and the Reviewer learns from the overloads that ended. Once an hour it also
+reads the ports of the world from PortWatch.
 
     python -m app.poller [graph_name] [--every SECONDS] [--once]
 
-A read that fails is logged and the next one comes on time: the feed or the network may be
-down for a while, and the graph keeps what it had. The summary of the last read is kept in
-the graph, as the one Poll node, for the API to show.
+A read that fails is logged and the next one comes on time: a source or the network may be
+down for a while, and the graph keeps what it had. The summary of the last read of each
+source is kept in the graph, as a Poll node, for the API to show.
 """
 
 import argparse
@@ -18,12 +19,14 @@ from collections import Counter
 from falkordb import Graph
 from lighthouse import ensure_schema, now
 
+from app import portwatch
 from app.db import get_db
 from app.portcalls import KINDS, PORT_CALL, fetch, ingest
 from app.reviewer import review
 from app.watcher import watch
 
 EVERY = 300  # seconds between reads: the feed holds the port calls of the last 24 hours
+WORLD_EVERY = 3600  # seconds between reads of PortWatch, which adds a day at a time
 LEAST = 60  # the shortest wait that may be asked for: Digitraffic is a shared service
 
 log = logging.getLogger("lighthouse.poller")
@@ -57,15 +60,24 @@ def poll_once(graph: Graph, read=fetch) -> dict:
     return summary
 
 
-def last_poll(graph: Graph) -> dict | None:
-    """The summary of the last read, or None before the first."""
-    rows = graph.ro_query("MATCH (p:Poll {id: 'feed'}) RETURN p.summary").result_set
+def last_poll(graph: Graph, source: str = "feed") -> dict | None:
+    """The summary of the last read of a source ("feed" or "portwatch"), or None."""
+    rows = graph.ro_query("MATCH (p:Poll {id: $id}) RETURN p.summary", {"id": source}).result_set
     return json.loads(rows[0][0]) if rows else None
 
 
-def run(graph: Graph, every: int = EVERY, stop: threading.Event | None = None, read=fetch):
-    """Read the feed every `every` seconds until `stop` is set."""
+def run(
+    graph: Graph,
+    every: int = EVERY,
+    stop: threading.Event | None = None,
+    read=fetch,
+    world=portwatch.update,
+    world_every: int = WORLD_EVERY,
+):
+    """Read the feed every `every` seconds, and the world every `world_every` seconds,
+    until `stop` is set."""
     stop = stop or threading.Event()
+    world_read = None
     while not stop.is_set():
         try:
             summary = poll_once(graph, read)
@@ -73,6 +85,12 @@ def run(graph: Graph, every: int = EVERY, stop: threading.Event | None = None, r
         except Exception:
             # The next read may work: a failed one costs one interval, not the process.
             log.exception("reading the feed failed")
+        if world_read is None or time.monotonic() - world_read >= world_every:
+            world_read = time.monotonic()
+            try:
+                log.info("read PortWatch: %s", json.dumps(world(graph)))
+            except Exception:
+                log.exception("reading PortWatch failed")
         stop.wait(every)
 
 
@@ -89,6 +107,7 @@ def main(argv=None) -> None:
     ensure_schema(graph, KINDS)
     if args.once:
         print(json.dumps(poll_once(graph), indent=2))
+        print(json.dumps(portwatch.update(graph), indent=2))
     else:
         run(graph, args.every)
 

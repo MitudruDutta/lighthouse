@@ -56,8 +56,16 @@ def test_a_read_that_fails_is_logged_and_the_next_one_comes(graph, caplog):
         stop.set()  # the second read is the last one of this test
         return feed(5, call(1))
 
-    poller.run(graph, every=0, stop=stop, read=read)
+    worlds = []
+
+    def world(graph):
+        worlds.append(1)
+        raise OSError("PortWatch is down")
+
+    poller.run(graph, every=0, stop=stop, read=read, world=world, world_every=3600)
     assert len(reads) == 2
+    assert len(worlds) == 1  # the world is read once an hour, and its failure is logged
+    assert "reading PortWatch failed" in caplog.text
     assert "reading the feed failed" in caplog.text and "the feed is down" in caplog.text
     assert poller.last_poll(graph)["port_calls"] == {"created": 1}
 
