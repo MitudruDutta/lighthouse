@@ -68,5 +68,9 @@ def shape(graph) -> tuple[dict, dict]:
 
 
 def failures(graph) -> list[list]:
-    query = "MATCH (f:WriteFailure) RETURN f.reason, f.kind, f.key, f.detail ORDER BY f.key"
+    # Each refusal once, also those that were counted on the node of the same refusal.
+    query = (
+        "MATCH (f:WriteFailure) UNWIND range(1, f.times) AS n "
+        "RETURN f.reason, f.kind, f.key, f.detail ORDER BY f.key"
+    )
     return graph.ro_query(query).result_set

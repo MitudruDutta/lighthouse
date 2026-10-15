@@ -30,6 +30,7 @@ from lighthouse import (
     used,
 )
 from lighthouse.read import pages
+from lighthouse.values import whole_number
 
 from app.portcalls import PORT
 
@@ -57,6 +58,15 @@ OPEN = f"""
 MATCH (ep:Episode)-[:ABOUT]->(p:Port)
 WHERE ep.closed_at IS NULL AND ep.id STARTS WITH '{SITUATION}:'
 RETURN p.locode, ep.id, ep.opened_at ORDER BY ep.id
+"""
+
+
+UNUSUAL = f"""
+MATCH (ep:Episode)-[:ABOUT]->(p:Port)
+WHERE ep.closed_at IS NULL AND ep.id STARTS WITH '{SITUATION}:'
+MATCH (ep)-[:HAS]->(e:Entry {{seq: 1}})
+RETURN p.locode, e.name, e.state, e.calls, e.usual, e.day, ep.id
+ORDER BY e.day DESC, p.locode LIMIT $limit
 """
 
 
@@ -215,3 +225,11 @@ def rule(found: dict) -> list[dict]:
             "agrees": end["days"] <= SHORT,
         }
     ]
+
+
+def unusual(graph: Graph, limit: int = 50) -> list[dict]:
+    """The ports that are unusual now, the newest spells first: each with the day its spell
+    began, its port calls that day against the usual, and its open episode."""
+    whole_number(limit, "limit", 500)
+    fields = ("port", "name", "state", "calls", "usual", "since", "episode")
+    return [dict(zip(fields, row)) for row in graph.ro_query(UNUSUAL, {"limit": limit}).result_set]

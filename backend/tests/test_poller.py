@@ -68,6 +68,25 @@ def test_a_read_that_fails_is_logged_and_the_next_one_comes(graph, caplog):
     assert "reading PortWatch failed" in caplog.text
     assert "reading the feed failed" in caplog.text and "the feed is down" in caplog.text
     assert poller.last_poll(graph)["port_calls"] == {"created": 1}
+    assert poller.last_poll(graph, "feed-error")["at"] <= poller.last_poll(graph)["at"]
+    assert set(poller.last_poll(graph, "portwatch-error")) == {"at"}
+
+
+def test_failure_reporting_does_not_stop_retries_when_the_database_is_down():
+    stop = threading.Event()
+    reads = []
+
+    def read():
+        reads.append(1)
+        stop.set()
+        raise OSError("source unavailable")
+
+    class UnavailableGraph:
+        def query(self, *args, **kwargs):
+            raise OSError("database unavailable")
+
+    poller.run(UnavailableGraph(), every=0, stop=stop, read=read, world=lambda graph: {"days": []}, look=lambda graph, days: [])
+    assert len(reads) == 1
 
 
 def test_what_the_reviewer_learned_is_in_the_summary(graph, monkeypatch):

@@ -147,6 +147,61 @@ def test_each_read_takes_only_the_days_after_the_last(graph, service):
     assert sum(url == portwatch.PORTS_URL for url, _ in service.asked) == ports_read
 
 
+def test_rejected_writes_hold_the_checkpoint_and_retry_before_newer_days(graph, service, monkeypatch):
+    real_remember = portwatch.remember
+    rejected = False
+
+    def fail_once(graph, kind, rows, by):
+        nonlocal rejected
+        if rows[0]["t"].startswith("2026-10-08") and not rejected:
+            rejected = True
+            # A partial day is already present when the next import retries it.
+            first = real_remember(graph, kind, rows[:1], by)
+            return first + [{"key": row["key"], "status": "failed"} for row in rows[1:]]
+        return real_remember(graph, kind, rows, by)
+
+    monkeypatch.setattr(portwatch, "remember", fail_once)
+    summary = portwatch.update(graph, service, backfill=3)
+    assert summary["days"] == ["2026-10-07"]
+    assert summary["pending_days"] == ["2026-10-08", "2026-10-09"]
+    assert portwatch.newest(graph) == "2026-10-07"
+    assert history(graph, PORT, "INNSA")[-1]["valid_from"].date().isoformat() == "2026-10-08"
+
+    retried = portwatch.update(graph, service)
+    assert retried["days"] == ["2026-10-08", "2026-10-09"]
+    assert retried["pending_days"] == []
+    assert portwatch.newest(graph) == "2026-10-09"
+    assert history(graph, PORT, "INNSA")[-1]["calls"] == 32
+
+
+def test_empty_day_does_not_skip_forward_to_newer_days(graph, service):
+    service.days = [row for row in service.days if row["date"] != "2026-10-08"]
+    summary = portwatch.update(graph, service, backfill=3)
+    assert summary["days"] == ["2026-10-07"]
+    assert summary["pending_days"] == ["2026-10-08", "2026-10-09"]
+    assert portwatch.newest(graph) == "2026-10-07"
+    service.days += days("2026-10-08")
+    assert portwatch.update(graph, service)["days"] == ["2026-10-08", "2026-10-09"]
+
+
+def test_checkpoint_survives_an_interrupted_import(graph, service, monkeypatch):
+    real_remember = portwatch.remember
+
+    def interrupted(graph, kind, rows, by):
+        if rows[0]["t"].startswith("2026-10-08"):
+            raise OSError("interrupted import")
+        return real_remember(graph, kind, rows, by)
+
+    monkeypatch.setattr(portwatch, "remember", interrupted)
+    with pytest.raises(OSError, match="interrupted"):
+        portwatch.update(graph, service, backfill=3)
+    assert portwatch.newest(graph) == "2026-10-07"
+    monkeypatch.setattr(portwatch, "remember", real_remember)
+    resumed = portwatch.update(graph, service)
+    assert resumed["days"] == ["2026-10-08", "2026-10-09"]
+    assert resumed["state"] == "complete"
+
+
 def test_a_port_of_the_feed_gets_the_days_of_portwatch(graph, service):
     poll(graph, 0, record(port="FIHEL", prev="CNQDG"))
     portwatch.update(graph, service, backfill=1)
@@ -260,6 +315,7 @@ def test_the_world_and_a_port_show_their_episodes_and_lessons(graph, service, cl
     learn(graph, "innsa-passes", "reviewer", "Quiet days there pass", [ended], [(PORT, "INNSA")])
     found = client.get("/api/world").json()
     assert found["unusual"] == {"INNSA": now}  # not one that ended, nor of another kind
+    assert client.get("/api/unusual").json() == {"ports": []}  # it has no first entry
     assert "SEGOT" not in {row[0] for row in found["ports"]}
     mumbai = client.get("/api/ports/INNSA").json()
     assert [e["id"] for e in mumbai["episodes"]] == [now]

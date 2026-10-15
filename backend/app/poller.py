@@ -66,6 +66,15 @@ def last_poll(graph: Graph, source: str = "feed") -> dict | None:
     return json.loads(rows[0][0]) if rows else None
 
 
+def _failed(graph: Graph, source: str) -> None:
+    # Expose the time, not exception text that may contain source payloads.
+    summary = {"at": now()}
+    graph.query(
+        "MERGE (p:Poll {id: $id}) SET p.summary = $summary",
+        {"id": f"{source}-error", "summary": json.dumps(summary)},
+    )
+
+
 def run(
     graph: Graph,
     every: int = EVERY,
@@ -86,6 +95,10 @@ def run(
         except Exception:
             # The next read may work: a failed one costs one interval, not the process.
             log.exception("reading the feed failed")
+            try:
+                _failed(graph, "feed")
+            except Exception:
+                log.exception("recording the feed failure failed")
         if world_read is None or time.monotonic() - world_read >= world_every:
             world_read = time.monotonic()
             try:
@@ -95,6 +108,10 @@ def run(
                 log.info("watched the ports: %s", json.dumps(_counts(done, "did")))
             except Exception:
                 log.exception("reading PortWatch failed")
+                try:
+                    _failed(graph, "portwatch")
+                except Exception:
+                    log.exception("recording the PortWatch failure failed")
         stop.wait(every)
 
 

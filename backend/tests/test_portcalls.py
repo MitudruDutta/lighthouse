@@ -8,6 +8,7 @@ from datetime import UTC, datetime, timedelta
 import pytest
 from feed import failures, poll, record, shape, statuses, when
 from lighthouse import (
+    as_of,
     between,
     connection,
     groups,
@@ -40,6 +41,7 @@ def test_blank_and_zero_values_become_absent():
         "atd": None,
         "area": None,
         "areas": 1,
+        "vessel_name": None,  # the ship has an IMO number: its name is on the Vessel
     }
     relations = rows["port_call"]["relations"]
     assert (relations["AT"], relations["CAME_FROM"], relations["BOUND_FOR"]) == (None, None, None)
@@ -302,28 +304,42 @@ def test_graph_tells_what_is_busy_and_how_two_ships_are_connected(graph):
 
 
 def test_record_that_cannot_be_mapped_stores_nothing_but_the_failure(graph):
-    for unusable in (record(id=None), record(imo=None), record(port=None)):
+    for unusable in (record(id=None), record(port=None)):
         assert statuses(poll(graph, 1, unusable)) == ["invalid"]
-    assert shape(graph) == ({"WriteFailure": 3}, {})
+    assert shape(graph) == ({"WriteFailure": 2}, {})
+
+
+def test_a_ship_without_an_imo_number_keeps_its_port_call_and_its_name(graph):
+    for imo in (0, None):
+        assert statuses(poll(graph, 1, record(id=7, imo=imo, name="Tug Seven"))) in (
+            ["created"],
+            ["unchanged"],
+        )
+    assert related(graph, PORT_CALL, 7, "MADE_BY") == []
+    assert as_of(graph, PORT_CALL, 7, when(2))["vessel_name"] == "Tug Seven"
+    assert graph.ro_query("MATCH (n:Vessel) RETURN count(n)").result_set == [[0]]
+    assert failures(graph) == []
+    # A ship with a number has its name on the Vessel, not on the port call.
+    poll(graph, 2, record(id=8, imo=9000001, name="Nordic Star"))
+    assert "vessel_name" not in as_of(graph, PORT_CALL, 8, when(3))
 
 
 def test_invalid_records_are_stored_as_failures_and_do_not_block_valid_ones(graph):
-    no_imo = record(id=2, imo=0)
     no_port = record(id=3, port=" ")
     bad_time = record(id=4)
     bad_time["portCallTimestamp"] = "yesterday"
     bad_eta = record(id=5)
     bad_eta["portAreaDetails"][0]["eta"] = "soon"
     no_id = record(id=None)
-    records = [record(id=1), no_imo, no_port, bad_time, bad_eta, "not a record", no_id]
+    records = [record(id=1), no_port, bad_time, bad_eta, "not a record", no_id]
     receipts = poll(graph, 1, *records)["PortCall"]
-    assert [r["status"] for r in receipts] == ["created"] + ["invalid"] * 6
-    assert [r["key"] for r in receipts] == [1, 2, 3, 4, 5, None, None]
+    assert [r["status"] for r in receipts] == ["created"] + ["invalid"] * 5
+    assert [r["key"] for r in receipts] == [1, 3, 4, 5, None, None]
     assert all(r["reason"] for r in receipts[1:])
     stored = graph.ro_query("MATCH (pc:PortCall) RETURN pc.id").result_set
     assert stored == [[1]]
     found = failures(graph)
-    assert [(f[0], f[1]) for f in found] == [("invalid", "PortCall")] * 6
+    assert [(f[0], f[1]) for f in found] == [("invalid", "PortCall")] * 5
     assert "PERSONAL" not in json.dumps(found)
 
 

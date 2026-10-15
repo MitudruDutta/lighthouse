@@ -165,3 +165,26 @@ def test_the_rule_learns_only_from_port_episodes_that_ended():
     assert portwatcher.rule({"id": "x", "entries": [seen]}) == []
     assert portwatcher.rule({"id": "x", "entries": []}) == []
     assert portwatcher.rule({"id": "x", "entries": [seen, {"type": "outcome", "days": "5"}]}) == []
+
+
+def test_the_unusual_ports_are_listed_newest_first_and_offered_as_tools(graph):
+    from test_mcp_server import ask
+
+    port_days(graph, "INNSA", USUAL + [4, 3], name="Nhava Sheva")
+    port_days(graph, "CNQDG", USUAL + [10, 25], name="Qingdao")
+    port_days(graph, "FIHEL", USUAL + [10, 10], name="Helsinki")
+    portwatcher.watch(graph, [day(14), day(15)])
+    found = portwatcher.unusual(graph)
+    assert [(p["port"], p["state"], p["since"]) for p in found] == [
+        ("CNQDG", "busy", day(15)),
+        ("INNSA", "quiet", day(14)),
+    ]
+    assert (found[1]["name"], found[1]["calls"], found[1]["usual"]) == ("Nhava Sheva", 4, 10)
+    assert found[1]["episode"] == f"port-activity:INNSA:{day(14)}"
+    assert ask(graph, "unusual_ports", limit=1) == found[:1]
+    # The last version holds until the newest day that was read from PortWatch.
+    graph.query("MERGE (p:Poll {id: 'portwatch'}) SET p.newest = $day", {"day": day(15)})
+    days = ask(graph, "port_days", key="INNSA", days=3)
+    assert [(d["day"], d["calls"]) for d in days] == [(day(13), 10), (day(14), 4), (day(15), 3)]
+    with pytest.raises(RuntimeError, match="limit"):
+        ask(graph, "unusual_ports", limit=0)

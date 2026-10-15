@@ -19,7 +19,8 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import date, timedelta
 
 from falkordb import Graph
-from lighthouse import now, remember
+from lighthouse import history, now, remember
+from lighthouse.values import whole_number, without_words
 
 from app.portcalls import PORT
 from app.web import read_json
@@ -31,6 +32,7 @@ PAGE = 1_000  # the most rows the service gives in one answer
 MAX_PAGES = 500  # pages of one read: more is not the service as it is
 BACKFILL = 30  # days read when the graph has none yet
 BY = "portwatch"
+MOST = 200  # ports or days in one answer
 WORKERS = 4  # days asked for at once: a public service, used gently
 
 _LOCODE = re.compile(r"[A-Z]{2}[A-Z0-9]{3}")
@@ -129,14 +131,36 @@ def update(graph: Graph, read=read_json, backfill: int = BACKFILL) -> dict:
     Each day is asked for on its own, a few at a time: the service is slow to page far into
     one long answer. With no new day, the list of ports is not read either."""
     latest = date.fromisoformat(_latest(read))
-    since = newest(graph) or (latest - timedelta(days=backfill)).isoformat()
+    checkpoint = newest(graph)
+    since = checkpoint or (latest - timedelta(days=backfill)).isoformat()
     if not _DATE.fullmatch(since):
         raise ValueError(f"not a day: {since!r}")
     wanted = [
         (date.fromisoformat(since) + timedelta(days=n)).isoformat()
         for n in range(1, (latest - date.fromisoformat(since)).days + 1)
     ]
-    rows, read_days, by_id = [], set(), {}
+    rows_by_day, read_days, by_id = {}, [], {}
+    skipped, receipts = 0, []
+
+    def save(state):
+        summary = {
+            "at": now(),
+            "ports": len(by_id),
+            "days": list(read_days),
+            "rows": dict(Counter(receipt["status"] for receipt in receipts)),
+            "skipped": skipped,
+            "pending_days": wanted[len(read_days) :],
+            "newest": max(read_days, default=checkpoint),
+            "state": state,
+        }
+        graph.query(
+            "MERGE (p:Poll {id: 'portwatch'}) SET p.at = localdatetime($at), "
+            "p.summary = $summary, p.newest = $newest",
+            {"at": summary["at"], "summary": json.dumps(summary), "newest": summary["newest"]},
+        )
+        return summary
+
+    save("running")
     if wanted:
         ports = _features(
             read, PORTS_URL, "1=1", "portid,portname,country,ISO3,continent,lat,lon,LOCODE"
@@ -151,25 +175,55 @@ def update(graph: Graph, read=read_json, backfill: int = BACKFILL) -> dict:
             days = [row for rows_of_day in found for row in rows_of_day]
         for day in sorted(days, key=lambda d: (str(d.get("date")), str(d.get("portid")))):
             if not _DATE.fullmatch(str(day.get("date"))) or day.get("portid") is None:
+                skipped += 1
                 continue  # a row without a day or a port says nothing
             port = by_id.get(day["portid"], {})
             key = key_of.get(day["portid"], f"portwatch:{day['portid']}")
-            rows.append(to_row(day, port, key))
-            read_days.add(day["date"])
-    receipts = remember(graph, PORT, rows, by=BY) if rows else []
-    summary = {
-        "at": now(),
-        "ports": len(by_id),
-        "days": sorted(read_days),
-        "rows": dict(Counter(receipt["status"] for receipt in receipts)),
-    }
-    graph.query(
-        "MERGE (p:Poll {id: 'portwatch'}) SET p.at = localdatetime($at), p.summary = $summary, "
-        "p.newest = $newest",
-        {
-            "at": summary["at"],
-            "summary": json.dumps(summary),
-            "newest": max(read_days, default=since),
-        },
-    )
-    return summary
+            rows_by_day.setdefault(day["date"], []).append(to_row(day, port, key))
+    for day in wanted:
+        rows = rows_by_day.get(day, [])
+        if not rows:
+            break  # An empty day must not move the checkpoint past a gap.
+        written = remember(graph, PORT, rows, by=BY)
+        receipts.extend(written)
+        if any(r["status"] not in {"created", "changed", "inserted", "unchanged"} for r in written):
+            break  # Retry this day before writing newer versions of the same ports.
+        read_days.append(day)
+        save("running")  # Resume after this complete day even if the process stops next.
+    return save("partial" if len(read_days) < len(wanted) else "complete")
+
+
+def busiest(graph: Graph, country: str | None = None, limit: int = 50) -> list[dict]:
+    """Ports with what happened on their last day, busiest first. `country` keeps to one
+    country, by its ISO 3166 code, such as IND."""
+    if country is not None and not re.fullmatch(r"[A-Z]{3}", str(country)):
+        raise ValueError("country is an ISO 3166 code of three capital letters, such as IND")
+    whole_number(limit, "limit", MOST)
+    rows = graph.ro_query(
+        "MATCH (p:Port) WHERE p.calls IS NOT NULL AND ($country IS NULL OR p.iso3 = $country) "
+        "RETURN p ORDER BY p.calls DESC, p.locode LIMIT $limit",
+        {"country": country, "limit": limit},
+    ).result_set
+    return [
+        {"key": node.properties["locode"], **without_words(node.properties)} for (node,) in rows
+    ]
+
+
+def daily(versions: list[dict], last: str | None, days: int) -> list[dict]:
+    """The last `days` days of a port, oldest first, one entry a day. A version holds every
+    day from its start until the next one; the open one until `last`, the newest day read."""
+    found = {}
+    end_of_all = date.fromisoformat(last) if last else None
+    for state in versions:
+        day = state["valid_from"].date()
+        end = state["valid_to"].date() - timedelta(days=1) if state.get("valid_to") else end_of_all
+        while end is not None and day <= end:
+            found[day] = {"day": day.isoformat(), **{n: state.get(n) for n in DAY.values()}}
+            day += timedelta(days=1)
+    return [found[day] for day in sorted(found)[-days:]]
+
+
+def days_of(graph: Graph, key: str, days: int = 30) -> list[dict]:
+    """The last `days` days of one port, as daily() gives them."""
+    whole_number(days, "days", MOST)
+    return daily(history(graph, PORT, key), newest(graph), days)

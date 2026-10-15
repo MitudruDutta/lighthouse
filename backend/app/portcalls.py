@@ -90,6 +90,8 @@ def to_rows(rec: dict, observed: str) -> dict:
                 "atd": area.get("atd"),
                 "area": area_code,
                 "areas": len(areas),
+                # A ship without an IMO number has no Vessel to point at: its name stays here.
+                "vessel_name": None if imo else _text(rec.get("vesselName")),
             },
             "relations": {
                 "MADE_BY": imo,
@@ -99,7 +101,8 @@ def to_rows(rec: dict, observed: str) -> dict:
                 "BOUND_FOR": _text(rec.get("nextPort")),
             },
         },
-        "vessel": {
+        "vessel": imo
+        and {
             "key": imo,
             "t": observed,
             "values": {
@@ -127,8 +130,6 @@ def to_rows(rec: dict, observed: str) -> dict:
 def _problem(rows: dict) -> str | None:
     if rows["port_call"]["key"] is None:
         return "portCallId must be a positive integer"
-    if rows["vessel"]["key"] is None:
-        return "imoLloyds must be a positive integer"
     if not rows["port_call"]["relations"]["CALLS_AT"]:
         return "portToVisit is missing"
     return None
