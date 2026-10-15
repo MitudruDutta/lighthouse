@@ -114,7 +114,7 @@ def test_find_gives_the_key_for_a_name(desk):
     assert len(ask(desk, "find", kind="Vessel", words="star", limit=1)) == 1
     berths = ask(desk, "find", kind="Berth", words="berth vc2")  # one word is enough: best first
     assert [found["key"] for found in berths] == [VC2, "FIKTK/KTK/K1"]
-    assert "no text to search" in refused(desk, "find", kind="Port", words="hel")
+    assert "no text to search" in refused(desk, "find", kind="PortCall", words="hel")
     assert "kind must be one of" in refused(desk, "find", kind="Ship", words="star")
 
 

@@ -8,16 +8,17 @@ look at what it stored: `python -m app.poller`.
 """
 
 import json
-import urllib.request
-import zlib
 
 from falkordb import Graph
 from lighthouse import Kind, now, record_failure, remember, stamp
 
+from app.web import read_json
+
 FEED_URL = "https://meri.digitraffic.fi/api/port-call/v1/port-calls"
 MAX_FEED_BYTES = 50_000_000  # the feed is about 1 MB; more than this is not the feed
 
-PORT = Kind("Port", key="locode")
+# A port: its UN/LOCODE, or the PortWatch id of a port that has none (see portwatch.py).
+PORT = Kind("Port", key="locode", text=("name", "country"))
 VESSEL = Kind("Vessel", key="imo", text=("name",))
 BERTH = Kind("Berth", relations={"IN": PORT}, text=("name", "area_name"))
 PORT_CALL = Kind(
@@ -32,7 +33,7 @@ PORT_CALL = Kind(
         "BOUND_FOR": PORT,
     },
 )
-KINDS = (PORT_CALL, VESSEL, BERTH)
+KINDS = (PORT_CALL, VESSEL, BERTH, PORT)
 # The kinds by label, for callers that name a kind in text: the API and the MCP tools.
 BY_LABEL = {kind.label: kind for kind in (PORT_CALL, VESSEL, BERTH, PORT)}
 
@@ -173,27 +174,9 @@ def ingest(graph: Graph, records: list[dict], observed=None, by: str = "digitraf
 
 def fetch(url: str = FEED_URL) -> dict:
     """The feed: {"dataUpdatedTime", "portCalls"}, port calls updated in the last 24 hours.
-    Digitraffic asks for gzip and a user header.
-
-    The answer is not trusted: only https is read (urllib would also open a local file),
-    the body is cut off at MAX_FEED_BYTES before and after it is unpacked, and anything
-    that is not the feed's shape raises ValueError."""
-    if not url.startswith("https://"):
-        raise ValueError("the feed is read over https only")
-    request = urllib.request.Request(
-        url, headers={"Accept-Encoding": "gzip", "Digitraffic-User": "lighthouse"}
-    )
-    with urllib.request.urlopen(request, timeout=30) as response:
-        body = response.read(MAX_FEED_BYTES + 1)
-        if response.headers.get("Content-Encoding") == "gzip":
-            # Unpack with a limit: a small gzip body can hold gigabytes.
-            body = zlib.decompressobj(wbits=31).decompress(body, MAX_FEED_BYTES + 1)
-    if len(body) > MAX_FEED_BYTES:
-        raise ValueError(f"the feed answer is larger than {MAX_FEED_BYTES} bytes")
-    try:
-        feed = json.loads(body)
-    except (ValueError, RecursionError) as exc:
-        raise ValueError(f"the feed answer is not JSON: {type(exc).__name__}") from None
+    Digitraffic asks for gzip and a user header. Anything that is not the feed's shape
+    raises ValueError."""
+    feed = read_json(url, "the feed", {"Digitraffic-User": "lighthouse"}, most=MAX_FEED_BYTES)
     if not isinstance(feed, dict) or not isinstance(feed.get("portCalls"), list):
         raise ValueError("the feed answer has no list of port calls")  # noqa: TRY004
     return feed

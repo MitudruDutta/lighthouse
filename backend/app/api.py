@@ -12,11 +12,12 @@ import lighthouse
 from falkordb import Graph
 from fastapi import APIRouter, Depends, HTTPException, Query
 from lighthouse.episodes import pairs
+from lighthouse.values import without_words
 
 from app.berths import loads
 from app.db import get_db
 from app.poller import last_poll
-from app.portcalls import BERTH, PORT_CALL, VESSEL, key_for, kind_named
+from app.portcalls import BERTH, PORT, PORT_CALL, VESSEL, key_for, kind_named
 
 router = APIRouter(prefix="/api")
 HIDDEN = {"fp"}  # of a State: a fingerprint that says nothing to a reader
@@ -51,6 +52,7 @@ def status(graph: Desk) -> dict:
         "counts": {label: _count(graph, label) for label in labels},
         "open_episodes": open_episodes,
         "last_poll": last_poll(graph),
+        "last_world_poll": last_poll(graph, "portwatch"),
     }
 
 
@@ -141,12 +143,12 @@ def port_call(graph: Desk, key: str, at: str | None = None) -> dict:
 def search(
     graph: Desk,
     q: Annotated[str, Query(max_length=1_000)],
-    kind: Annotated[str, Query(pattern="^(Vessel|Berth)$")] = "Vessel",
+    kind: Annotated[str, Query(pattern="^(Vessel|Berth|Port)$")] = "Vessel",
     earlier: bool = False,
     limit: Annotated[int, Query(ge=1, le=MOST)] = 10,
 ) -> list[dict]:
-    """Vessels or berths whose name has the words of `q`, best first. With `earlier`, the
-    names they had at any time, each with when it held."""
+    """Vessels, berths, or ports whose name has the words of `q`, best first. With
+    `earlier`, the names they had at any time, each with when it held."""
     found = kind_named(kind)
     if earlier:
         return [
@@ -206,4 +208,41 @@ def berth(graph: Desk, key: str) -> dict:
         "port_calls": lighthouse.pointing_at(graph, PORT_CALL, "AT", key),
         "lessons": lighthouse.lessons_about(graph, BERTH, key),
         "episodes": lighthouse.episodes_about(graph, BERTH, key),
+    }
+
+
+@router.get("/ports")
+def ports(
+    graph: Desk,
+    country: Annotated[str | None, Query(pattern="^[A-Z]{3}$")] = None,
+    limit: Annotated[int, Query(ge=1, le=MOST)] = 50,
+) -> list[dict]:
+    """Ports of the world with what happened on their last day, busiest first. `country`
+    keeps to one country, by its ISO 3166 code, such as IND."""
+    rows = graph.ro_query(
+        "MATCH (p:Port) WHERE p.calls IS NOT NULL AND ($country IS NULL OR p.iso3 = $country) "
+        "RETURN p ORDER BY p.calls DESC, p.locode LIMIT $limit",
+        {"country": country, "limit": limit},
+    ).result_set
+    return [
+        {"key": node.properties["locode"], **_shown(without_words(node.properties))}
+        for (node,) in rows
+    ]
+
+
+@router.get("/ports/{key:path}")
+def port(graph: Desk, key: str, days: Annotated[int, Query(ge=1, le=366)] = 30) -> dict:
+    """One port: its last `days` days of port calls, and the port calls of the feed that
+    called there, came from there, or are bound there."""
+    versions = lighthouse.history(graph, PORT, key)
+    calls = {
+        relation: lighthouse.pointing_at(graph, PORT_CALL, relation, key)
+        for relation in ("CALLS_AT", "CAME_FROM", "BOUND_FOR")
+    }
+    if not versions and not any(calls.values()):
+        raise HTTPException(status_code=404, detail="no such port")
+    return {
+        "key": key,
+        "days": [_shown(state) for state in versions[-days:]],
+        "port_calls": calls,
     }
