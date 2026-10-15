@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { Suspense } from "react";
 
-import { Card, Loading, RefLink, When } from "../../components/ui";
-import { type PortCall, api, segments } from "../../lib/api";
+import { Card, Loading, RefLink, When } from "@/app/components/ui";
+import { type PortCall, api, segments } from "@/app/lib/api";
 
 const SHOWN = ["eta", "etd", "ata", "atd", "area", "areas"];
 const RELATIONS: Record<string, [string, string]> = {
@@ -33,7 +33,7 @@ async function Body({ params, searchParams }: PageProps<"/portcalls/[id]">) {
   return (
     <div className="grid gap-5">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Port call {call.key}</h1>
+        <h1 className="serif text-3xl">Port call {call.key}</h1>
         <form className="mt-2 flex flex-wrap items-center gap-2 text-sm">
           <label htmlFor="at" className="text-muted">
             As it was at

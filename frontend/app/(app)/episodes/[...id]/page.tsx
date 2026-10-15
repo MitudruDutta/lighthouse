@@ -1,9 +1,12 @@
 import { Suspense } from "react";
+import Link from "next/link";
 
-import { Badge, Card, Loading, RefLink, When, headline } from "../../components/ui";
-import { type Entry, type Episode, api, segments } from "../../lib/api";
+import { Badge, Card, Loading, Prose, RefLink, Trace, When, headline } from "@/app/components/ui";
+import { type Checked, type Entry, type Episode, api, segments } from "@/app/lib/api";
 
 const OWN = new Set(["id", "seq", "type", "at", "recorded_at", "by", "cites"]);
+// Shown by Trace, for an entry that a model wrote.
+const TRACED = new Set(["model", "outcome", "unsupported", "tools", "tool_rows", "tool_ms"]);
 
 export default function EpisodePage(props: PageProps<"/episodes/[...id]">) {
   return (
@@ -13,21 +16,48 @@ export default function EpisodePage(props: PageProps<"/episodes/[...id]">) {
   );
 }
 
-function show(value: unknown): string {
-  if (Array.isArray(value)) return value.map(show).join(", ");
-  if (typeof value === "number") return value.toLocaleString("en", { maximumFractionDigits: 2 });
-  return String(value);
+const PORT_CALLS = new Set(["calls", "together"]);
+const TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/;
+
+function Shown({ name, value }: { name: string; value: unknown }) {
+  if (Array.isArray(value)) {
+    if (value.length === 0) return <span className="text-faint">none</span>;
+    if (PORT_CALLS.has(name)) {
+      return (
+        <span className="flex flex-wrap gap-x-2">
+          {value.map((id) => (
+            <RefLink key={String(id)} refer={["PortCall", id as number]}>
+              {String(id)}
+            </RefLink>
+          ))}
+        </span>
+      );
+    }
+    return <>{value.map(String).join(", ")}</>;
+  }
+  if (typeof value === "string" && TIME.test(value)) return <When at={value} />;
+  if (typeof value === "number") {
+    return <>{Number.isInteger(value) ? String(value) : value.toLocaleString("en", { maximumFractionDigits: 2 })}</>;
+  }
+  if (typeof value === "boolean") return <>{value ? "yes" : "no"}</>;
+  if (name === "text" && typeof value === "string") return <Prose text={value} />;
+  return <>{String(value)}</>;
 }
 
 function Values({ entry }: { entry: Entry }) {
-  const values = Object.entries(entry).filter(([name, value]) => !OWN.has(name) && value !== null && value !== undefined);
+  const traced = entry.outcome !== undefined;
+  const values = Object.entries(entry).filter(
+    ([name, value]) => !OWN.has(name) && !(traced && TRACED.has(name)) && value !== null && value !== undefined,
+  );
   if (values.length === 0) return null;
   return (
     <dl className="mt-2 grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1 text-sm">
       {values.map(([name, value]) => (
         <div key={name} className="contents">
           <dt className="text-muted">{name.replaceAll("_", " ")}</dt>
-          <dd className="break-words">{show(value)}</dd>
+          <dd className="min-w-0 break-words">
+            <Shown name={name} value={value} />
+          </dd>
         </div>
       ))}
     </dl>
@@ -40,8 +70,9 @@ async function Body({ params }: PageProps<"/episodes/[...id]">) {
   return (
     <div className="grid gap-5">
       <div>
-        <h1 className="break-words text-xl font-semibold tracking-tight">{headline(id, episode.entries[0])}</h1>
+        <h1 className="serif break-words text-3xl">{headline(id, episode.entries[0])}</h1>
         <p className="mt-1 break-words font-mono text-xs text-faint">{id}</p>
+        <Link href={`/investigate?kind=Episode&key=${encodeURIComponent(id)}`} className="button-quiet mt-3 !text-xs">Explore connected evidence ↗</Link>
         <p className="mt-1 text-sm text-muted">
           Opened <When at={episode.opened_at} /> by {episode.by}
           {episode.closed_at ? (
@@ -71,6 +102,7 @@ async function Body({ params }: PageProps<"/episodes/[...id]">) {
                 <span className="text-muted">by {entry.by}</span>
               </div>
               <Values entry={entry} />
+              {entry.outcome !== undefined ? <Trace found={entry as Checked} /> : null}
               {entry.cites.length ? (
                 <p className="mt-2 flex flex-wrap gap-2 text-xs">
                   <span className="text-faint">Evidence, as it was then:</span>

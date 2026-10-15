@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { Suspense } from "react";
 
-import { Badge, Card, Empty, Loading, RefLink, When, headline } from "../components/ui";
-import { type EpisodeSummary, api, segments } from "../lib/api";
+import { Badge, Card, Empty, Loading, RefLink, When, headline } from "@/app/components/ui";
+import { type EpisodeSummary, api, segments } from "@/app/lib/api";
 
 const STATES = ["open", "closed", "all"];
 const SITUATIONS: [string, string][] = [
@@ -15,7 +15,8 @@ export default function Episodes(props: PageProps<"/episodes">) {
   return (
     <div className="grid gap-5">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Episodes</h1>
+        <p className="eyebrow mb-3">Intelligence / Event history</p>
+        <h1 className="display">Episodes<span className="text-[var(--sky)]">.</span></h1>
         <p className="mt-1 text-sm text-muted">
           What the agents saw, recalled, and did about one event, each entry with its evidence, and how it ended.
         </p>
@@ -40,13 +41,13 @@ async function List({ searchParams }: PageProps<"/episodes">) {
       title={
         <span className="flex flex-wrap gap-1 normal-case tracking-normal">
           {STATES.map((s) => (
-            <Link key={s} href={link({ state: s })} className={s === state ? "badge badge-info" : "badge"}>
+            <Link key={s} href={link({ state: s })} aria-current={s === state ? "page" : undefined} className={s === state ? "badge badge-info" : "badge"}>
               {s}
             </Link>
           ))}
           <span className="mx-1" />
           {SITUATIONS.map(([s, label]) => (
-            <Link key={s} href={link({ situation: s })} className={s === situation ? "badge badge-info" : "badge"}>
+            <Link key={s} href={link({ situation: s })} aria-current={s === situation ? "page" : undefined} className={s === situation ? "badge badge-info" : "badge"}>
               {label}
             </Link>
           ))}
@@ -57,8 +58,10 @@ async function List({ searchParams }: PageProps<"/episodes">) {
       {episodes.length === 0 ? (
         <Empty>No episode here.</Empty>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="grid">
+        <div>
+          <p className="mb-3 text-[11px] text-faint xl:hidden">Scroll sideways for evidence, agent and outcome →</p>
+          <div className="overflow-x-auto" role="region" aria-label="Episode history" tabIndex={0}>
+          <table className="grid episodes-table">
             <thead>
               <tr>
                 <th>Opened</th>
@@ -95,6 +98,7 @@ async function List({ searchParams }: PageProps<"/episodes">) {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
     </Card>

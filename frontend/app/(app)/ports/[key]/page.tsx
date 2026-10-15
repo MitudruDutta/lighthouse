@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { Suspense } from "react";
 
-import { Bars } from "../../components/Bars";
-import { Badge, Card, Empty, Loading, When, number } from "../../components/ui";
-import { type Port, api, segments } from "../../lib/api";
+import { Bars } from "@/app/components/Bars";
+import { Badge, Card, Empty, Loading, When, number } from "@/app/components/ui";
+import { type Port, api, segments } from "@/app/lib/api";
 
 export default function PortPage(props: PageProps<"/ports/[key]">) {
   return (
@@ -23,31 +23,32 @@ const KINDS: [keyof Port["days"][number], string][] = [
 
 async function Body({ params }: PageProps<"/ports/[key]">) {
   const key = decodeURIComponent((await params).key);
-  const port = await api<Port>(`/api/ports/${encodeURIComponent(key)}`, { days: 60 });
+  const port = await api<Port>(`/api/ports/${encodeURIComponent(key)}`, { days: 90 });
   const last = port.days.at(-1);
   const feed = Object.entries(port.port_calls).filter(([, calls]) => calls.length);
   return (
     <div className="grid gap-5">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">{port.place.name ?? key}</h1>
-        <p className="mt-1 text-sm text-muted">
-          {port.place.country} {port.place.continent ? `· ${port.place.continent}` : null} · {key}
+        <h1 className="serif text-3xl leading-tight">{port.place.name ?? key}</h1>
+        <p className="mt-1.5 text-[15px] text-muted">
+          {[port.place.country, port.place.continent].filter(Boolean).join(", ")}. {key.startsWith("portwatch:") ? "PortWatch identifier" : "UN/LOCODE"} {key}.
         </p>
+        <Link href={`/investigate?kind=Port&key=${encodeURIComponent(key)}`} className="button-quiet mt-3 !text-xs">Investigate connections ↗</Link>
       </div>
       {last ? (
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
           <div className="card">
-            <div className="text-xs uppercase tracking-wide text-muted">Port calls on <When at={last.day} day /></div>
-            <div className="mt-1 text-2xl font-semibold tabular-nums">{number(last.calls)}</div>
+            <div className="text-sm text-muted">Port calls on <When at={last.day} day /></div>
+            <div className="serif mt-1 text-3xl tabular-nums">{number(last.calls)}</div>
           </div>
           <div className="card">
-            <div className="text-xs uppercase tracking-wide text-muted">Unloaded / loaded</div>
+            <div className="text-sm text-muted">Tonnes unloaded and loaded</div>
             <div className="mt-1 text-lg font-semibold tabular-nums">
-              {number(last.import_tonnes)} / {number(last.export_tonnes)} t
+              {number(last.import_tonnes)} in, {number(last.export_tonnes)} out
             </div>
           </div>
           <div className="card md:col-span-2">
-            <div className="text-xs uppercase tracking-wide text-muted">By type of ship</div>
+            <div className="text-sm text-muted">By type of ship</div>
             <div className="mt-2 flex flex-wrap gap-2 text-sm">
               {KINDS.map(([field, label]) => (
                 <span key={field}>
@@ -58,8 +59,11 @@ async function Body({ params }: PageProps<"/ports/[key]">) {
           </div>
         </div>
       ) : null}
-      <Card title="Port calls by day" aside={`${port.days.length} days`}>
+      <Card title="Port calls by day" aside="the last 60 days; hover a day for its numbers">
         {port.days.length ? <Bars days={port.days} /> : <Empty>PortWatch has no days of this port.</Empty>}
+        <p className="mt-2 text-sm text-muted">
+          The dashed line is the median of up to 28 prior observations, with at least 14 required. A terracotta bar marks half or twice the usual activity at ports averaging at least six calls. Hollow markers mean no observation.
+        </p>
       </Card>
       <div className="grid gap-5 md:grid-cols-2">
         <Card title="Episodes">
@@ -72,7 +76,7 @@ async function Body({ params }: PageProps<"/ports/[key]">) {
                   <Link href={`/episodes/${segments(ep.id)}`} className="link">
                     <When at={ep.opened_at} day />
                   </Link>
-                  {ep.outcome ? <Badge tone="closed">{`back in ${String(ep.outcome.days)} days`}</Badge> : <Badge tone="open">open</Badge>}
+                  {ep.outcome ? <Badge tone="closed">{`back in ${String(ep.outcome.days)} day${ep.outcome.days === 1 ? "" : "s"}`}</Badge> : <Badge tone="open">open</Badge>}
                 </li>
               ))}
             </ul>

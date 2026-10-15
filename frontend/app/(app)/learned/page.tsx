@@ -1,13 +1,14 @@
 import { Suspense } from "react";
 
-import { Badge, Card, Empty, Loading, RefLink } from "../components/ui";
-import { type Lesson, type Playbook, api } from "../lib/api";
+import { Badge, Card, Empty, Loading, RefLink } from "@/app/components/ui";
+import { type Lesson, type Playbook, api } from "@/app/lib/api";
 
 export default function Learned() {
   return (
     <div className="grid gap-5">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Learned</h1>
+        <p className="eyebrow mb-3">Intelligence / Shared memory</p>
+        <h1 className="display">Lessons & playbooks<span className="text-[var(--sky)]">.</span></h1>
         <p className="mt-1 text-sm text-muted">
           Lessons and playbooks rest on episodes that ended. The weight of a lesson is the episodes for it less those
           against it.
@@ -32,7 +33,7 @@ async function Lessons() {
       ) : (
         <ul className="grid gap-3">
           {lessons.map((lesson) => (
-            <li key={lesson.id} id={lesson.id} className="text-sm">
+            <li key={lesson.id} id={lesson.id} className="rounded-lg border border-[var(--edge)] p-4 text-sm">
               <div>
                 <Badge tone="recall">{lesson.weight}</Badge> {lesson.statement}
               </div>
