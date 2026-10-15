@@ -12,7 +12,7 @@ Entry for Graph Hacks (WeMakeDevs x FalkorDB), in two tracks: Track 01, Agents T
 | Path | Contents |
 | --- | --- |
 | `lighthouse-memory/` | The memory library, Python package `lighthouse`. Generic: it has no code for ports or for any other product. See its README for the model, the write rule, and the API. |
-| `backend/` | The port desk. `app/portcalls.py` maps the port call feed to library rows. `app/berths.py` works out what a berth has held and where more is expected. `app/watcher.py` is the agent that acts on that. `app/reviewer.py` turns overloads that ended into lessons and playbooks. `app/mcp_server.py` offers the graph to agents as tools over MCP. |
+| `backend/` | The port desk. `app/portcalls.py` maps the port call feed to library rows. `app/berths.py` works out what a berth has held and where more is expected. `app/watcher.py` is the agent that acts on that. `app/reviewer.py` turns overloads that ended into lessons and playbooks. `app/mcp_server.py` offers the graph to agents as tools over MCP. `app/poller.py` reads the feed every few minutes and runs the two agents after each read. `app/api.py` serves the screen: read-only routes under `/api`. |
 | `frontend/` | Unmodified `create-next-app` output. |
 | `mutation/` | The mutation check: deliberate bugs planted in copies of both projects, each of which the tests must catch. |
 
@@ -34,6 +34,7 @@ Built and tested so far:
 - **Berth overloads, found from the graph's own history.** The feed does not say how many ships fit at a berth, and some berth codes stand for a whole harbour. So the port desk takes what a berth holds from what was alongside together, and flags a berth only when more port calls are expected at one time than it ever held. On a sample of the feed, among 246 port calls with a berth, 43 pairs of port calls of different vessels that had not left overlapped at one berth code. This rule flagged 11 berths. Where the graph had seen four ships together at one berth code, it flagged the fifth; where it had seen six, it flagged nothing. The rule reads all 119 berths in 3 ms.
 - **The Watcher, an agent that acts.** After a poll it opens an episode for each new overload, writes what it sees with the berth and the port calls as evidence, and does what memory says: it writes a lesson about the berth into the episode, follows a playbook that fits and records the run, or, with no playbook, raises a task and hands the episode to the desk. It adds an observation when the picture changes, and closes the episode with what became of each port call and whether the berth held them all after all. It decides by rule, not by a model. One live run: 237 port calls stored and watched in 1.5 s, 7 episodes opened.
 - **The Reviewer, which learns.** After the Watcher it reads every overload episode that ended. Whether the berth took them all becomes a lesson about the berth, for or against. A port call that was moved to another berth becomes a playbook: at the next overload of that berth, propose the other one. A playbook that ran is judged right when a port call went where it proposed. Each needs three episodes that agree before it is written, and three failures in a row switch a playbook off. At the next overload, the Watcher recalls the lesson, follows the playbook, and hands its proposal to the desk. One live poll gave nothing to learn yet: an overload must end first, which takes hours of polls.
+- **A live desk.** The poller reads the feed every few minutes and runs the Watcher and the Reviewer after each read; a failed read is logged and the next comes on time. Read-only API routes give the screen the berth board, the episodes with their evidence, lessons, playbooks, a port call or a vessel at any time, search by name now and earlier, and the chain between two things now or at a time.
 - **Tools for agents over MCP.** 16 typed tools: 13 questions (find, look at any time, versions, what points at a thing, what is alike, how two things are connected, PageRank, incidents, overloads, episodes, lessons, playbooks) and 3 additions to the record (an entry, a task, a handoff). No tool takes a query and none deletes. The name on every write comes from the server. Over a real stdio session against the live graph, a tool call took 2 to 5 ms.
 - The live port call feed is stored through the library: 273 port calls in 241 ms on one laptop, 0 LLM calls, 0 personal fields in the graph. One run.
 
@@ -237,9 +238,10 @@ uv run pytest                            # the memory library, against the runni
 cd ../backend
 uv sync                                  # installs the library from ../lighthouse-memory
 uv run pytest
-uv run python -m app.portcalls           # one poll of the live feed into the `world` graph, then the Watcher
+uv run python -m app.poller --once      # one read of the live feed into the `world` graph, then the Watcher and the Reviewer
+uv run python -m app.poller             # the same every 5 minutes, until stopped
 LIGHTHOUSE_AGENT=desk uv run python -m app.mcp_server   # the tools over MCP, on standard input and output
-uv run uvicorn app.main:app --port 8100  # http://127.0.0.1:8100/readyz
+uv run uvicorn app.main:app --port 8100  # http://127.0.0.1:8100/readyz, and the routes in /docs
 
 cd ../frontend
 bun install
