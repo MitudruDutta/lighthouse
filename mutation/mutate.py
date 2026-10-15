@@ -35,9 +35,10 @@ CV = "lighthouse/conversation.py"
 B, WA, M = "app/berths.py", "app/watcher.py", "app/mcp_server.py"
 PR, RV = "lighthouse/promotion.py", "app/reviewer.py"
 PO, AP, MN = "app/poller.py", "app/api.py", "app/main.py"
+WEB, PW = "app/web.py", "app/portwatch.py"
 S, X = "lighthouse/snapshot.py", "lighthouse/extraction.py"
 # The tests most likely to catch a bug in a file run first; the whole suite runs only if they pass.
-FIRST = {PO: "test_poller", AP: "test_api", MN: "test_api test_health", X: "test_extraction", S: "test_snapshot test_algorithms", WP: "test_partial", WB: "test_batches test_late test_partial test_attacks test_vector", WL: "test_late test_batches", WF: "test_failures test_attacks test_conversation", WR: "test_rows test_attacks test_batches", V: "test_values test_attacks test_write", C: "test_clock test_attacks",
+FIRST = {WEB: "test_portcalls test_portwatch", PW: "test_portwatch", PO: "test_poller", AP: "test_api", MN: "test_api test_health", X: "test_extraction", S: "test_snapshot test_algorithms", WP: "test_partial", WB: "test_batches test_late test_partial test_attacks test_vector", WL: "test_late test_batches", WF: "test_failures test_attacks test_conversation", WR: "test_rows test_attacks test_batches", V: "test_values test_attacks test_write", C: "test_clock test_attacks",
          R: "test_read test_attacks", G: "test_graphs", K: "test_kinds test_graphs", E: "test_episodes test_attacks test_handoffs test_lessons",
          H: "test_handoffs", T: "test_tasks", TR: "test_traverse", TX: "test_text", VE: "test_vector", RK: "test_rank",
          L: "test_lessons", PB: "test_playbooks", A: "test_algorithms", CV: "test_conversation",
@@ -897,12 +898,39 @@ LIBRARY = [
 ]
 
 BACKEND = [
+    # --- the ports of the world
+    ("world: ports of one page only", PW, "        if not answer.get(\"exceededTransferLimit\"):\n            return rows", "        return rows"),
+    ("world: pages without an end", PW, "    raise ValueError(f\"PortWatch gave more than {MAX_PAGES} pages\")", "    return rows"),
+    ("world: pages read twice", PW, '            "resultOffset": page * PAGE,', '            "resultOffset": 0,'),
+    ("world: an error answer is no rows", PW, "        if not isinstance(features, list):\n            error", "        if features is None:\n            features = []\n        if not isinstance(features, list):\n            error"),
+    ("world: locode kept with its space", PW, '        locode = str(port.get("LOCODE") or "").replace(" ", "").upper()', '        locode = str(port.get("LOCODE") or "").upper()'),
+    ("world: a locode taken twice", PW, "        if _LOCODE.fullmatch(locode) and locode not in taken:", "        if _LOCODE.fullmatch(locode):"),
+    ("world: negative numbers kept", PW, "    ok = type(value) in (int, float) and math.isfinite(value) and low <= value <= high", "    ok = type(value) in (int, float) and math.isfinite(value)"),
+    ("world: not a number kept", PW, "    ok = type(value) in (int, float) and math.isfinite(value) and low <= value <= high", "    ok = type(value) in (int, float) and low <= value <= high"),
+    ("world: the south and the west dropped", PW, '_number(port.get("lat"), -90, 90)', '_number(port.get("lat"))'),
+    ("world: the day of the port lost", PW, '    return {"key": key, "t": f"{day.get(\'date\')}T00:00:00Z", "values": values}', '    return {"key": key, "t": "2026-01-01T00:00:00Z", "values": values}'),
+    ("world: where the port is from the day only", PW, "    values = {ours: day.get(theirs) or port.get(theirs) for theirs, ours in PLACE.items()}", "    values = {ours: day.get(theirs) for theirs, ours in PLACE.items()}"),
+    ("world: days read again", PW, '        "p.newest = $newest",', '        "p.newest = null",'),
+    ("world: the newest day of the service unchecked", PW, "    if not _DATE.fullmatch(str(found)):\n        raise ValueError(f\"the PortWatch answer has no newest day", "    if False:\n        raise ValueError(f\"the PortWatch answer has no newest day"),
+    ("world: backfill too long", PW, "    since = newest(graph) or (latest - timedelta(days=backfill)).isoformat()", "    since = newest(graph) or (latest - timedelta(days=backfill + 7)).isoformat()"),
+    ("world: the newest day not read", PW, "        for n in range(1, (latest - date.fromisoformat(since)).days + 1)", "        for n in range(1, (latest - date.fromisoformat(since)).days)"),
+    ("world: the ports read with no new day", PW, "    if wanted:\n        ports = _features(", "    if True:\n        ports = _features("),
+    ("world: one day read for all", PW, "f\"date = DATE '{d}'\"", "f\"date >= DATE '{d}'\""),
+    ("world: rows without a day kept", PW, '        if not _DATE.fullmatch(str(day.get("date"))) or day.get("portid") is None:', '        if day.get("portid") is None:'),
+    ("world: ports not searchable", P, 'PORT = Kind("Port", key="locode", text=("name", "country"))', 'PORT = Kind("Port", key="locode")'),
+    ("api: ports of every country", AP, '"MATCH (p:Port) WHERE p.calls IS NOT NULL AND ($country IS NULL OR p.iso3 = $country) "', '"MATCH (p:Port) WHERE p.calls IS NOT NULL "'),
+    ("api: ports not busiest first", AP, '"RETURN p ORDER BY p.calls DESC, p.locode LIMIT $limit"', '"RETURN p ORDER BY p.locode LIMIT $limit"'),
+    ("api: every day of a port", AP, '"days": [_shown(state) for state in versions[-days:]],', '"days": [_shown(state) for state in versions],'),
+    ("api: port without the feed's calls", AP, '        for relation in ("CALLS_AT", "CAME_FROM", "BOUND_FOR")', '        for relation in ("CALLS_AT",)'),
     # --- the poller and the API for the screen
     ("poll: watcher not run", PO, "    watched = watch(graph, observed)\n", "    watched = []\n"),
     ("poll: reviewer not run", PO, "    learned = review(graph)\n", '    learned = {"lessons": [], "playbooks": [], "runs": []}\n'),
     ("poll: summary not kept", PO, "    graph.query(\n        \"MERGE (p:Poll {id: 'feed'})", "    (lambda *a: None)(\n        \"MERGE (p:Poll {id: 'feed'})"),
     ("poll: feed time lost", PO, '        "feed_time": observed,', '        "feed_time": None,'),
-    ("poll: a failed read ends the loop", PO, "        except Exception:\n", "        except KeyError:\n"),
+    ("poll: a failed read ends the loop", PO, "        except Exception:\n            # The next read may work", "        except KeyError:\n            # The next read may work"),
+    ("poll: a failed world read ends the loop", PO, "            except Exception:\n                log.exception(\"reading PortWatch failed\")", "            except KeyError:\n                log.exception(\"reading PortWatch failed\")"),
+    ("poll: the world is read every time", PO, "        if world_read is None or time.monotonic() - world_read >= world_every:", "        if True:"),
+    ("poll: the world is never read", PO, "        if world_read is None or time.monotonic() - world_read >= world_every:", "        if False:"),
     ("poll: reads as often as asked", PO, "    if args.every < LEAST:", "    if False:"),
     ("poll: summary of nothing", PO, '    return json.loads(rows[0][0]) if rows else None', '    return None'),
     ("api: berths not overloaded first", AP, '    return sorted(found, key=lambda load: (load["overload"] is None, load["berth"]))', '    return sorted(found, key=lambda load: load["berth"])'),
@@ -1076,11 +1104,12 @@ BACKEND = [
     ("feed clock may run ahead", P, "observed = min(stamp(observed) or now(), now())", "observed = stamp(observed) or now()"),
     ("receipts out of order", P, "for i, receipt in zip(kept, remember(graph, PORT_CALL, port_calls, by)):", "for i, receipt in zip(reversed(kept), remember(graph, PORT_CALL, port_calls, by)):"),
     ("records of any type accepted", P, "    if not isinstance(records, list):\n        raise TypeError", "    if False:\n        raise TypeError"),
-    ("feed read from any scheme", P, '    if not url.startswith("https://"):\n        raise ValueError', "    if False:\n        raise ValueError"),
-    ("feed of any size accepted", P, "    if len(body) > MAX_FEED_BYTES:\n        raise ValueError", "    if False:\n        raise ValueError"),
-    ("feed that is not json crashes", P, "    except (ValueError, RecursionError) as exc:", "    except KeyError as exc:"),
+    ("feed read from any scheme", WEB, '    if not url.startswith("https://"):\n        raise ValueError', "    if False:\n        raise ValueError"),
+    ("feed of any size accepted", WEB, "    if len(body) > most:\n        raise ValueError", "    if False:\n        raise ValueError"),
+    ("feed size of the defaults", P, ', most=MAX_FEED_BYTES)', ')'),
+    ("feed that is not json crashes", WEB, "    except (ValueError, RecursionError) as exc:", "    except KeyError as exc:"),
     ("feed of any shape accepted", P, '    if not isinstance(feed, dict) or not isinstance(feed.get("portCalls"), list):', "    if False:"),
-    ("packed feed not unpacked", P, '        if response.headers.get("Content-Encoding") == "gzip":', "        if False:"),
+    ("packed feed not unpacked", WEB, '        if response.headers.get("Content-Encoding") == "gzip":', "        if False:"),
 ]
 
 total, survived = 0, []
