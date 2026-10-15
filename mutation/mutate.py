@@ -36,9 +36,10 @@ B, WA, M = "app/berths.py", "app/watcher.py", "app/mcp_server.py"
 PR, RV = "lighthouse/promotion.py", "app/reviewer.py"
 PO, AP, MN = "app/poller.py", "app/api.py", "app/main.py"
 WEB, PW = "app/web.py", "app/portwatch.py"
+PWA = "app/portwatcher.py"
 S, X = "lighthouse/snapshot.py", "lighthouse/extraction.py"
 # The tests most likely to catch a bug in a file run first; the whole suite runs only if they pass.
-FIRST = {WEB: "test_portcalls test_portwatch", PW: "test_portwatch", PO: "test_poller", AP: "test_api", MN: "test_api test_health", X: "test_extraction", S: "test_snapshot test_algorithms", WP: "test_partial", WB: "test_batches test_late test_partial test_attacks test_vector", WL: "test_late test_batches", WF: "test_failures test_attacks test_conversation", WR: "test_rows test_attacks test_batches", V: "test_values test_attacks test_write", C: "test_clock test_attacks",
+FIRST = {PWA: "test_portwatcher test_poller", WEB: "test_portcalls test_portwatch", PW: "test_portwatch", PO: "test_poller", AP: "test_api", MN: "test_api test_health", X: "test_extraction", S: "test_snapshot test_algorithms", WP: "test_partial", WB: "test_batches test_late test_partial test_attacks test_vector", WL: "test_late test_batches", WF: "test_failures test_attacks test_conversation", WR: "test_rows test_attacks test_batches", V: "test_values test_attacks test_write", C: "test_clock test_attacks",
          R: "test_read test_attacks", G: "test_graphs", K: "test_kinds test_graphs", E: "test_episodes test_attacks test_handoffs test_lessons",
          H: "test_handoffs", T: "test_tasks", TR: "test_traverse", TX: "test_text", VE: "test_vector", RK: "test_rank",
          L: "test_lessons", PB: "test_playbooks", A: "test_algorithms", CV: "test_conversation",
@@ -898,6 +899,33 @@ LIBRARY = [
 ]
 
 BACKEND = [
+    # --- the Port Watcher
+    ("ports: usual from too few days", PWA, "    if len(before) < LEAST_DAYS:\n        return None", "    if not before:\n        return None"),
+    ("ports: usual is the mean", PWA, "    usual = statistics.median(before)", "    usual = statistics.mean(before)"),
+    ("ports: usual from every day", PWA, "for d in (day - timedelta(days=n) for n in range(1, BASELINE + 1))", "for d in (day - timedelta(days=n) for n in range(0, BASELINE + 1))"),
+    ("ports: small ports are news", PWA, "    if usual >= MIN_USUAL and today <= QUIET * usual:", "    if today <= QUIET * usual:"),
+    ("ports: never quiet", PWA, "    if usual >= MIN_USUAL and today <= QUIET * usual:", "    if False:"),
+    ("ports: quiet below the half", PWA, "    if usual >= MIN_USUAL and today <= QUIET * usual:", "    if usual >= MIN_USUAL and today < QUIET * usual:"),
+    ("ports: never busy", PWA, "    elif usual >= MIN_USUAL and today >= BUSY * usual:", "    elif False:"),
+    ("ports: busy above twice", PWA, "    elif usual >= MIN_USUAL and today >= BUSY * usual:", "    elif usual >= MIN_USUAL and today > BUSY * usual:"),
+    ("ports: a day without numbers judged", PWA, "    if day not in calls:\n        return None", "    if False:\n        return None"),
+    ("ports: days of a state not expanded", PWA, "            day += timedelta(days=1)", "            break"),
+    ("ports: open state ends early", PWA, "        stop = min(end.date() - timedelta(days=1), last) if end else last", "        stop = min(end.date() - timedelta(days=1), last) if end else start.date()"),
+    ("ports: baseline too short", PWA, "    ports = series(graph, wanted[0] - timedelta(days=BASELINE), wanted[-1])", "    ports = series(graph, wanted[0] - timedelta(days=LEAST_DAYS - 1), wanted[-1])"),
+    ("ports: a second episode for an open spell", PWA, "                if seen[\"state\"] != \"usual\" and current is None:", "                if seen[\"state\"] != \"usual\":"),
+    ("ports: open spells forgotten", PWA, "                    episodes[key] = (episode_id, day)\n", ""),
+    ("ports: a spell never ends", PWA, "                elif current is not None:\n                    episode_id, opened = current", "                elif False:\n                    episode_id, opened = current"),
+    ("ports: length of a spell off", PWA, '                    outcome = {"back_to_usual": True, "days": (day - began).days, **seen}', '                    outcome = {"back_to_usual": True, "days": (day - began).days + 1, **seen}'),
+    ("ports: no evidence", PWA, "    _done(record(graph, episode_id, \"observation\", BY, values, [(PORT, key)], moment), \"recorded\")", "    _done(record(graph, episode_id, \"observation\", BY, values, [], moment), \"recorded\")"),
+    ("ports: nothing recalled", PWA, "    for lesson in lessons_about(graph, PORT, key)[:MAX_LESSONS]:", "    for lesson in []:"),
+    ("ports: no task", PWA, "    add_task(graph, episode_id, SITUATION, ref=episode_id)\n", ""),
+    ("ports: no handoff", PWA, '        hand_off(graph, episode_id, BY, DESK, [("Episode", episode_id)], {"ask": ask}, moment),', '        {"status": "given"},'),
+    ("ports: busy said as fewer", PWA, '    word = "fewer" if seen["state"] == "quiet" else "more"', '    word = "fewer"'),
+    ("ports: a refusal stops the look", PWA, "            except RuntimeError as exc:\n                done.append(", "            except KeyError as exc:\n                done.append("),
+    ("ports: lesson whatever the length", PWA, '            "agrees": end["days"] <= SHORT,', '            "agrees": True,'),
+    ("ports: lesson of any episode", PWA, "    if first is None or end is None or end[\"type\"] != \"outcome\" or type(end.get(\"days\")) is not int:", "    if first is None or end is None:"),
+    ("ports: reviewer ignores ports", RV, '    if found["id"].startswith(f"{portwatcher.SITUATION}:"):\n        return portwatcher.rule(found)\n', ""),
+    ("poll: new days not watched", PO, "                done = look(graph, summary[\"days\"])", "                done = look(graph, [])"),
     # --- the ports of the world
     ("world: ports of one page only", PW, "        if not answer.get(\"exceededTransferLimit\"):\n            return rows", "        return rows"),
     ("world: pages without an end", PW, "    raise ValueError(f\"PortWatch gave more than {MAX_PAGES} pages\")", "    return rows"),
