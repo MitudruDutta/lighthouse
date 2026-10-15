@@ -19,15 +19,13 @@ from datetime import datetime
 
 import lighthouse
 from falkordb import Graph
-from lighthouse import Kind
 from lighthouse.values import named
 from mcp.server.fastmcp import FastMCP
 
 from app.berths import overloads
 from app.db import get_db
-from app.portcalls import BERTH, PORT, PORT_CALL, VESSEL
+from app.portcalls import PORT_CALL, key_for, kind_named
 
-KINDS = {kind.label: kind for kind in (PORT_CALL, VESSEL, BERTH, PORT)}
 RECORDS = ("Episode", "Entry", "Lesson", "Playbook")
 HIDDEN = {"fp"}  # of a State: a fingerprint that says nothing to a reader
 
@@ -39,19 +37,6 @@ Kinds: PortCall (key: a number), Vessel (key: the IMO number), Berth (key: text 
 FIHEL/VUOS/VC2), Port (key: the locode, such as FIHEL). Times are UTC."""
 
 
-def _kind(label) -> Kind:
-    if label not in KINDS:
-        raise ValueError(f"kind must be one of {sorted(KINDS)}")
-    return KINDS[label]
-
-
-def _key(kind: Kind, key):
-    """A key as a model gives it: the number of a port call or a vessel may come as text."""
-    if isinstance(key, str) and kind in (PORT_CALL, VESSEL) and key.isdecimal():
-        return int(key)
-    return key
-
-
 def _reference(item):
     """A reference as a model gives it: [kind, key] for an entity, [label, id] for a
     record, or the id of an entry."""
@@ -60,8 +45,8 @@ def _reference(item):
     if isinstance(item, list) and len(item) == 2 and item[0] in RECORDS:
         return (item[0], item[1])
     if isinstance(item, list) and len(item) == 2:
-        kind = _kind(item[0])
-        return (kind, _key(kind, item[1]))
+        kind = kind_named(item[0])
+        return (kind, key_for(kind, item[1]))
     raise ValueError("a reference is [kind, key], [record label, id], or the id of an entry")
 
 
@@ -100,15 +85,15 @@ def build(graph: Graph, agent: str) -> FastMCP:
     def find(kind: str, words: str, limit: int = 5):
         """Vessels or berths whose name has one of the words, best first. Use it to get
         the key of a vessel (its IMO number) or of a berth from a name."""
-        return lighthouse.search(graph, _kind(kind), words, limit, match="any")
+        return lighthouse.search(graph, kind_named(kind), words, limit, match="any")
 
     @tool
     def look(kind: str, key: str | int, at: str | None = None):
         """One entity as it is now, or as it was at a time (`at`, ISO form): its values and
         what it points at. For a port call: eta, etd, ata, atd, its vessel, port, and
         berth. Null if it was not known then."""
-        found = _kind(kind)
-        name = _key(found, key)
+        found = kind_named(kind)
+        name = key_for(found, key)
         state = lighthouse.as_of(graph, found, name, at or lighthouse.now())
         if state is None:
             return None
@@ -122,11 +107,11 @@ def build(graph: Graph, agent: str) -> FastMCP:
     def versions(kind: str, key: str | int, last: int = 10):
         """The last versions of an entity, oldest first: what changed and when. Each has
         valid_from, valid_to, and who wrote it."""
-        found = _kind(kind)
+        found = kind_named(kind)
         if type(last) is not int or not 1 <= last <= 100:
             raise ValueError("last must be a whole number from 1 to 100")
         return [
-            _shown(state) for state in lighthouse.history(graph, found, _key(found, key))[-last:]
+            _shown(state) for state in lighthouse.history(graph, found, key_for(found, key))[-last:]
         ]
 
     @tool
@@ -135,18 +120,18 @@ def build(graph: Graph, agent: str) -> FastMCP:
         time. Port calls at a berth: kind PortCall, relation AT. Port calls of a vessel:
         relation MADE_BY. Relations of PortCall: MADE_BY, CALLS_AT, AT, CAME_FROM,
         BOUND_FOR. Of Berth: IN."""
-        found = _kind(kind)
+        found = kind_named(kind)
         if relation not in found.relations:
             raise ValueError(f"{kind} has the relations {sorted(found.relations)}")
-        target = _key(found.relations[relation], key)
+        target = key_for(found.relations[relation], key)
         return lighthouse.pointing_at(graph, found, relation, target, at)
 
     @tool
     def alike(kind: str, key: str | int, limit: int = 5):
         """Entities of the same kind that share the most with this one, and what they
         share. For a port call: other port calls with the same vessel, berth, or ports."""
-        found = _kind(kind)
-        return lighthouse.similar(graph, found, _key(found, key), limit=limit)
+        found = kind_named(kind)
+        return lighthouse.similar(graph, found, key_for(found, key), limit=limit)
 
     @tool
     def connected(
@@ -155,8 +140,8 @@ def build(graph: Graph, agent: str) -> FastMCP:
         """How two things are connected: the shortest chain of relations between them, step
         by step. Each step says whether the relation holds now, since when, and until
         when. Null if nothing joins them within max_hops."""
-        start, end = _kind(from_kind), _kind(to_kind)
-        ends = (start, _key(start, from_key)), (end, _key(end, to_key))
+        start, end = kind_named(from_kind), kind_named(to_kind)
+        ends = (start, key_for(start, from_key)), (end, key_for(end, to_key))
         return lighthouse.connection(graph, *ends, kinds=[PORT_CALL], max_hops=max_hops)
 
     @tool
@@ -190,15 +175,15 @@ def build(graph: Graph, agent: str) -> FastMCP:
     def episodes_about(kind: str, key: str | int):
         """The episodes about one entity, newest first, each with its outcome or null
         while it is open."""
-        found = _kind(kind)
-        return lighthouse.episodes_about(graph, found, _key(found, key))
+        found = kind_named(kind)
+        return lighthouse.episodes_about(graph, found, key_for(found, key))
 
     @tool
     def lessons_about(kind: str, key: str | int):
         """What was learned about one entity from episodes that ended, heaviest first.
         The weight is the evidence for a lesson minus the evidence against it."""
-        found = _kind(kind)
-        return lighthouse.lessons_about(graph, found, _key(found, key))
+        found = kind_named(kind)
+        return lighthouse.lessons_about(graph, found, key_for(found, key))
 
     @tool
     def playbooks_for(situation: dict[str, str | int | float | bool]):

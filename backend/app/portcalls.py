@@ -3,20 +3,16 @@
 This module only maps feed records to rows. Lighthouse does the storing: versions, validity
 windows, receipts, and failure records.
 
-Run once against the live feed, then let the Watcher look at the berths and the Reviewer
-learn from the overloads that ended: `python -m app.portcalls [graph_name]`
+The poller reads the live feed with this module, then lets the Watcher and the Reviewer
+look at what it stored: `python -m app.poller`.
 """
 
 import json
-import sys
 import urllib.request
 import zlib
-from collections import Counter
 
 from falkordb import Graph
-from lighthouse import Kind, ensure_schema, now, record_failure, remember, stamp
-
-from app.db import get_db
+from lighthouse import Kind, now, record_failure, remember, stamp
 
 FEED_URL = "https://meri.digitraffic.fi/api/port-call/v1/port-calls"
 MAX_FEED_BYTES = 50_000_000  # the feed is about 1 MB; more than this is not the feed
@@ -37,6 +33,21 @@ PORT_CALL = Kind(
     },
 )
 KINDS = (PORT_CALL, VESSEL, BERTH)
+# The kinds by label, for callers that name a kind in text: the API and the MCP tools.
+BY_LABEL = {kind.label: kind for kind in (PORT_CALL, VESSEL, BERTH, PORT)}
+
+
+def kind_named(label) -> Kind:
+    if label not in BY_LABEL:
+        raise ValueError(f"kind must be one of {sorted(BY_LABEL)}")
+    return BY_LABEL[label]
+
+
+def key_for(kind: Kind, key):
+    """A key as text gives it: the number of a port call or a vessel may come as text."""
+    if isinstance(key, str) and kind in (PORT_CALL, VESSEL) and key.isdecimal():
+        return int(key)
+    return key
 
 
 def _text(value) -> str | None:
@@ -186,20 +197,3 @@ def fetch(url: str = FEED_URL) -> dict:
     if not isinstance(feed, dict) or not isinstance(feed.get("portCalls"), list):
         raise ValueError("the feed answer has no list of port calls")  # noqa: TRY004
     return feed
-
-
-if __name__ == "__main__":
-    graph = get_db().select_graph(sys.argv[1] if len(sys.argv) > 1 else "world")
-    ensure_schema(graph, KINDS)
-    feed = fetch()
-    for kind, receipts in ingest(graph, feed["portCalls"], feed.get("dataUpdatedTime")).items():
-        print(kind, dict(Counter(r["status"] for r in receipts)))
-    # The agents read what this module declares, so they are imported here.
-    from app.reviewer import review
-    from app.watcher import watch
-
-    done = watch(graph, feed.get("dataUpdatedTime"))
-    print("Watcher", dict(Counter(item["did"] for item in done)))
-    found = review(graph)
-    for kind in ("lessons", "playbooks", "runs"):
-        print("Reviewer", kind, dict(Counter(receipt["status"] for receipt in found[kind])))
