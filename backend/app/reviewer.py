@@ -1,4 +1,5 @@
-"""The Reviewer: turns berth overloads that ended into lessons and playbooks.
+"""The Reviewer: turns berth overloads that ended into lessons and playbooks, and spells
+of a port of the world that ended into lessons about the port (see portwatcher.py).
 
 Its rule reads one overload episode that ended and says what it shows:
 
@@ -18,6 +19,7 @@ import json
 from falkordb import Graph
 from lighthouse import promote
 
+from app import portwatcher
 from app.portcalls import BERTH
 from app.watcher import SITUATION
 
@@ -35,6 +37,8 @@ def _name(*parts: str) -> str:
 
 def rule(found: dict) -> list[dict]:
     """What one episode that ended shows, as claims for promote()."""
+    if found["id"].startswith(f"{portwatcher.SITUATION}:"):
+        return portwatcher.rule(found)
     if not found["id"].startswith(f"{SITUATION}:") or not found["entries"]:
         return []
     seen = next((entry for entry in found["entries"] if entry["type"] == "observation"), None)
