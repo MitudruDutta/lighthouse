@@ -28,7 +28,7 @@ VC2 = "FIHEL/VUOS/VC2"
 TOOLS = {
     "find", "look", "versions", "pointing", "alike", "connected", "central", "incidents",
     "overloaded", "episode", "episodes_about", "lessons_about", "playbooks_for",
-    "note", "raise_task", "hand_over",
+    "unusual_ports", "port_days", "busiest_ports", "note", "raise_task", "hand_over", "data_quality",
 }  # fmt: skip
 
 

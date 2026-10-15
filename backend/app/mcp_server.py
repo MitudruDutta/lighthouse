@@ -22,9 +22,10 @@ from falkordb import Graph
 from lighthouse.values import named
 from mcp.server.fastmcp import FastMCP
 
+from app import intelligence, portwatch, portwatcher
 from app.berths import overloads
 from app.db import get_db
-from app.portcalls import PORT_CALL, key_for, kind_named
+from app.portcalls import PORT, PORT_CALL, key_for, kind_named
 
 RECORDS = ("Episode", "Entry", "Lesson", "Playbook")
 HIDDEN = {"fp"}  # of a State: a fingerprint that says nothing to a reader
@@ -82,6 +83,13 @@ def build(graph: Graph, agent: str) -> FastMCP:
         return function
 
     # --- questions ------------------------------------------------------------------
+
+    @tool
+    def data_quality():
+        """Coverage and missing fields in the stored port data: coordinates, daily counts,
+        berth assignments, expected and actual arrivals, and aggregate refused writes.
+        Check these limits before making a claim based on missing or incomplete data."""
+        return intelligence.quality(graph)
 
     @tool
     def find(kind: str, words: str, limit: int = 5):
@@ -194,6 +202,26 @@ def build(graph: Graph, agent: str) -> FastMCP:
         steps. A situation is a flat map such as {"situation": "berth-overload", "port":
         "FIHEL"}."""
         return lighthouse.playbooks_for(graph, situation)
+
+    @tool
+    def unusual_ports(limit: int = 20):
+        """Ports of the world that are unusual now: their port calls fell to half the usual
+        or less, or rose to twice it or more. Newest first, each with the day it began, the
+        port calls that day against the usual, and its open episode."""
+        return portwatcher.unusual(graph, limit)
+
+    @tool
+    def port_days(key: str, days: int = 14):
+        """The last days of a port of the world, oldest first: port calls in all and by type
+        of ship (container, dry bulk, general cargo, roro, tanker), and tonnes unloaded
+        (import) and loaded (export). The key is the UN/LOCODE, such as INNSA."""
+        return portwatch.days_of(graph, key_for(PORT, key), days)
+
+    @tool
+    def busiest_ports(country: str | None = None, limit: int = 10):
+        """Ports of the world by their port calls on the last day, busiest first, in one
+        country (its ISO 3166 code, such as IND or CHN) or in all."""
+        return portwatch.busiest(graph, country, limit)
 
     # --- additions to the record ------------------------------------------------------
 
