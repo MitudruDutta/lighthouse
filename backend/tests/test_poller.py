@@ -85,7 +85,14 @@ def test_failure_reporting_does_not_stop_retries_when_the_database_is_down():
         def query(self, *args, **kwargs):
             raise OSError("database unavailable")
 
-    poller.run(UnavailableGraph(), every=0, stop=stop, read=read, world=lambda graph: {"days": []}, look=lambda graph, days: [])
+    poller.run(
+        UnavailableGraph(),
+        every=0,
+        stop=stop,
+        read=read,
+        world=lambda graph: {"days": []},
+        look=lambda graph, days: [],
+    )
     assert len(reads) == 1
 
 

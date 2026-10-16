@@ -147,7 +147,9 @@ def test_each_read_takes_only_the_days_after_the_last(graph, service):
     assert sum(url == portwatch.PORTS_URL for url, _ in service.asked) == ports_read
 
 
-def test_rejected_writes_hold_the_checkpoint_and_retry_before_newer_days(graph, service, monkeypatch):
+def test_rejected_writes_hold_the_checkpoint_and_retry_before_newer_days(
+    graph, service, monkeypatch
+):
     real_remember = portwatch.remember
     rejected = False
 
@@ -218,7 +220,8 @@ def test_numbers_that_cannot_be_numbers_are_left_out(graph, monkeypatch):
         {"date": None, "portid": "port6", "portcalls": 1},  # no day: says nothing
         {"date": "2026-10-09", "portid": None, "portcalls": 1},  # no port: says nothing
     ]
-    portwatch.update(graph, Service(PORTS, bad), backfill=1)
+    summary = portwatch.update(graph, Service(PORTS, bad), backfill=1)
+    assert summary["skipped"] == 2  # the row without a day and the row without a port
     for key in ("INNSA", "FIHEL", "CNQDG"):
         assert "calls" not in history(graph, PORT, key)[-1]
     assert history(graph, PORT, "CLVAP") == []

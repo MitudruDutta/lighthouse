@@ -245,7 +245,11 @@ def test_a_signed_in_user_asks_and_reads_their_sessions(client, graph, monkeypat
 def test_a_model_that_cannot_be_reached_is_a_502(client, monkeypatch):
     monkeypatch.setattr(desk, "chat", Script(RuntimeError("the model service cannot be reached")))
     found = client.post("/api/desk/ask", json={"session": "s", "text": "hi"}, headers=signed())
-    assert found.status_code == 502 and found.json()["detail"] == "The assistant is temporarily unavailable. Please try again shortly."
+    assert (
+        found.status_code == 502
+        and found.json()["detail"]
+        == "The assistant is temporarily unavailable. Please try again shortly."
+    )
 
 
 @pytest.mark.parametrize(
@@ -290,7 +294,9 @@ def test_closed_backlog_does_not_consume_the_live_assessment_budget(graph, hande
     close_episode(graph, "obsolete", "watcher", at=when(2))
     add_task(graph, "0-closed", "berth-overload", ref="obsolete")
     # Make the stale task older independently of the machine clock's resolution.
-    graph.query("MATCH (t:Task {id: '0-closed'}) SET t.created_at = localdatetime('2020-01-01T00:00:00')")
+    graph.query(
+        "MATCH (t:Task {id: '0-closed'}) SET t.created_at = localdatetime('2020-01-01T00:00:00')"
+    )
     model = Script("Two port calls overlap at VC2.")
     done = desk.work(graph, model, limit=1)
     assert [item["did"] for item in done] == ["ended before the desk looked", "assessed"]
@@ -369,18 +375,28 @@ def test_model_choices_require_sign_in_and_never_expose_keys(client, monkeypatch
     assert client.get("/api/desk/models").status_code == 401
     response = client.get("/api/desk/models", headers=signed())
     assert response.status_code == 200
-    assert {"id": "openai:gpt-6-astra", "provider": "OpenAI", "model": "gpt-6-astra"} in response.json()
+    assert {
+        "id": "openai:gpt-6-astra",
+        "provider": "OpenAI",
+        "model": "gpt-6-astra",
+    } in response.json()
     assert "private-openai-key" not in response.text and "https://" not in response.text
 
 
 def test_selected_model_is_used_and_recorded_with_the_answer(client, monkeypatch):
     monkeypatch.setenv("OPENAI_API_KEY", "private-openai-key")
     calls = []
+
     def think(conversation, tools=None, *, selection=None):
         calls.append(selection)
         return {"role": "assistant", "content": "Nothing was found in memory."}
+
     monkeypatch.setattr(desk, "chat", think)
-    response = client.post("/api/desk/ask", headers=signed(), json={"session": "choice", "text": "Check memory", "model": "openai:gpt-6-astra"})
+    response = client.post(
+        "/api/desk/ask",
+        headers=signed(),
+        json={"session": "choice", "text": "Check memory", "model": "openai:gpt-6-astra"},
+    )
     assert response.status_code == 200 and calls == ["openai:gpt-6-astra"]
     held = client.get("/api/desk/sessions/choice", headers=signed()).json()
     assert held[-1]["model"] == "gpt-6-astra"
@@ -389,7 +405,15 @@ def test_selected_model_is_used_and_recorded_with_the_answer(client, monkeypatch
 
 
 def test_unknown_model_is_rejected_without_writing_a_message(client):
-    response = client.post("/api/desk/ask", headers=signed(), json={"session": "unknown-choice", "text": "Check memory", "model": "https://untrusted.example/model"})
+    response = client.post(
+        "/api/desk/ask",
+        headers=signed(),
+        json={
+            "session": "unknown-choice",
+            "text": "Check memory",
+            "model": "https://untrusted.example/model",
+        },
+    )
     assert response.status_code == 400
     assert "untrusted.example" not in response.text
     assert client.get("/api/desk/sessions/unknown-choice", headers=signed()).status_code == 404
