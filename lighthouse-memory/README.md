@@ -4,7 +4,7 @@ Agent memory on FalkorDB for structured events. Python package `lighthouse`.
 
 The library stores what is true about entities, keeps every earlier version, and lets agents coordinate through the same graph. It has no LLM on the write path and no code for any one product. The port desk in `../backend` is one application built on it.
 
-**Status: first version.** Built and tested: versioned entities, relations with validity windows, time-travel reads, late rows put into history at their time, episodes with evidence, lessons, playbooks, promotion of what repeats into lessons and playbooks, handoffs, recall by the graph, by words, and by meaning, graph algorithms with answers that are kept until the graph grows, conversation history per user with summaries and erasure, write receipts and failure records, task claims with order and leases, partial updates, algorithms at one time, rows drawn from the text of entries, one graph per tenant, and limits on every input. The full list is in [Capabilities](#capabilities).
+**Status: first version.** Built and tested: versioned entities, relations with validity windows, time-travel reads, late rows put into history at their time, episodes with evidence, lessons, playbooks, promotion of what repeats into lessons and playbooks, handoffs, recall by the graph, by words, and by meaning, graph algorithms with answers that are kept until the graph grows, conversation history per user with summaries and erasure, write receipts and failure records, task claims with order and leases, partial updates, algorithms at one time, rows drawn from the text of entries, what relied on a fact or an entry that turned out wrong, the difference between two times and a what-if on top of one, trust in an agent from its record, one graph per tenant, and limits on every input. The full list is in [Capabilities](#capabilities).
 
 ## Example
 
@@ -179,8 +179,9 @@ flowchart LR
 - A **lesson** is what was learned from episodes that ended. It points at the episodes for it and against it, and at the episodes where it was used. A **playbook** is what to do when a situation comes again: a trigger, ordered steps, and the episodes it was drawn from. A new version replaces the one before; no version is changed.
 - A **handoff** passes work from one agent to another. It points at entries, episodes, and entities, and holds no copy of them. Only its receiver can accept it, once.
 - A **session** holds what was said with one user, as **messages** in the order they were written, and one summary of the messages up to a number. A session can be forgotten: it is the one thing the library deletes. A message **mentions** things by name: a **Reference** holds the label and the key of an entity or a record, and no edge to it, because the thing may be in another graph.
-- A **WriteFailure** is a write that did not happen: the reason, the kind, the key, and up to 2,000 characters of the refused content.
-- A **Stamp** is one node with a random id that `ensure_schema()` gives a graph once. A graph that is deleted and made again under its name has another stamp: it is another graph.
+- A **WriteFailure** is a write that did not happen: the reason, the kind, the key, and up to 2,000 characters of the refused content. The same refusal again is counted on the same node, with `times` and `last_at`, so a bad row that a feed sends on every read does not grow the graph.
+- An entity of kind `Thing` whose text has no vector of the current model has the label `ThingToEmbed` too, from the write that changed its text: `embed()` reads only those.
+- A **Stamp** is one node with a random id that `ensure_schema()` gives a graph once. A graph that is deleted and made again under its name has another stamp: it is another graph. It also counts the entries stored in the graph, and keeps the marks of the jobs that read entries off the write path: how far each has come.
 - Times are FalkorDB `localdatetime` values in UTC, in whole seconds.
 
 ## The write rule
@@ -246,7 +247,7 @@ update(graph, DEVICE, "d1", "2026-01-01T14:00:00Z", by="agent", relations={"LOCA
 - An entry is appended with one query. Entries written at the same moment get one order, and no number is used twice.
 - Evidence must exist. An entry cannot cite an entry or an entity that is not in the graph.
 - A refused entry uses no number. Its content is kept in the WriteFailure.
-- An episode cannot be opened again after it is closed, and an entry cannot be changed.
+- An episode cannot be opened again after it is closed, and what an entry says cannot be changed. An entry that turns out wrong is marked with `invalidate_entry()`, not changed or deleted: see [What relied on it](#what-relied-on-it).
 
 ## Recall
 
@@ -286,11 +287,12 @@ nearest(graph, MANUAL, "the seal of my pump leaks", embedder, model="name-of-the
 ```
 
 - `embed()` gives a vector to each entity whose text has none, at most `limit` in one call, and returns `{"embedded", "waiting"}`. It is the only place where the model is asked about stored text. `remember()` never asks it.
+- `embed()` reads only the entities that wait: the write that gives an entity text, or changes it, gives it the label `ThingToEmbed` in the same query, and the write of its vector takes the label off. A label, because a write replaces every property of the entity and keeps its labels. A call costs what waits, not what the kind holds. After a change of model, the first call marks every entity with text once, a page at a time.
 - A vector stands for the text it was made from. The write that changes the text of an entity takes its vector out of the index in the same query, so `nearest()` never answers from text that is gone. The entity is found again after the next `embed()`. A change of a value that is not text keeps the vector.
 - A vector is stored only if the text is still what the model was asked about. A text that changed while the model worked gets no vector from that call.
 - The name of the model is stored with each vector. Vectors of another model are never compared; `embed()` with a new name replaces them.
 - What the embedder returns is input like any other: one vector for each text, of the declared size, of finite numbers, not all zeros. Anything else raises an error and nothing is stored.
-- Entries get vectors in a graph whose schema gives them an index: `ensure_schema(graph, kinds, entry_dimensions=384)`. `embed_entries(graph, embedder, model)` gives a vector to each entry with text that has none of this model; the text of an entry is its text values, in the order of their names, one per line. An entry never changes, so its vector stands for it for good.
+- Entries get vectors in a graph whose schema gives them an index: `ensure_schema(graph, kinds, entry_dimensions=384)`. `embed_entries(graph, embedder, model)` gives a vector to each entry with text that has none of this model; the text of an entry is its text values, in the order of their names, one per line. An entry never changes, so its vector stands for it for good. `embed_entries()` reads the entries stored since its mark for that model, by their serial; see [Free text](#free-text).
 
 ## Algorithms
 
@@ -474,6 +476,7 @@ What was said, for each user, in order. The functions take the graph that holds 
 - `messages()` finds each message by its key, so the last 20 of a session cost the same whether it holds 20 messages or 20,000: 0.1 ms in the database.
 - **A mention is a name, not an edge.** `mentions=[(VESSEL, 9000001)]` stores the label and the key. The thing is not looked up: with one graph for each tenant and one that all share, it is in the other graph, and a query cannot span two graphs. Read the thing from its own graph by that key.
 - `said()` sends only the letters and digits of a question to the index, as `search()` does. It sees the text of messages, not their values.
+- The words of a message hold one more word for its user, from a hash of the name that is the same in every process, and `said()` asks the index for it. So the index gives the messages of the user who asks, not those of every user. The check of the user stays, since a message's text could hold another user's word.
 - `role` is a name the application chooses, such as `user` and the name of an agent. `by` is who wrote the message. Both come from the caller.
 - The time of a message, `at`, is when it was said. The order of the sessions of a user follows the time the library stored the last message, which a caller cannot set.
 
@@ -520,10 +523,38 @@ extract(graph, DEVICE, extractor, by="reader", types=["observation"])  # off the
 ```
 
 - `extract()` reads entries with text that it has not read for the kind yet, oldest first, at most `limit` in one call. Each entry gets a `READ_BY {kind, at, rows}` edge to the agent that read it, so it is read once for each kind.
+- Every entry takes a **serial**, the next number of the graph, in the query that stores it. FalkorDB runs one write of a graph at a time, so serials follow the order in which entries were stored, and a job that has seen serial n has seen every entry before it. A call of `extract()` reads the serials past its mark, through their index, a slice at a time, and moves the mark past what it did. The mark is kept on the graph's stamp, one for each kind and set of types. So a call costs what came since, also on a first run over a graph full of entries, and no entry is passed over.
 - The rows are written by the write rule. Each State they add points at the entry with `FROM`, whatever entry the extractor named. A row without `t` is true from the time of the entry.
 - What the extractor gives is input like any other: a row that cannot be stored is refused and kept as a failure, and the entry counts as read. An extractor that raises stops the call, and its entry waits for the next one. An answer that is not a list of at most 1,000 rows raises an error.
 - Messages of conversations are not read: they can be erased, and facts drawn from them would stay. An application that wants them read writes what it takes from them as entries, where it can decide what may stay.
 - With `embed_entries()` and `nearest_entries()`, the text of entries is found by meaning too.
+
+## What relied on it
+
+A fact can turn out wrong: a sensor reported nonsense, or a row came late and rewrote what held. The graph knows what rested on it, because every entry cites its evidence, every State points at the entry it came from, and every lesson and playbook names its episodes.
+
+| Function | Gives |
+| --- | --- |
+| `impact_of_state(graph, kind, key, since, until)` | What relied on an entity during `[since, until)`: the entries that cited it then, the entries that cited those, up to six steps, the States drawn from them, their episodes, the handoffs still waiting that point at any of it, and the lessons and playbooks that rest on those episodes, with how much of their evidence is affected |
+| `impact_of_entry(graph, entry_id)` | The same for one entry |
+| `invalidate_entry(graph, entry_id, by, reason, at=None)` | Marks an entry as wrong, with who said so and why, and gives its impact. Nothing is deleted or changed; the mark is `invalidated_at`, `invalidated_by`, and `invalidated_why` on the entry, and an `INVALIDATED` edge from the agent |
+
+- `invalidate_entry()` returns `{"id", "status"}` with `invalidated` (and `impact`), `exists` when it was marked before, or a refusal kept as a WriteFailure: `unknown`, `invalid`, or `failed`.
+- A lesson is at risk when the episodes left for it would no longer carry it; a playbook, when fewer than three would.
+- Only these functions and `agent_trust()` read the mark. Recall, lessons, and playbooks still use a marked entry: what to do about it is the application's to decide.
+
+## Two times, and what if
+
+| Function | Gives |
+| --- | --- |
+| `diff_between(graph, kinds, t1, t2)` | What changed between two times: the entities that began, the values that changed, the relations that opened and closed, and the episodes that opened and closed |
+| `what_if(graph, kinds, hypothetical_rows, at=None, situation=None)` | The graph at `at` with rows that were not written laid over it, in memory: the sets that relations join and the PageRank of each entity, before and after, the entities whose rank moved most, and the playbooks that would fit `situation`. It writes nothing |
+
+`what_if()` uses the union-find and the PageRank of the algorithms at one time, which the tests compare with plain implementations and with FalkorDB's.
+
+## Trust in an agent
+
+`agent_trust(graph, agent)` counts what the graph records of an agent's work, for it and against it: the entries it wrote against those marked wrong, the closed episodes it wrote in that a lesson rests on against those that contradict one, the playbook runs it recorded that succeeded against those that failed, and the versions it wrote that held at least a minute against those replaced sooner. The score is the mean of the four rates, each smoothed as `(for + 1) / (for + against + 2)`, over the kinds of evidence the agent has, so the many versions of a busy writer do not drown the rest. With no evidence, the score is `None`.
 
 ## References
 
@@ -574,6 +605,9 @@ Episodes and handoffs point at things with references. `episode()` and `handoffs
 | `accept(graph, id, by)` | The receiver takes a handoff. |
 | `handoffs_for(graph, agent, waiting_only=True)` | What was handed to an agent, oldest first, each with what it points at. |
 | `say`, `messages`, `sessions`, `said_about`, `said`, `summarize`, `context`, `forget_session`, `forget_user` | Conversations. See [Conversations](#conversations). |
+| `impact_of_state`, `impact_of_entry`, `invalidate_entry` | What relied on a fact or an entry. See [What relied on it](#what-relied-on-it). |
+| `diff_between`, `what_if` | What changed between two times, and the graph with rows laid over it. See [Two times, and what if](#two-times-and-what-if). |
+| `agent_trust(graph, agent)` | How far the work of an agent held. See [Trust in an agent](#trust-in-an-agent). |
 | `add_task(graph, id, kind, ref=None, after=())` | Adds an open task that waits for the tasks in `after`. Returns `False` if the id exists; raises if a task in `after` does not. |
 | `claim(graph, agent, kind, lease=None)` | Gives the oldest free task of a kind to an agent, for `lease` seconds or until it is done, or returns `None`. |
 | `complete(graph, agent, task_id)` | Marks a task done. Only the owner can. |
@@ -607,7 +641,7 @@ Each one is a FalkorDB property the library relies on, checked by a test.
 | Tenants are separate | One graph per tenant. The tenant id is checked before it becomes a graph name. | Twelve ids that could reach another graph are rejected. |
 | A duplicate key cannot exist | Unique constraint per kind. | A query that would create one fails as a whole. |
 
-The suite runs against a real FalkorDB, on a throwaway graph per test. A mutation check with 980 deliberate bugs in copies of the library (824) and the port desk (156) was run; every bug made the suite fail, one of them by making it hang. The bugs that stayed alive in earlier runs each showed a missing test, a condition that did nothing, or a real fault, and were dealt with; the sections above name them. The check is in `../mutation/mutate.py`: `python mutation/mutate.py mutation/.work` from the repository root, with nothing else using the database.
+The suite runs against a real FalkorDB, on a throwaway graph per test. A mutation check with 1,088 deliberate bugs in copies of the library (846) and the port desk (242) was run; every bug made the suite fail, one of them by making a search run until the check stopped it. Two bugs lived in an earlier run of this check: a test that wrote the same refusal again and again, which the library now counts on one node, and a check in the PortWatch reader that grouping rows by day had made visible only in its count of skipped rows; each got a test. The check is in `../mutation/mutate.py`: `python mutation/mutate.py mutation/.work` from the repository root, with nothing else writing to the database. A test that a copy cannot run, such as the one that compares this package with the documentation site, skips there.
 
 ## FalkorDB behaviour the library works around
 
@@ -641,6 +675,7 @@ Found by test on the pinned image (graph module 60002, falkordb-py 1.7.1).
 | `UNWIND $ids AS i MATCH (x)-[o]-(y) WHERE id(x) = i` traverses every edge for each id: 970 ms where a seek took 3 ms. | Each id is found first, in a `MATCH (x) WHERE id(x) = i WITH i, x` of its own, then its edges. |
 | A list of pairs takes the client about twice as long to read as two flat lists of the same numbers. | `snapshot.py` reads the two ends of the relations as two lists. |
 | A result longer than 10,000 rows is cut without a sign. | Reads that may be long are taken in pages. An episode holds at most 5,000 entries. |
+| Inserting nodes under a unique constraint gets slower with every node of the label: 500 new nodes took 37 to 42 ms in an empty label and 572 to 576 ms with 5,500 there, against 2 ms with an index alone (graph module 60002). The image tagged `latest` when this was measured, module 42201, took 3 to 4 ms throughout. | Nothing yet: the constraint is the guard against a duplicate key, and the library keeps it. A batch of new entities costs more the more entities the kind holds; a batch of changes to entities that exist does not. |
 
 ## Capabilities
 
@@ -682,6 +717,10 @@ The target is the full capability set of a temporal knowledge-graph memory, with
 | Free text: pluggable extractor and embedder that feed `remember()` off the hot path | Built (`extract`, `embed_entries`): over entries; messages are left out because they can be erased |
 | Out-of-order rows inserted into the past | Built: a late row goes in at its time; one that would need a row the library did not keep is refused as `stale` |
 | Partial updates (one value, one relation) | Built (`update`): made from the current State, never over a change it did not see |
+| What relied on a fact or an entry, and marking an entry as wrong without deleting it | Built (`impact_of_state`, `impact_of_entry`, `invalidate_entry`) |
+| The difference between two times; a what-if over one time that writes nothing | Built (`diff_between`, `what_if`) |
+| Trust in an agent from its record | Built (`agent_trust`) |
+| Jobs off the write path that cost what is new, not what the graph holds | Built: `embed()` by label, `embed_entries()` and `extract()` by the serials of entries |
 | MCP server | Not in the package: a server is a separate project (rule 7 of the layout). The port desk has one, `backend/app/mcp_server.py` |
 
 ## Limits and trust
@@ -736,20 +775,21 @@ What the library does not do:
 - When `ensure_schema()` adds a kind to a graph that is in use, stop the writers first.
 - A batch is atomic per query of 500 rows, not across kinds.
 - A State points at one entry, the one of the row that added it. A row that repeats it later from another entry adds no second link. Relation edges point at no entry: they start with the State of the same row.
-- `embed()` reads every entity of the kind on each call to find the ones without a vector.
-- `playbooks_for()` reads every playbook that is switched on and compares the triggers in Python.
+- After a change of model, the first `embed()` marks every entity of the kind with text, a page at a time.
+- `playbooks_for()` compares the triggers in the query, but reads every playbook that is switched on to do it. A value fits only a value of its own type: `true` does not fit `1`.
 - Who switched a playbook, and when, is kept for the last switch only.
 - An agent that can write episodes can also close them and cite them. The number of episodes a playbook needs is a guard against haste, not against an agent that lies.
 - `nearest()` sees the current text of entities. Past States are found by words only, with `search_history()`.
-- `embed_entries()` reads every entry with text on each call to find the ones without a vector.
-- `extract()` reads every entry with text on each call to find the ones it has not read, and asks the extractor about one entry at a time.
+- `extract()` asks the extractor about one entry at a time.
 - A claim's lease cannot be renewed: an agent that needs longer takes a longer lease.
 - A graph written by a version of the library without `words` has no words on its nodes: write the rows again to make them searchable.
 - A session has one summary. The one before it is not kept.
 - A session cannot be closed. It can be forgotten.
 - `forget_user()` deletes in this graph. A user with sessions in several graphs is forgotten in each.
 - A mention is not checked against any graph. A mention of something that does not exist is stored.
-- `said()` reads the matches of every user before it keeps the ones of the user who asks.
+- `ensure_schema()` brings a graph that an earlier version wrote up to date, once: entries get serials in the order they were recorded, and messages get the word for their user. Stop the writers while it runs, as for any change of the schema.
+- `diff_between()` and `agent_trust()` find what they read through indexes on when a State began and who wrote it; `agent_trust()` reads every playbook run to find the agent's.
+- `invalidate_entry()` marks an entry; recall, lessons, and playbooks do not leave marked entries out.
 - Without `at`, the algorithms see every relation that was ever true; `connection()` says per step what holds now. With `at`, they run in Python on what one query read: slower, and not kept.
 - `between()` counts paths along the direction of the relations only.
 - `important()` takes one relation or all of them, not a list.
@@ -779,6 +819,9 @@ lighthouse-memory/
     promotion.py  promote(): what repeats in ended episodes, as lessons and playbooks
     handoffs.py   hand_off(), accept(), handoffs_for()
     algorithms.py groups(), important(), between(), connection()
+    impact.py     impact_of_state(), impact_of_entry(), invalidate_entry(): what relied on it
+    diff.py       diff_between(), what_if(): two times, and rows laid over one
+    trust.py      agent_trust(): how far the work of an agent held
     snapshot.py   the same four at one time, over the relations that held then
     conversation.py say(), messages(), sessions(), said_about(), said(), summarize(),
                   context(), forget_session(), forget_user()
