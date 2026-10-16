@@ -6,7 +6,13 @@ export type Project = {
   created: number;
 };
 export type Overview = {
-  user: { id: string; name: string; email: string; timezone: string };
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    timezone: string;
+    google_connected?: boolean;
+  };
   workspaces: { id: string; name: string }[];
   projects: Project[];
   plan: { name: string; billing_active: boolean };

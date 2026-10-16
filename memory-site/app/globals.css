@@ -2028,3 +2028,58 @@ td code,
     grid-row: span 2;
   }
 }
+
+.google-signin {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 48px;
+  padding: 12px 18px;
+  border: 1px solid #d1d8cd;
+  border-radius: 9px;
+  background: #fff;
+  color: #233b34;
+  font-size: 15px;
+  font-weight: 500;
+  transition:
+    background 160ms,
+    border-color 160ms;
+}
+.google-signin:hover {
+  background: #f3f6ed;
+  border-color: #8b9d8e;
+}
+.google-signin svg {
+  flex-shrink: 0;
+}
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  color: #68786f;
+  font-size: 12px;
+  margin: 22px 0;
+}
+.auth-divider::before,
+.auth-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: #dce1d8;
+}
+
+.settings-google {
+  display: grid;
+  gap: 12px;
+  margin: 24px 0;
+}
+.settings-google p {
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.google-auth-error { color:#a23221;font-size:14px;line-height:1.6;margin:14px 0; }
+
+.google-connected { display:flex;align-items:center;gap:8px;color:#366746;font-size:14px;font-weight:500;overflow-wrap:anywhere; }

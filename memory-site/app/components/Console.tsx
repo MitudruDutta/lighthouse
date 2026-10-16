@@ -1,4 +1,5 @@
 "use client";
+import GoogleButton from "./GoogleButton";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -11,7 +12,6 @@ import {
   ChevronDown,
   Code2,
   Copy,
-  CreditCard,
   Database,
   Folder,
   GitBranch,
@@ -38,7 +38,6 @@ const NAV = [
   { id: "usage", name: "Usage", icon: Activity },
   { id: "connect", name: "Connect your agents", icon: Code2 },
   { id: "settings", name: "Settings", icon: Settings },
-  { id: "billing", name: "Plan & billing", icon: CreditCard },
 ];
 async function call(path: string, method = "GET", body?: unknown) {
   const response = await fetch("/api/console" + path, {
@@ -433,7 +432,6 @@ export function Console({
             {NAV.find((item) => item.id === view)?.name}
           </div>
           <div className="console-topbar-end">
-            <span className="preview-pill">Developer preview</span>
             <a href={`${docs}/library`}>
               Quickstart
               <ArrowUpRight size={12} />
@@ -465,7 +463,6 @@ export function Console({
                         "Give your agents access to this project’s memory.",
                       settings:
                         "Your profile and preferences, kept for your next visit.",
-                      billing: "Your current plan and billing status.",
                     } as Record<string, string>
                   )[view]
                 }
@@ -473,7 +470,7 @@ export function Console({
             </div>
             <div className="page-actions">
               {projects.length > 0 &&
-              !["projects", "settings", "billing"].includes(view) ? (
+              !["projects", "settings"].includes(view) ? (
                 <label className="project-select">
                   <Folder size={14} />
                   <select
@@ -1123,7 +1120,6 @@ export function Console({
             <section className="panel settings-panel">
               <div className="panel-heading">
                 <h2>Your profile</h2>
-                <span className="status-pill">Private account</span>
               </div>
               <form
                 onSubmit={(event) =>
@@ -1150,9 +1146,6 @@ export function Console({
                 <label>
                   Email address
                   <input value={user.email} disabled readOnly />
-                  <small>
-                    Email changes are not available in this preview.
-                  </small>
                 </label>
                 <label>
                   Time zone
@@ -1182,6 +1175,19 @@ export function Console({
                   <Check size={14} />
                 </button>
               </form>
+              {user.google_connected ? (
+                <div className="google-connected">
+                  <Check size={16} />
+                  Google connected · {user.email}
+                </div>
+              ) : (
+                <div className="settings-google">
+                  <p>
+                    Connect your matching Google account for faster sign-in.
+                  </p>
+                  <GoogleButton connect />
+                </div>
+              )}
               <div className="info-strip">
                 <ShieldCheck size={17} />
                 <p>
@@ -1191,56 +1197,16 @@ export function Console({
               </div>
             </section>
           ) : null}
-          {view === "billing" ? (
-            <section className="panel billing-panel">
-              <div>
-                <span className="eyebrow">CURRENT PLAN</span>
-                <h2>Developer preview</h2>
-                <p>
-                  Your local workspace is free. No payment method, subscription,
-                  or recurring charge is active.
-                </p>
-                <span className="price">
-                  $0<span>Current charges</span>
-                </span>
-              </div>
-              <div className="billing-details">
-                <div>
-                  <span>Subscription</span>
-                  <strong>Not active</strong>
-                </div>
-                <div>
-                  <span>Payment method</span>
-                  <strong>None</strong>
-                </div>
-                <div>
-                  <span>Managed cloud</span>
-                  <strong>Not available yet</strong>
-                </div>
-                <div>
-                  <span>Projects</span>
-                  <strong>{projects.length} in this workspace</strong>
-                </div>
-              </div>
-              <div className="info-strip">
-                <CreditCard size={17} />
-                <p>
-                  Paid hosting and team subscriptions are planned separately.
-                  This preview does not accept payments.
-                </p>
-              </div>
-            </section>
-          ) : null}
           {!current &&
           pid &&
           !error &&
-          !["settings", "projects", "billing", "connect"].includes(view) ? (
+          !["settings", "projects", "connect"].includes(view) ? (
             <p className="loading-note" role="status">
               Loading project memory…
             </p>
           ) : null}
           <footer className="console-footer">
-            <span>Lighthouse Memory / Developer preview</span>
+            <span>Lighthouse Memory</span>
             <a href={`${docs}/security`}>
               Security & limits
               <ArrowUpRight size={12} />

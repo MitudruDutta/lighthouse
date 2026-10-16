@@ -13,6 +13,7 @@ export default async function Page({
 }) {
   const { section } = await params;
   const view = section?.[0] ?? "overview";
+  if (view === "billing") redirect("/dashboard/usage");
   if (
     (section && section.length > 1) ||
     ![
@@ -23,7 +24,6 @@ export default async function Page({
       "usage",
       "settings",
       "connect",
-      "billing",
     ].includes(view)
   )
     notFound();

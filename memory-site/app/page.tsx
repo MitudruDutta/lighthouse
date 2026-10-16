@@ -78,7 +78,7 @@ export default function Home() {
         <section className="hero">
           <div className="hero-copy">
             <a className="announcement" href={`${DOCS}/model`}>
-              <span>LIGHTHOUSE MEMORY / DEVELOPER PREVIEW</span>
+              <span>LIGHTHOUSE MEMORY / CONNECTED CONTEXT</span>
               <ArrowUpRight size={12} />
             </a>
             <h1>
@@ -102,10 +102,6 @@ export default function Home() {
                 Explore the library
                 <ArrowRight size={15} />
               </a>
-            </div>
-            <div className="hero-note">
-              <Check size={13} />
-              Free local preview<span>·</span>No card required
             </div>
           </div>
           <MemoryFlow />
@@ -303,32 +299,33 @@ export default function Home() {
             <span>Versioned evidence</span>
           </div>
         </section>
-        <section id="pricing" className="section pricing-section">
+        <section id="start" className="section pricing-section">
           <div className="section-heading">
             <span className="eyebrow">05 / START WITH A REAL PROJECT</span>
             <h2>
-              A small beginning.
+              Your next agent.
               <br />
               <span>A longer memory.</span>
             </h2>
             <p>
-              Local preview is free. Explore the API, inspect the graph, and see
-              how memory fits your agents.
+              Connect a project, preserve its context, and build on every
+              observation.
             </p>
           </div>
           <div className="pricing-grid">
             <article className="price-card">
-              <span className="plan-label">DEVELOPER PREVIEW</span>
-              <h3>Build locally.</h3>
-              <div className="price">
-                Free<span>No payment required</span>
-              </div>
+              <span className="plan-label">YOUR WORKSPACE</span>
+              <h3>One place for connected context.</h3>
+              <p>
+                Create projects, issue scoped keys, and inspect the memory your
+                agents share.
+              </p>
               <ul>
                 {[
-                  "Private account and workspace",
-                  "Up to 20 projects per workspace",
+                  "Projects with their own memory graph",
                   "Scoped API keys and usage history",
-                  "Versioned memory and graph connections",
+                  "Versioned facts and connections",
+                  "A dashboard to inspect the evidence",
                 ].map((text) => (
                   <li key={text}>
                     <Check size={14} />
@@ -342,20 +339,23 @@ export default function Home() {
               </Link>
             </article>
             <article className="price-card cloud-card">
-              <span className="plan-label">WHAT COMES NEXT</span>
-              <h3>Run it in the cloud.</h3>
+              <span className="plan-label">BUILD YOUR WAY</span>
+              <h3>
+                Start with the API.
+                <br />
+                Go deeper with the library.
+              </h3>
               <p>
-                Managed hosting, team controls, and subscriptions are a future
-                release. This preview does not charge you or activate a paid
-                plan.
+                Write structured memories through the API. Use the Python
+                library for episodes, lessons, and agent coordination.
               </p>
-              <a href={`${DOCS}/library`} className="button button-outline">
-                Build with the library
+              <a href={`${DOCS}/memory-api`} className="button button-outline">
+                Explore the API
                 <ArrowUpRight size={14} />
               </a>
-              <span className="cloud-status">
-                Managed plans are not available yet
-              </span>
+              <a href={`${DOCS}/library`} className="cloud-status">
+                Open the Python quickstart →
+              </a>
             </article>
           </div>
         </section>

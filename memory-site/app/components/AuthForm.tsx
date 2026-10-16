@@ -1,8 +1,10 @@
 "use client";
-import { useState } from "react";
+import { Suspense, useState } from "react";
+import GoogleError from "./GoogleError";
+import GoogleButton from "./GoogleButton";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowUpRight, Eye, EyeOff, KeyRound, ShieldCheck } from "lucide-react";
+import { ArrowUpRight, Eye, EyeOff, KeyRound } from "lucide-react";
 import { Brand } from "./Brand";
 export function AuthForm({ signup = false }: { signup?: boolean }) {
   const router = useRouter();
@@ -56,6 +58,11 @@ export function AuthForm({ signup = false }: { signup?: boolean }) {
               ? "Create a private workspace. Your first project starts here."
               : "Sign in to your workspace and pick up where you left off."}
           </p>
+          <GoogleButton />
+          <Suspense fallback={null}>
+            <GoogleError />
+          </Suspense>
+          <div className="auth-divider">or continue with email</div>
           <form
             onSubmit={async (event) => {
               event.preventDefault();
@@ -148,17 +155,7 @@ export function AuthForm({ signup = false }: { signup?: boolean }) {
               {signup ? "Sign in" : "Create a workspace"}
             </Link>
           </p>
-          <div className="auth-assurance">
-            <ShieldCheck size={16} />
-            <span>
-              Private account. No card required. No paid plan activated.
-            </span>
-          </div>
         </div>
-        <small className="auth-footnote">
-          Local developer preview. Email verification and account recovery are
-          not available yet.
-        </small>
       </section>
     </main>
   );
