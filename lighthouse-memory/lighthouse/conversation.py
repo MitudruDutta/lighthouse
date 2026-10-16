@@ -39,6 +39,7 @@ from lighthouse.values import (
     indexed,
     is_storable,
     named,
+    owner_word,
     properties,
     whole_number,
     without_words,
@@ -153,6 +154,8 @@ WITH m, collect([r.label, r.id]) AS mentions
 RETURN m, mentions ORDER BY {NEWEST}
 """
 
+# The words of a message hold a word for its user, which a search asks for: the index gives
+# the messages of that user. The check stays, as a message's text could hold that word.
 FIND = f"""
 CALL db.idx.fulltext.queryNodes('Message', $terms) YIELD node, score
 WITH node AS m, score WHERE m.user = $user
@@ -218,7 +221,7 @@ def say(
                 for key in keys
             ],
             "values": properties(values, MESSAGE_PROPERTIES, "values"),
-            "words": indexed([text]),
+            "words": indexed([owner_word(user), text]),
             "at": moment(at),
             "now": now(),
         }
@@ -285,7 +288,8 @@ def said(graph: Graph, user: str, question: str, limit: int = 10, match: str = "
     if match not in ("all", "any"):
         raise ValueError('match must be "all" or "any"')
     terms = words(question)
-    params = {"terms": (" " if match == "all" else "|").join(terms), "user": user}
+    asked = " ".join(terms) if match == "all" else f"({'|'.join(terms)})"
+    params = {"terms": f"{owner_word(user)} {asked}", "user": user}
     params["limit"] = whole_number(limit, "limit", 1_000)
     if not terms:
         return []
@@ -343,12 +347,7 @@ def context(graph: Graph, user: str, session_id: str, last: int = 20) -> dict:
     summary, upto, held = rows[0] if rows else (None, 0, 0)
     fresh = held - upto  # messages that the summary does not hold
     shown = messages(graph, user, session_id, min(last, fresh)) if fresh > 0 else []
-    return {
-        "summary": summary,
-        "upto": upto,
-        "messages": shown,
-        "waiting": max(0, fresh - last),
-    }
+    return {"summary": summary, "upto": upto, "messages": shown, "waiting": max(0, fresh - last)}
 
 
 def _forget_failures(graph: Graph, user: str, session_id=None) -> None:

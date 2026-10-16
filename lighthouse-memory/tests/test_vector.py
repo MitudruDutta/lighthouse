@@ -439,3 +439,82 @@ def test_text_of_an_entry_is_its_text_values():
     entry = {"id": "e/1", "type": "observation", "words": "x", "b": "two", "a": ["one", 1], "n": 5}
     assert entry_text(entry) == "one\ntwo"
     assert entry_text({"id": "e/1", "n": 5, "s": "  "}) == ""
+
+
+# --- what waits for a vector ----------------------------------------------------------
+
+
+def waiting_labels(graph) -> list:
+    rows = graph.ro_query("MATCH (e:ManualToEmbed) RETURN e.code ORDER BY e.code").result_set
+    return [key for (key,) in rows]
+
+
+def test_an_entity_waits_by_label_from_the_write_that_gives_it_text(graph):
+    assert waiting_labels(graph) == ["m1", "m2", "m3", "m4"]  # m5 has no text
+    embed(graph, MANUAL, Embedder(), model="count-8")
+    assert waiting_labels(graph) == []
+    remember(graph, MANUAL, [manual("m6", "Gaskets", "Fit the gasket.")], by="library")
+    remember(graph, MANUAL, [{"key": "m6", "t": when(1), "values": {"pages": 1}}], by="library")
+    assert "m6" not in waiting_labels(graph)  # its text went before it was embedded
+    rows = [
+        manual("m1", "Pump service", "Check the seal.", minute=1),  # the text changes
+        manual(
+            "m2",
+            "Valve service",
+            "Close the valve before service. The pump must be off.",
+            minute=1,
+            pages=12,
+        ),  # only a value that is not text
+        {"key": "m3", "t": when(1), "values": {"pages": 2}},  # the text goes
+    ]
+    remember(graph, MANUAL, rows, by="library")
+    assert waiting_labels(graph) == ["m1"]
+    embedder = Embedder()
+    assert embed(graph, MANUAL, embedder, model="count-8") == {"embedded": 1, "waiting": 0}
+    assert embedder.asked == [["Pump service\nCheck the seal."]]
+
+
+def test_a_graph_written_before_labels_or_a_new_model_waits_once(graph):
+    embed(graph, MANUAL, Embedder(), model="count-8")
+    # As a graph written by an earlier version: no labels and no mark.
+    graph.query("MATCH (s:Stamp) REMOVE s.embedded_Manual")
+    assert embed(graph, MANUAL, Embedder(), model="count-8") == {"embedded": 0, "waiting": 0}
+    assert waiting_labels(graph) == []
+    embedder = Embedder()
+    assert embed(graph, MANUAL, embedder, model="other-8", limit=3) == {
+        "embedded": 3,
+        "waiting": 1,
+    }
+    assert embed(graph, MANUAL, embedder, model="other-8") == {"embedded": 1, "waiting": 0}
+    assert embed(graph, MANUAL, embedder, model="other-8") == {"embedded": 0, "waiting": 0}
+
+
+def test_text_of_only_spaces_gets_no_vector_and_does_not_wait(graph):
+    remember(graph, MANUAL, [manual("m7", "  ", "\n ")], by="library")
+    embedder = Embedder()
+    assert embed(graph, MANUAL, embedder, model="count-8") == {"embedded": 4, "waiting": 0}
+    assert all("  " not in text for asked in embedder.asked for text in asked)
+
+
+def test_entry_vectors_are_made_from_the_mark_on(db):
+    import uuid
+
+    from lighthouse.graphs import mark
+
+    graph = db.select_graph(f"test_{uuid.uuid4().hex}")
+    try:
+        ensure_schema(graph, [], entry_dimensions=8)
+        open_episode(graph, "e", "eye")
+        for n in range(3):
+            record(graph, "e", "observation", "eye", {"saw": f"pump {n}"})
+        embed_entries(graph, Embedder(), model="count-8", limit=2)
+        name = next(
+            k
+            for k in graph.ro_query("MATCH (s:Stamp) RETURN properties(s)").result_set[0][0]
+            if k.startswith("embedded_entries_")
+        )
+        assert mark(graph, name) == 2  # the serial of the last entry it did
+        embed_entries(graph, Embedder(), model="count-8")
+        assert mark(graph, name) == 3
+    finally:
+        graph.delete()

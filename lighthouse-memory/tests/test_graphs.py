@@ -81,8 +81,12 @@ def test_schema_has_a_text_index_for_the_text_of_a_kind(graph):
     # with text, and the user of a session.
     by_label = {row[0]: (row[1], row[2]) for row in indexed}
     assert by_label["Message"] == ({"key": ["RANGE"], "words": ["FULLTEXT"]}, "OPERATIONAL")
-    assert by_label["Entry"] == ({"id": ["RANGE"], "words": ["FULLTEXT"]}, "OPERATIONAL")
-    assert by_label["State"] == ({"words": ["FULLTEXT"]}, "OPERATIONAL")
+    entry = {"id": ["RANGE"], "serial": ["RANGE"], "words": ["FULLTEXT"]}
+    assert (dict(by_label["Entry"][0]), by_label["Entry"][1]) == (entry, "OPERATIONAL")
+    state = {"words": ["FULLTEXT"], "valid_from": ["RANGE"], "by": ["RANGE"]}
+    assert (dict(by_label["State"][0]), by_label["State"][1]) == (state, "OPERATIONAL")
+    episode = {"id": ["RANGE"], "opened_at": ["RANGE"], "closed_at": ["RANGE"]}
+    assert (dict(by_label["Episode"][0]), by_label["Episode"][1]) == (episode, "OPERATIONAL")
     assert by_label["Session"] == ({"key": ["RANGE"], "user": ["RANGE"]}, "OPERATIONAL")
     assert by_label["Reference"] == ({"key": ["RANGE"]}, "OPERATIONAL")
     assert by_label["WriteFailure"] == ({"owner": ["RANGE"], "same": ["RANGE"]}, "OPERATIONAL")
@@ -247,3 +251,95 @@ def test_a_schema_that_another_process_is_making_is_waited_for():
 
     with pytest.raises(ResponseError, match="something else"):
         _create(other, "Task", "id", time.monotonic() + 5)
+
+
+def notes(graph, count: int, episode="watch") -> list[str]:
+    from lighthouse import open_episode, record
+
+    open_episode(graph, episode, "eye")
+    return [
+        record(graph, episode, "observation", "eye", {"saw": f"n{n}"})["id"] for n in range(count)
+    ]
+
+
+def test_a_mark_is_kept_on_the_stamp(graph):
+    from lighthouse.graphs import mark, set_mark
+
+    assert mark(graph, "read_Device_x") is None
+    set_mark(graph, "read_Device_x", 7)
+    assert mark(graph, "read_Device_x") == 7
+    for wrong in ("", "1x", "a-b", "a b", "s.id = 1 //", "x" * 101):
+        with pytest.raises(ValueError, match="mark"):
+            mark(graph, wrong)
+
+
+def test_an_entry_job_reads_by_serial_in_slices_from_its_mark(graph, monkeypatch):
+    from lighthouse import graphs
+    from lighthouse.graphs import entries_after, entries_waiting, set_mark
+
+    monkeypatch.setattr(graphs, "SLICE", 2)  # several slices for a few entries
+    ids = notes(graph, 7)
+    everything = "n.words IS NOT NULL"
+    found, done = entries_after(graph, "job", everything, {}, 3)
+    assert [n.properties["id"] for n in found] == ids[:3] and done == 3
+    set_mark(graph, "job", done)
+    assert entries_waiting(graph, done, everything, {}) == 4
+    # A condition that keeps few: the slices go on until the end, and the mark with them.
+    found, done = entries_after(graph, "job", "n.saw = 'n5'", {}, 3)
+    assert [n.properties["id"] for n in found] == [ids[5]] and done == 7
+    set_mark(graph, "job", done)
+    assert entries_after(graph, "job", everything, {}, 3) == ([], 7)
+
+
+def test_each_step_of_an_entry_job_reads_twice_the_serials_of_the_last(graph, monkeypatch):
+    from lighthouse import graphs
+    from lighthouse.graphs import entries_after
+
+    monkeypatch.setattr(graphs, "SLICE", 2)
+    notes(graph, 7)
+    asked = []
+    real = graph.ro_query
+
+    def counted(query, params=None, **kw):
+        asked.append(query)
+        return real(query, params, **kw)
+
+    monkeypatch.setattr(graph, "ro_query", counted)
+    entries_after(graph, "job", "n.saw = 'n5'", {}, 3)
+    reads = [q for q in asked if "n.serial > $start" in q]
+    assert len(reads) == 3  # serials 1-2, 3-6, and 7: not 1-2, 3-4, 5-6, 7
+
+
+def test_entries_and_messages_of_an_earlier_version_are_brought_up_to_date(graph):
+    from lighthouse import said, say
+
+    ids = notes(graph, 3)
+    say(graph, "ann", "s", "user", "the pump leaks", by="ann")
+    # As a graph that an earlier version wrote: no serials, no count, no word of the user.
+    graph.query("MATCH (n:Entry) REMOVE n.serial")
+    graph.query("MATCH (s:Stamp) REMOVE s.entries, s.messages_owned")
+    graph.query("MATCH (m:Message) SET m.words = 'the pump leaks'")
+    say(graph, "bob", "s", "user", "a valve", by="bob")  # stored with the word of its user
+    graph.query(
+        "MATCH (m:Message {user: 'bob'}) SET m.words = m.words + ' kept'"
+    )  # what is already up to date is left as it is
+    assert said(graph, "ann", "pump") == []
+    ensure_schema(graph, [DEVICE])
+    serials = graph.ro_query("MATCH (n:Entry) RETURN n.id, n.serial ORDER BY n.serial").result_set
+    assert serials == [[entry_id, n] for n, entry_id in enumerate(ids, 1)]
+    assert [m["text"] for m in said(graph, "ann", "pump")] == ["the pump leaks"]
+    assert [m["text"] for m in said(graph, "bob", "kept")] == ["a valve"]
+    notes(graph, 1, episode="later")  # the count goes on from there
+    assert graph.ro_query("MATCH (s:Stamp) RETURN s.entries").result_set == [[4]]
+
+
+def test_a_graph_without_a_stamp_keeps_no_mark(db):
+    bare = db.select_graph(f"test_{uuid.uuid4().hex}")
+    try:
+        from lighthouse.graphs import mark, set_mark
+
+        bare.query("CREATE (:Thing)")
+        set_mark(bare, "read_x", "2026-01-01T00:00:00")
+        assert mark(bare, "read_x") is None
+    finally:
+        bare.delete()

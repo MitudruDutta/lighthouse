@@ -497,3 +497,12 @@ def test_read_of_a_wrong_form_is_refused(graph):
     for situation in (["event"], "hot", {"a b": 1}, {"a": {"b": 1}}):
         with pytest.raises((TypeError, ValueError)):
             playbooks_for(graph, situation)
+
+
+def test_a_trigger_fits_only_values_of_its_own_type(graph):
+    """The trigger is compared in the database: a missing property fits nothing, and true is
+    not the number 1."""
+    written(graph, "flagged", trigger={"flag": True}, steps=[{"do": "x"}])
+    assert [pb["name"] for pb in playbooks_for(graph, {"flag": True})] == ["flagged"]
+    assert playbooks_for(graph, {"flag": 1}) == []
+    assert playbooks_for(graph, {"other": True}) == []

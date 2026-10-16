@@ -147,3 +147,19 @@ def test_what_extract_is_given_is_checked(graph):
         extract(graph, DEVICE, extractor, "reader", limit=0)
     with pytest.raises(ValueError):
         extract(graph, DEVICE, extractor, "")
+
+
+def test_a_call_reads_on_from_where_the_last_one_stopped(graph):
+    for minute in range(3):
+        note(graph, f"d{minute} is ok in r1", minute=minute)
+    extract(graph, DEVICE, extractor, "reader", limit=2)
+    marks = graph.ro_query("MATCH (s:Stamp) RETURN properties(s)").result_set[0][0]
+    (name,) = [n for n in marks if n.startswith("read_Device_")]
+    assert marks[name] == 2  # the serial of the last entry it read
+    # Entries before the mark are not looked at again: a call costs what came since.
+    graph.query("MATCH (n:Entry) WHERE n.serial <= 2 MATCH (n)-[r:READ_BY]->() DELETE r")
+    assert extract(graph, DEVICE, extractor, "reader") == {
+        "read": 1,
+        "rows": {"created": 1},
+        "waiting": 0,
+    }

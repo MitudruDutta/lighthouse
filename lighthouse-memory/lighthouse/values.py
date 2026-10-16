@@ -4,6 +4,8 @@ The limits bound the work one call can cause. FalkorDB runs one write at a time 
 and cannot stop a write that takes too long, so no input may be able to make one.
 """
 
+import hashlib
+import json
 import math
 import re
 import reprlib
@@ -142,3 +144,10 @@ def indexed(texts) -> dict:
 def without_words(found: dict) -> dict:
     """The properties of a node without its searchable text, which only the index reads."""
     return {name: value for name, value in found.items() if name != WORDS}
+
+
+def owner_word(user: str) -> str:
+    """A word for a user, kept among the words of their messages so that a search of the
+    index can keep to them: letters and digits, the same in every process, for no other
+    user."""
+    return "u" + hashlib.sha256(json.dumps(user).encode()).hexdigest()[:30]

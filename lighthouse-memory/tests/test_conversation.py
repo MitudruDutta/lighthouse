@@ -823,7 +823,8 @@ def test_long_session_is_forgotten_in_steps_that_each_leave_it_whole(graph, monk
     talk(graph, *(f"m{n}" for n in range(1, 31)), mentions=[(DEVICE, "d1"), (ROOM, "r1")])
     for n in range(40):  # more references and more failures than one step takes
         talk(graph, f"x{n}", session="many", mentions=[(ROOM, f"room-{n}"), (ROOM, f"hall-{n}")])
-        say(graph, "ann", "many", "user", "bad \x00", by="ann")
+        # Each refused message is another: the same refusal again is counted on one node.
+        say(graph, "ann", "many", "user", f"bad {n} \x00", by="ann")
     talk(graph, "stays", session="other", mentions=[(DEVICE, "d1")])
     steps, send = [], graph.query
 
@@ -957,3 +958,18 @@ def test_words_next_to_a_line_break_are_found_in_what_was_said(graph):
     for word in ("line", "second", "third"):
         assert texts(said(graph, "ann", word)) == ["first line\nsecond_line\u00a0third"], word
     assert "words" not in messages(graph, "ann", "main")[0]
+
+
+def test_a_search_asks_the_index_for_the_messages_of_its_user_only(graph):
+    import hashlib
+
+    from lighthouse.values import owner_word as _owner
+
+    # The word for a user is the same in every process: not Python's hash(), which is not.
+    assert _owner("ann") == "u" + hashlib.sha256(b'"ann"').hexdigest()[:30]
+    assert _owner("ann") != _owner("bob")
+    say(graph, "ann", "s", "user", "the pump leaks", by="ann")
+    say(graph, "bob", "s", "user", f"{_owner('ann')} the pump leaks", by="bob")
+    for match in ("all", "any"):
+        assert [m["by"] for m in said(graph, "ann", "pump leaks", match=match)] == ["ann"]
+        assert [m["by"] for m in said(graph, "bob", "pump leaks", match=match)] == ["bob"]

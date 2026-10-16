@@ -23,6 +23,9 @@ ENTITY = "Entity"
 # is deleted and made again under its name has another id: it is another graph.
 STAMP = "Stamp"
 VECTOR = "Vector"  # the vectors of kind Thing are nodes with the label ThingVector
+# An entity of kind Thing whose text has no vector of the current model has the label
+# ThingToEmbed as well, so embed() finds it without reading the others.
+TO_EMBED = "ToEmbed"
 MAX_DIMENSIONS = 4096
 
 
@@ -75,10 +78,11 @@ class Kind:
             raise ValueError(f"Kind {self.label!r}: dimensions is 0 to {MAX_DIMENSIONS}")
         if self.dimensions and not self.text:
             raise ValueError(f"Kind {self.label!r} has dimensions but no text to stand for")
-        if self.label.endswith(VECTOR):
-            raise ValueError(
-                f"Kind {self.label!r}: a label that ends in {VECTOR!r} is the engine's"
-            )
+        for suffix in (VECTOR, TO_EMBED):
+            if self.label.endswith(suffix):
+                raise ValueError(
+                    f"Kind {self.label!r}: a label that ends in {suffix!r} is the engine's"
+                )
 
 
 def all_kinds(kinds) -> dict[str, Kind]:

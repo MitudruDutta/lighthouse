@@ -5,8 +5,13 @@ vectors, and names the model, so vectors of two models are never compared. What 
 function returns is checked like any other input.
 
 Vectors are made off the write path, by embed(). A vector belongs to the text it was made
-from: the write that changes the text takes the vector out of the index, and embed() makes
-a new one. A vector is stored only if the text is still what it was made from.
+from: the write that changes the text takes the vector out of the index and gives the
+entity the label ThingToEmbed, and embed() makes a new one. embed() reads only entities
+with that label, so a call costs what waits, not what the kind holds. A vector is stored
+only if the text is still what it was made from.
+
+Entries never change. embed_entries() reads the entries stored since its mark, by their
+serial, so a call costs what came since.
 
   (entity)-[:EMBEDDED_AS]->(ThingVector {vector, model, at})
   (Entry)-[:EMBEDDED_AS]->(EntryVector {vector, model, at})
@@ -15,17 +20,20 @@ An entry never changes, so its vector stands for its text for good. Entries get 
 in a graph whose schema gives them an index: ensure_schema(..., entry_dimensions=N).
 """
 
+import hashlib
 import math
 
 from falkordb import Graph
 
 from lighthouse.clock import now
 from lighthouse.episodes import ENTRY_PROPERTIES
-from lighthouse.kinds import VECTOR, Kind
-from lighthouse.read import READ_TIMEOUT, pages
+from lighthouse.graphs import entries_after, entries_waiting, mark, set_mark
+from lighthouse.kinds import TO_EMBED, VECTOR, Kind
+from lighthouse.read import READ_TIMEOUT
 from lighthouse.values import MAX_TEXT, describe, named, without_words
 
 BATCH = 50  # vectors in one write query
+MARK_PAGE = 10_000  # entities marked in one write, after a change of model
 MOST = 1_000  # vectors that one search reads at most
 
 
@@ -67,54 +75,85 @@ def _checked(embedder, model: str, limit: int) -> None:
         raise ValueError("limit must be a whole number from 1 to 1000")
 
 
+def _digest(name: str) -> str:
+    """A short name for a mark, from any text: a model may be named anything."""
+    return hashlib.sha256(name.encode()).hexdigest()[:16]
+
+
+def _all_wait(graph: Graph, kind: Kind, model: str) -> None:
+    """After a change of model, every entity with text waits for a vector of the new one:
+    one pass over the kind, once for each change. So does every entity of a graph that was
+    written before entities waited by label."""
+    name = f"embedded_{kind.label}"
+    if mark(graph, name) == _digest(model):
+        return
+    waits = f"{kind.label}{TO_EMBED}"
+    worded = " OR ".join(f"e.{text} IS NOT NULL" for text in kind.text)
+    # A write blocks every other writer of the graph, so the labels go on a page at a time.
+    while graph.query(
+        f"MATCH (e:{kind.label}) WHERE ({worded}) AND NOT e:{waits} "
+        f"WITH e LIMIT {MARK_PAGE} SET e:{waits} RETURN count(e)"
+    ).result_set[0][0]:
+        pass
+    set_mark(graph, name, _digest(model))
+
+
 def embed(graph: Graph, kind: Kind, embedder, model: str, limit: int = 100) -> dict:
     """Give a vector to entities of `kind` whose text has none, or whose text or model has
     changed since. At most `limit` in one call. Returns {"embedded", "waiting"}: how many
     got a vector now, and how many still wait. Run it off the write path until none wait.
 
     `embedder` takes a list of texts and returns one vector for each, of kind.dimensions
-    numbers. `model` names what made them.
+    numbers. `model` names what made them. A call with another model than the last one
+    reads the kind once, to give every entity with text a vector of the new model.
     """
     _ready(kind, embedder, model, limit)
     label = f"{kind.label}{VECTOR}"
-    # Limit: this reads every entity of the kind on each call. Keep a mark of what changed
-    # if a kind grows past what one read should carry.
-    rows = pages(
-        graph,
-        f"MATCH (e:{kind.label}) OPTIONAL MATCH (e)-[:EMBEDDED_AS]->(v:{label}) "
-        f"RETURN e, v.model, v.vector IS NOT NULL ORDER BY e.{kind.key}",
-        {},
-    )
-    waiting = [
-        entity.properties
-        for entity, made_by, has_vector in rows
-        if text_of(kind, entity.properties) and not (has_vector and made_by == model)
-    ]
-    chosen = waiting[:limit]
+    waits = f"{kind.label}{TO_EMBED}"
+    _all_wait(graph, kind, model)
+    rows = graph.ro_query(
+        f"MATCH (e:{waits}) OPTIONAL MATCH (e)-[:EMBEDDED_AS]->(v:{label}) "
+        f"RETURN e, v.model, v.vector IS NOT NULL ORDER BY e.{kind.key} LIMIT $limit",
+        {"limit": limit},
+    ).result_set
+    chosen, done = [], []
+    for entity, made_by, has_vector in rows:
+        values = entity.properties
+        if text_of(kind, values) and not (has_vector and made_by == model):
+            chosen.append(values)
+        else:  # no text to stand for, or a vector of this model already: nothing to make
+            done.append(values)
+    # The model was asked outside any query. A text that changed in the meantime gets no
+    # vector here, and keeps its label: the vector would stand for words it no longer has.
+    same = " AND ".join(f"coalesce(e.{name}, '') = r.text.{name}" for name in kind.text)
+
+    def text(values: dict) -> dict:
+        return {name: values.get(name, "") for name in kind.text}
+
+    if done:
+        graph.query(
+            f"UNWIND $rows AS r MATCH (e:{waits} {{{kind.key}: r.key}}) WHERE {same} "
+            f"REMOVE e:{waits}",
+            {"rows": [{"key": values[kind.key], "text": text(values)} for values in done]},
+        )
     written = 0
     if chosen:
         texts = [text_of(kind, values)[:MAX_TEXT] for values in chosen]
         fresh = [
-            {
-                "key": values[kind.key],
-                "vector": vector,
-                "text": {name: values.get(name, "") for name in kind.text},
-            }
+            {"key": values[kind.key], "vector": vector, "text": text(values)}
             for values, vector in zip(chosen, vectors(embedder, texts, kind.dimensions))
         ]
-        # The model was asked outside any query. A text that changed in the meantime gets
-        # no vector here: the vector would stand for words the entity no longer has.
-        same = " AND ".join(f"coalesce(e.{name}, '') = r.text.{name}" for name in kind.text)
         for start in range(0, len(fresh), BATCH):
             result = graph.query(
                 f"UNWIND $rows AS r MATCH (e:{kind.label} {{{kind.key}: r.key}}) WHERE {same} "
                 f"MERGE (e)-[:EMBEDDED_AS]->(v:{label}) "
                 "SET v.vector = vecf32(r.vector), v.model = $model, v.at = localdatetime($now) "
-                "RETURN count(v)",
+                f"REMOVE e:{waits} RETURN count(v)",
                 {"rows": fresh[start : start + BATCH], "model": model, "now": now()},
             )
             written += result.result_set[0][0]
-    return {"embedded": written, "waiting": len(waiting) - written}
+    waiting = graph.ro_query(f"MATCH (e:{waits}) RETURN count(e)").result_set[0][0]
+    return {"embedded": written, "waiting": waiting}
 
 
 def nearest(
@@ -203,25 +242,22 @@ def _ready_for_entries(graph: Graph, embedder, model: str, limit: int) -> int:
     return _entry_dimensions(graph)
 
 
-# Entries with text that have no vector of this model yet. Entries without text have none.
-# Limit: this reads every entry with text on each call. Keep a mark of what was embedded if
-# a graph grows past what one read should carry.
-WAITING = f"""
-MATCH (n:Entry) WHERE n.words IS NOT NULL
-OPTIONAL MATCH (n)-[:EMBEDDED_AS]->(v:{ENTRY_VECTOR})
-WITH n, v WHERE v IS NULL OR v.model <> $model
-"""
+# Entries with text that have no vector of this model. Entries without text have none.
+WAITING = f"n.words IS NOT NULL AND NOT (n)-[:EMBEDDED_AS]->(:{ENTRY_VECTOR} {{model: $model}})"
 
 
 def embed_entries(graph: Graph, embedder, model: str, limit: int = 100) -> dict:
     """Give a vector to entries whose text has none of this model, at most `limit` in one
-    call. Returns {"embedded", "waiting"}, as embed() does. Run it off the write path until
-    none wait."""
+    call, in the order they were stored. Returns {"embedded", "waiting"}, as embed() does.
+    Run it off the write path until none wait.
+
+    It reads the entries stored since its mark for this model: a model it has not seen
+    starts from the first entry."""
     dimensions = _ready_for_entries(graph, embedder, model, limit)
-    chosen = graph.ro_query(
-        f"{WAITING} RETURN n ORDER BY n.id LIMIT $limit", {"model": model, "limit": limit}
-    ).result_set
-    entries = [node.properties for (node,) in chosen]
+    name = f"embedded_entries_{_digest(model)}"
+    params = {"model": model}
+    chosen, done = entries_after(graph, name, WAITING, params, limit)
+    entries = [node.properties for node in chosen]
     if entries:
         texts = [entry_text(entry)[:MAX_TEXT] for entry in entries]
         made = vectors(embedder, texts, dimensions)
@@ -233,8 +269,8 @@ def embed_entries(graph: Graph, embedder, model: str, limit: int = 100) -> dict:
                 "SET v.vector = vecf32(r.vector), v.model = $model, v.at = localdatetime($now)",
                 {"rows": rows[start : start + BATCH], "model": model, "now": now()},
             )
-    waiting = graph.ro_query(f"{WAITING} RETURN count(n)", {"model": model}).result_set[0][0]
-    return {"embedded": len(entries), "waiting": waiting}
+    set_mark(graph, name, done)
+    return {"embedded": len(entries), "waiting": entries_waiting(graph, done, WAITING, params)}
 
 
 def nearest_entries(graph: Graph, question: str, embedder, model: str, limit: int = 10) -> list:

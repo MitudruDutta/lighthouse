@@ -125,7 +125,8 @@ def violations(package: pathlib.Path, tests: pathlib.Path) -> list[str]:
                 called = by_name or getattr(node.func, "attr", None)
                 if by_name in CLOSED_BUILTINS or called in CLOSED_CALLS:
                     found.append(f"closed call: {name}: calls {called}()")
-                if called in {"query", "ro_query"}:
+                # pages() of read.py sends a read query a page at a time.
+                if called in {"query", "ro_query", "pages"}:
                     sends = True
             if isinstance(node, ast.Name) and node.id in CLOSED_NAMES:
                 found.append(f"closed name: {name}: uses {node.id}")

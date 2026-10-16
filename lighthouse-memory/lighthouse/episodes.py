@@ -17,7 +17,7 @@ from falkordb import Graph
 from redis.exceptions import ResponseError
 
 from lighthouse.clock import is_ahead, now, stamp
-from lighthouse.kinds import Kind
+from lighthouse.kinds import STAMP, Kind
 from lighthouse.read import pages
 from lighthouse.values import (
     MAX_REFERENCES,
@@ -37,7 +37,9 @@ OUTCOME = "outcome"  # the type of the entry that closes an episode
 MAX_ENTRIES = 5_000  # entries in one episode: one event cannot grow without end
 
 # Properties of an entry that the library sets. An entry's values cannot use these names.
-ENTRY_PROPERTIES = {"id", "seq", "type", "at", "recorded_at", "by", "cites", WORDS}
+# `serial` is the place of the entry among all entries of the graph, in the order they were
+# stored: see _append_query().
+ENTRY_PROPERTIES = {"id", "seq", "serial", "type", "at", "recorded_at", "by", "cites", WORDS}
 
 # Records of the library that a reference may point at, by label: the property that
 # identifies one. Entities of the application are named with their Kind.
@@ -158,14 +160,19 @@ RETURN status
 
 # The episode counts its entries. The next entry takes the next number in the same query
 # that links it after the last one, so two writers cannot take the same place.
+#
+# The entry also takes the next serial of the graph from its stamp. FalkorDB runs one write
+# of a graph at a time, so serials follow the order in which entries were stored: a job
+# that has seen serial n has seen every entry before it, and reads on from there.
 def _append_query(groups: list[tuple]) -> str:
-    clauses, names, missing = lookups(groups, "ep, last")
+    clauses, names, missing = lookups(groups, "ep, last, stamp")
     cites = links(groups, "n", "CITES {{label: '{label}', key: {key}, as_of: t}}")
     return f"""
 MATCH (ep:Episode {{id: $id}})
 OPTIONAL MATCH (ep)-[:HAS]->(last:Entry {{seq: ep.entry_count}})
-WITH ep, last{clauses}
-WITH ep, last{names}, ep.entry_count + 1 AS seq, localdatetime($at) AS t,
+OPTIONAL MATCH (stamp:{STAMP})
+WITH ep, last, stamp{clauses}
+WITH ep, last, stamp{names}, ep.entry_count + 1 AS seq, localdatetime($at) AS t,
   CASE
     WHEN ep.closed_at IS NOT NULL THEN 'closed'
     WHEN ep.entry_count >= $most THEN 'full'
@@ -174,8 +181,10 @@ WITH ep, last{names}, ep.entry_count + 1 AS seq, localdatetime($at) AS t,
   END AS status
 FOREACH (_ IN CASE WHEN status = 'recorded' THEN [1] ELSE [] END |
   SET ep.entry_count = seq
+  FOREACH (s IN CASE WHEN stamp IS NULL THEN [] ELSE [stamp] END |
+    SET s.entries = coalesce(s.entries, 0) + 1)
   CREATE (ep)-[:HAS]->(n:Entry {{id: $id + '/' + toString(seq), seq: seq, type: $type, at: t,
-                                recorded_at: localdatetime($now), by: $by}})
+                                serial: stamp.entries, recorded_at: localdatetime($now), by: $by}})
   SET n += $values
   MERGE (a:Agent {{id: $by}})
   CREATE (a)-[:WROTE]->(n)
@@ -287,6 +296,12 @@ def pairs(found) -> list[tuple]:
     return sorted({(label, key) for label, key in found if label is not None}, key=str)
 
 
+def _shown(entry: dict) -> dict:
+    """An entry as a reader gets it: without the words the index reads, and without its
+    serial, which only the jobs that read entries off the write path use."""
+    return {name: value for name, value in without_words(entry).items() if name != "serial"}
+
+
 def episode(graph: Graph, episode_id: str) -> dict | None:
     """An episode with its entries in order, or None if it does not exist. Each entry has
     "cites": the (label, key) pairs it rests on. "about" has the same form."""
@@ -306,9 +321,7 @@ def episode(graph: Graph, episode_id: str) -> dict | None:
     return {
         **found[0][0].properties,
         "about": pairs(found[0][1]),
-        "entries": [
-            {**without_words(node.properties), "cites": pairs(cites)} for node, cites in entries
-        ],
+        "entries": [{**_shown(node.properties), "cites": pairs(cites)} for node, cites in entries],
     }
 
 
@@ -331,6 +344,6 @@ def episodes_about(graph: Graph, kind: Kind, key) -> list[dict]:
         {"key": key},
     )
     return [
-        {**ep.properties, "outcome": without_words(outcome.properties) if outcome else None}
+        {**ep.properties, "outcome": _shown(outcome.properties) if outcome else None}
         for ep, outcome in rows
     ]

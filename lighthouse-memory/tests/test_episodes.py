@@ -428,6 +428,9 @@ def test_many_agents_writing_into_one_episode_get_one_order(graph):
             future.result()
     assert {r["status"] for r in receipts} == {"recorded"}
     assert sorted(r["seq"] for r in receipts) == list(range(1, 97))  # every place taken once
+    serials = graph.ro_query("MATCH (n:Entry) RETURN n.serial ORDER BY n.serial").result_set
+    assert [s for (s,) in serials] == list(range(1, 97))  # and every serial of the graph
+    assert graph.ro_query("MATCH (s:Stamp) RETURN s.entries").result_set == [[96]]
     assert count(graph, "(a:Agent)") == 8
     check_episodes(graph)
 
@@ -482,3 +485,15 @@ def test_episode_is_about_entities_only(graph):
     for about in ([("Episode", "past")], [("Entry", "past/1")], ["past/1"]):
         assert open_episode(graph, "now", by="watcher", about=about)["status"] == "invalid"
     assert episode(graph, "now") is None
+
+
+def test_an_entry_is_read_without_its_serial_and_its_words(graph):
+    started(graph)
+    record(graph, "ep1", "observation", by="watcher", values={"saw": "the pump is hot"})
+    close_episode(graph, "ep1", by="reviewer", outcome={"note": "it cooled"})
+    found = episode(graph, "ep1")
+    assert all("serial" not in e and "words" not in e for e in found["entries"])
+    stored = graph.ro_query("MATCH (n:Entry) RETURN n.serial ORDER BY n.serial").result_set
+    assert stored == [[1], [2]]  # it is there, for the jobs that read entries
+    outcome = episodes_about(graph, DEVICE, "d1")[0]["outcome"]
+    assert "serial" not in outcome and outcome["note"] == "it cooled"

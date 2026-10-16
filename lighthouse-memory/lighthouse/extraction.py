@@ -10,15 +10,19 @@ evidence of what it adds:
 An entry is read once for each kind. What the extractor gives is input like any other: the
 write rule checks each row, and a row that is refused leaves a WriteFailure.
 
-Messages of conversations are not read: they can be erased, and facts drawn from them would
-stay. An application that wants them read writes what it takes from them as entries.
+A call reads the entries stored since its mark, by their serial: the mark is kept on the
+graph's stamp for each kind and set of types, and moves past the entries a call has done.
+So a call costs what came since, not every entry of the graph.
 """
 
+import hashlib
+import json
 from collections import Counter
 
 from falkordb import Graph
 
 from lighthouse.clock import now
+from lighthouse.graphs import entries_after, entries_waiting, set_mark
 from lighthouse.kinds import Kind
 from lighthouse.values import (
     MAX_ITEMS,
@@ -31,13 +35,11 @@ from lighthouse.values import (
 )
 from lighthouse.write import remember
 
-# Entries with text that were not read for this kind yet, oldest first.
-# Limit: this reads every entry with text on each call. Keep a mark of how far the reading
-# came if a graph grows past what one read should carry.
-WAITING = f"""
-MATCH (n:Entry) WHERE n.{WORDS} IS NOT NULL AND ($types IS NULL OR n.type IN $types)
-  AND NOT (n)-[:READ_BY {{kind: $kind}}]->(:Agent)
-"""
+# Entries with text of the types asked for that were not read for this kind yet.
+WAITING = (
+    f"n.{WORDS} IS NOT NULL AND ($types IS NULL OR n.type IN $types) "
+    "AND NOT (n)-[:READ_BY {kind: $kind}]->(:Agent)"
+)
 
 READ = """
 MATCH (n:Entry {id: $id})
@@ -47,8 +49,8 @@ CREATE (n)-[:READ_BY {kind: $kind, at: localdatetime($now), rows: $rows}]->(a)
 
 
 def extract(graph: Graph, kind: Kind, extractor, by: str, types=None, limit: int = 100) -> dict:
-    """Read entries with text that were not read for `kind` yet, oldest first, at most
-    `limit` of them, and write the rows that `extractor` finds in each.
+    """Read entries with text that were not read for `kind` yet, in the order they were
+    stored, at most `limit` of them, and write the rows that `extractor` finds in each.
 
       extractor  a function of one entry (its properties: id, type, at, by, and its values)
                  that returns a list of rows of `kind`, as remember() takes them. A row
@@ -66,14 +68,14 @@ def extract(graph: Graph, kind: Kind, extractor, by: str, types=None, limit: int
         not isinstance(types, (list, tuple)) or not all(is_name(t) for t in types)
     ):
         raise ValueError(f"types must be a list of entry types, got {describe(types)}")
-    params = {"kind": kind.label, "types": None if types is None else list(types)}
-    found = graph.ro_query(
-        f"{WAITING} RETURN n ORDER BY n.at, n.id LIMIT $limit",
-        params | {"limit": whole_number(limit, "limit", 1_000)},
-    ).result_set
+    asked = None if types is None else sorted(set(types))
+    digest = hashlib.sha256(json.dumps(asked).encode()).hexdigest()[:16]
+    name = f"read_{kind.label}_{digest}"
+    params = {"kind": kind.label, "types": asked}
+    found, done = entries_after(graph, name, WAITING, params, whole_number(limit, "limit", 1_000))
     statuses: Counter = Counter()
     read = 0
-    for (node,) in found:
+    for node in found:
         entry = without_words(node.properties)
         rows = extractor(dict(entry))
         if not isinstance(rows, list) or len(rows) > MAX_ITEMS:
@@ -89,5 +91,6 @@ def extract(graph: Graph, kind: Kind, extractor, by: str, types=None, limit: int
         mark = {"id": entry["id"], "rows": len(rows), "kind": kind.label, "by": by, "now": now()}
         graph.query(READ, mark)
         read += 1
-    waiting = graph.ro_query(f"{WAITING} RETURN count(n)", params).result_set[0][0]
-    return {"read": read, "rows": dict(statuses), "waiting": waiting}
+    set_mark(graph, name, done)
+    left = entries_waiting(graph, done, WAITING, params)
+    return {"read": read, "rows": dict(statuses), "waiting": left}

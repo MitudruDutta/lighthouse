@@ -6,7 +6,7 @@ from falkordb import Graph
 from redis.exceptions import ResponseError
 
 from lighthouse.clock import now
-from lighthouse.kinds import ENTITY, VECTOR, Kind
+from lighthouse.kinds import ENTITY, TO_EMBED, VECTOR, Kind
 from lighthouse.values import describe, is_key, named
 from lighthouse.write.failures import record_failure
 from lighthouse.write.late import insert
@@ -51,17 +51,23 @@ WITH r, e, t, src, cur, at, status{carried}, collect(o) AS open_{name}, collect(
     CREATE (e)-[:{name} {{valid_from: t, recorded_at: localdatetime($now), by: $by}}]->(y))"""
     # A vector stands for the text it was made from. When a row changes that text, the
     # vector leaves the index in the same query, so a search by meaning never answers from
-    # text that is gone. The text is compared before the entity is written.
+    # text that is gone, and the entity waits for embed() with the label ThingToEmbed: a
+    # label, because `SET e = r.entity` keeps labels and replaces every property. The text
+    # is compared before the entity is written.
     reword = ""
     if kind.dimensions:
         differs = " OR ".join(
             f"coalesce(e.{name}, '') <> coalesce(r.entity.{name}, '')" for name in kind.text
         )
+        worded = " OR ".join(f"r.entity.{name} IS NOT NULL" for name in kind.text)
+        waits = f"{kind.label}{TO_EMBED}"
         open_edges += f"""
 OPTIONAL MATCH (e)-[:EMBEDDED_AS]->(v:{kind.label}{VECTOR})
 WITH r, e, t, src, cur, at, status{carried}, collect(v) AS vectors, ({differs}) AS reworded"""
-        reword = """
-  FOREACH (v IN CASE WHEN reworded THEN vectors ELSE [] END | SET v.vector = NULL)"""
+        reword = f"""
+  FOREACH (v IN CASE WHEN reworded THEN vectors ELSE [] END | SET v.vector = NULL)
+  FOREACH (_ IN CASE WHEN reworded AND ({worded}) THEN [1] ELSE [] END | SET e:{waits})
+  FOREACH (_ IN CASE WHEN reworded AND NOT ({worded}) THEN [1] ELSE [] END | REMOVE e:{waits})"""
     return f"""
 UNWIND $rows AS r
 MERGE (e:{kind.label}:{ENTITY} {{{kind.key}: r.key}})

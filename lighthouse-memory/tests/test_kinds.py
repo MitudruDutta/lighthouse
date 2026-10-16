@@ -73,3 +73,9 @@ def test_kind_cannot_change_after_it_is_made():
     kind = Kind("Shelf", times=["checked"], relations=given)
     given["BAD NAME"] = ROOM
     assert kind.times == ("checked",) and set(kind.relations) == {"IN"}
+
+
+def test_a_label_that_ends_like_the_labels_of_the_engine_is_refused():
+    for label in ("ThingVector", "ThingToEmbed"):
+        with pytest.raises(ValueError, match="the engine's"):
+            Kind(label, key="k")

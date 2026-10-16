@@ -261,13 +261,12 @@ def playbooks_for(graph: Graph, situation: dict) -> list[dict]:
     facts = properties(situation, set(), "situation")
     rows = pages(
         graph,
-        # Only the newest version of a playbook can be switched on.
-        f"MATCH (pb:Playbook {{enabled: true}})-[:WHEN]->(trigger:Trigger) {READ}",
-        {},
+        # Only the newest version of a playbook can be switched on. The trigger is compared
+        # in the query, so only the playbooks that fit come back. A property the situation
+        # lacks reads as null, which fits nothing; a value fits only a value of its own type.
+        "MATCH (pb:Playbook {enabled: true})-[:WHEN]->(trigger:Trigger) "
+        f"WHERE all(name IN keys(trigger) WHERE trigger[name] = $situation[name]) {READ}",
+        {"situation": facts},
     )
-    fitting = [
-        _whole(*row)
-        for row in rows
-        if all(name in facts and facts[name] == value for name, value in row[1].properties.items())
-    ]
+    fitting = [_whole(*row) for row in rows]
     return sorted(fitting, key=lambda pb: (pb["failed"] - pb["succeeded"], -pb["runs"], pb["name"]))
