@@ -91,8 +91,9 @@ def _names(graph: Graph, ids: list[int], key_of: dict) -> dict[int, tuple]:
     return {i: (label, key) for i, label, key in rows}
 
 
-def groups(graph, key_of, types, at, at_least, limit, show) -> list[dict]:
-    ids, pairs = _read(graph, sorted(key_of), types, at)
+def joined(ids: list, pairs) -> list[list]:
+    """The sets that the pairs join, whichever way they point, each in the order of `ids`,
+    largest first, then by their first member. By union-find."""
     parent = {node: node for node in ids}
 
     def root(node):
@@ -103,13 +104,15 @@ def groups(graph, key_of, types, at, at_least, limit, show) -> list[dict]:
 
     for a, b in pairs:
         parent[root(a)] = root(b)
-    sets: dict[int, list] = {}
+    sets: dict = {}
     for node in ids:  # in the order of ids: the oldest first
         sets.setdefault(root(node), []).append(node)
-    chosen = sorted(
-        (members for members in sets.values() if len(members) >= at_least),
-        key=lambda members: (-len(members), members[0]),
-    )[:limit]
+    return sorted(sets.values(), key=lambda members: (-len(members), members[0]))
+
+
+def groups(graph, key_of, types, at, at_least, limit, show) -> list[dict]:
+    ids, pairs = _read(graph, sorted(key_of), types, at)
+    chosen = [members for members in joined(ids, pairs) if len(members) >= at_least][:limit]
     names = _names(graph, sorted({n for members in chosen for n in members[:show]}), key_of)
     return [
         {"size": len(members), "members": [names[n] for n in members[:show]]} for members in chosen
@@ -128,9 +131,9 @@ def _best(graph, score: dict, key_of: dict, limit: int, scale: float = 1.0) -> l
     return [{"entity": name, "score": score[node] * scale} for node, name in found[:limit]]
 
 
-def important(graph, key_of, relation, at, limit) -> list[dict]:
-    # The rank is taken over every entity, as FalkorDB takes it, and listed for the kinds.
-    ids, pairs = _read(graph, [ENTITY], relation and [relation], at)
+def ranked(ids: list, pairs) -> list[float]:
+    """PageRank of each of `ids`, in their order, by the rules of FalkorDB's: damping 0.85,
+    and a node that points at nothing shares its rank among all."""
     if not ids:
         return []
     n, out = len(ids), _out(ids, pairs)
@@ -150,7 +153,15 @@ def important(graph, key_of, relation, at, limit) -> list[dict]:
         rank = step
         if change < 1e-12:
             break
-    return _best(graph, dict(zip(ids, rank, strict=True)), key_of, limit)
+    return rank
+
+
+def important(graph, key_of, relation, at, limit) -> list[dict]:
+    # The rank is taken over every entity, as FalkorDB takes it, and listed for the kinds.
+    ids, pairs = _read(graph, [ENTITY], relation and [relation], at)
+    if not ids:
+        return []
+    return _best(graph, dict(zip(ids, ranked(ids, pairs), strict=True)), key_of, limit)
 
 
 def between(graph, key_of, types, at, limit, sample, seed, least) -> list[dict]:

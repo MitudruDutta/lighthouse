@@ -1,23 +1,8 @@
-"""Lighthouse: agent memory on FalkorDB, where the graph does the remembering.
+"""Agent memory on FalkorDB for structured events: versioned by rule, no LLM on the write path.
 
-kinds     declare what the application remembers
-graphs    the shared world graph, one graph per tenant, and the schema
-write     rows become versions, by rule, with a receipt for each
-read      what was true at any time
-recall    what points at an entity, what is like it, and what has the words of a question,
-          now, in an earlier version, or in an entry
-episodes  the ordered record of one event, with its evidence
-extraction what the text of entries says, as rows, by a function the application passes in
-handoffs  work passed from one agent to another, by pointing at the record
-lessons   what was learned from episodes that ended, with its evidence and its weight
-playbooks what to do when a situation comes again: versions, runs, and an off switch
-promotion what repeats in episodes that ended, written as lessons and playbooks by a rule
-algorithms what belongs together, what is central, and how two things are connected, now
-          or at one time (snapshot)
-conversation what was said in the sessions of a user, in order, and what it mentions
-tasks     work that agents claim through the graph, in order, for a time
-values    what a name, a key, and a property may hold
-clock     the one time format
+The modules of the package, in order: `kinds`, `graphs`, `write`, `read`, `recall`,
+`episodes`, `extraction`, `handoffs`, `lessons`, `playbooks`, `promotion`,
+`algorithms`, `impact`, `diff`, `trust`, `conversation`, `tasks`, and `clock`.
 """
 
 from lighthouse.algorithms import between, connection, groups, important
@@ -33,29 +18,43 @@ from lighthouse.conversation import (
     sessions,
     summarize,
 )
-from lighthouse.episodes import close_episode, episode, episodes_about, open_episode, record
+from lighthouse.diff import diff_between, what_if
+from lighthouse.episodes import (
+    close_episode,
+    episode,
+    episodes_about,
+    open_episode,
+    record,
+)
 from lighthouse.extraction import extract
 from lighthouse.graphs import WORLD, ensure_schema, tenant, world
 from lighthouse.handoffs import accept, hand_off, handoffs_for
+from lighthouse.impact import impact_of_entry, impact_of_state, invalidate_entry
 from lighthouse.kinds import SELF, Kind
 from lighthouse.lessons import learn, lesson, lessons_about, retire, used, weigh
-from lighthouse.playbooks import playbook, playbooks_for, ran, switch, write_playbook
+from lighthouse.playbooks import (
+    playbook,
+    playbooks_for,
+    ran,
+    switch,
+    write_playbook,
+)
 from lighthouse.promotion import promote
 from lighthouse.read import as_of, history, related
-from lighthouse.recall import (
+from lighthouse.recall.rank import fuse
+from lighthouse.recall.text import search, search_entries, search_history
+from lighthouse.recall.traverse import pointing_at, similar
+from lighthouse.recall.vector import (
     embed,
     embed_entries,
-    fuse,
     nearest,
     nearest_entries,
-    pointing_at,
-    search,
-    search_entries,
-    search_history,
-    similar,
 )
 from lighthouse.tasks import add_task, claim, complete, release
-from lighthouse.write import record_failure, remember, update
+from lighthouse.trust import agent_trust
+from lighthouse.write.batches import remember
+from lighthouse.write.failures import record_failure
+from lighthouse.write.partial import update
 
 __all__ = [
     "SELF",
@@ -63,6 +62,7 @@ __all__ = [
     "Kind",
     "accept",
     "add_task",
+    "agent_trust",
     "as_of",
     "between",
     "claim",
@@ -70,6 +70,7 @@ __all__ = [
     "complete",
     "connection",
     "context",
+    "diff_between",
     "embed",
     "embed_entries",
     "ensure_schema",
@@ -83,7 +84,10 @@ __all__ = [
     "hand_off",
     "handoffs_for",
     "history",
+    "impact_of_entry",
+    "impact_of_state",
     "important",
+    "invalidate_entry",
     "learn",
     "lesson",
     "lessons_about",
@@ -118,6 +122,7 @@ __all__ = [
     "update",
     "used",
     "weigh",
+    "what_if",
     "world",
     "write_playbook",
 ]

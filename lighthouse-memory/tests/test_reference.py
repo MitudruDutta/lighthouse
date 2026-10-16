@@ -2,6 +2,8 @@
 
 from pathlib import Path
 
+import pytest
+
 import lighthouse
 from scripts.reference import reference, text
 
@@ -14,6 +16,7 @@ def test_every_public_name_is_in_the_reference_once():
     assert all(section["about"] for section in reference()["sections"])
 
 
+@pytest.mark.skipif(not WRITTEN.exists(), reason="the documentation site is not here")
 def test_the_reference_of_the_site_is_up_to_date():
     assert WRITTEN.read_text() == text(), (
         "run: python scripts/reference.py ../docs-site/app/reference.json"

@@ -1,5 +1,6 @@
-"""The API reference of the documentation site, read from the package: every public name of
-`lighthouse`, grouped by the module it is defined in, with its signature and docstring.
+"""The API reference of the documentation site, read from the package: every
+public name of `lighthouse`, grouped by the module it is defined in, with its
+signature and docstring.
 
     python scripts/reference.py ../docs-site/app/reference.json
 
@@ -16,7 +17,8 @@ import lighthouse
 # The modules in the order the package docstring names them; a module not here comes last.
 ORDER = [
     "kinds", "graphs", "write", "read", "recall", "episodes", "extraction", "handoffs",
-    "lessons", "playbooks", "promotion", "algorithms", "conversation", "tasks", "clock",
+    "lessons", "playbooks", "promotion", "algorithms", "impact", "diff", "trust",
+    "conversation", "tasks", "clock",
 ]  # fmt: skip
 
 

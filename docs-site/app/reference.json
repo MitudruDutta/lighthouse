@@ -21,7 +21,7 @@
   },
   {
    "part": "graphs",
-   "about": "Which graph holds what, and the schema a graph needs before the first write.",
+   "about": "Which graph holds what, the schema a graph needs before the first write, and the marks\nthat the engine keeps on a graph's stamp: the serial of the last entry stored, and how far\neach job that reads entries off the write path has come.",
    "names": [
     {
      "name": "WORLD",
@@ -105,13 +105,13 @@
      "name": "embed",
      "kind": "function",
      "signature": "(graph: falkordb.graph.Graph, kind: lighthouse.kinds.Kind, embedder, model: str, limit: int = 100) -> dict",
-     "doc": "Give a vector to entities of `kind` whose text has none, or whose text or model has\nchanged since. At most `limit` in one call. Returns {\"embedded\", \"waiting\"}: how many\ngot a vector now, and how many still wait. Run it off the write path until none wait.\n\n`embedder` takes a list of texts and returns one vector for each, of kind.dimensions\nnumbers. `model` names what made them."
+     "doc": "Give a vector to entities of `kind` whose text has none, or whose text or model has\nchanged since. At most `limit` in one call. Returns {\"embedded\", \"waiting\"}: how many\ngot a vector now, and how many still wait. Run it off the write path until none wait.\n\n`embedder` takes a list of texts and returns one vector for each, of kind.dimensions\nnumbers. `model` names what made them. A call with another model than the last one\nreads the kind once, to give every entity with text a vector of the new model."
     },
     {
      "name": "embed_entries",
      "kind": "function",
      "signature": "(graph: falkordb.graph.Graph, embedder, model: str, limit: int = 100) -> dict",
-     "doc": "Give a vector to entries whose text has none of this model, at most `limit` in one\ncall. Returns {\"embedded\", \"waiting\"}, as embed() does. Run it off the write path until\nnone wait."
+     "doc": "Give a vector to entries whose text has none of this model, at most `limit` in one\ncall, in the order they were stored. Returns {\"embedded\", \"waiting\"}, as embed() does.\nRun it off the write path until none wait.\n\nIt reads the entries stored since its mark for this model: a model it has not seen\nstarts from the first entry."
     },
     {
      "name": "fuse",
@@ -207,7 +207,7 @@
      "name": "extract",
      "kind": "function",
      "signature": "(graph: falkordb.graph.Graph, kind: lighthouse.kinds.Kind, extractor, by: str, types=None, limit: int = 100) -> dict",
-     "doc": "Read entries with text that were not read for `kind` yet, oldest first, at most\n`limit` of them, and write the rows that `extractor` finds in each.\n\n  extractor  a function of one entry (its properties: id, type, at, by, and its values)\n             that returns a list of rows of `kind`, as remember() takes them. A row\n             without \"t\" is true from the time of the entry. Its \"entry\" is the entry.\n  types      the types of entries to read, such as [\"observation\"] (default: all)\n\nReturns {\"read\", \"rows\", \"waiting\"}: how many entries were read, how many rows came back\nwith each status of remember(), and how many entries still wait. An extractor that\nraises stops the call; the entry it read stays waiting, and the ones before it are done."
+     "doc": "Read entries with text that were not read for `kind` yet, in the order they were\nstored, at most `limit` of them, and write the rows that `extractor` finds in each.\n\n  extractor  a function of one entry (its properties: id, type, at, by, and its values)\n             that returns a list of rows of `kind`, as remember() takes them. A row\n             without \"t\" is true from the time of the entry. Its \"entry\" is the entry.\n  types      the types of entries to read, such as [\"observation\"] (default: all)\n\nReturns {\"read\", \"rows\", \"waiting\"}: how many entries were read, how many rows came back\nwith each status of remember(), and how many entries still wait. An extractor that\nraises stops the call; the entry it read stays waiting, and the ones before it are done."
     }
    ]
   },
@@ -352,6 +352,60 @@
      "kind": "function",
      "signature": "(graph: falkordb.graph.Graph, kinds, relation=None, limit: int = 10, at=None) -> list[dict]",
      "doc": "Entities by PageRank, highest first: [{\"entity\": (label, key), \"score\"}]. Of equal\nscores, the oldest entity comes first.\n\nAn entity scores high when many entities point at it, and higher when those score high\nthemselves. An entity shares its score evenly among what it points at; one that points\nat nothing shares it among all.\n\nThe rank is taken over the entities of every kind and the edges of `relation` (default:\nevery relation), so the scores of all entities add up to 1. Entities of `kinds`, and of\nthe kinds they point at, are listed. With `at`, over the entities that existed and the\nrelations that held at that time."
+    }
+   ]
+  },
+  {
+   "part": "impact",
+   "about": "Causal blast-radius analysis and non-destructive entry invalidation.",
+   "names": [
+    {
+     "name": "impact_of_entry",
+     "kind": "function",
+     "signature": "(graph, entry_id: str) -> dict | None",
+     "doc": "Traces every downstream record that cited or derived from `entry_id`."
+    },
+    {
+     "name": "impact_of_state",
+     "kind": "function",
+     "signature": "(graph, kind: lighthouse.kinds.Kind, key, since, until) -> dict",
+     "doc": "Finds every record that relied on `(kind, key)` during `[since, until)`.\n\nReturns direct entries, transitive downstream entries, derived entity states,\naffected episodes, waiting handoffs, and lessons or playbooks placed at risk."
+    },
+    {
+     "name": "invalidate_entry",
+     "kind": "function",
+     "signature": "(graph, entry_id: str, by: str, reason: str, at=None) -> dict",
+     "doc": "Marks an entry as retracted without deleting it and returns its blast radius."
+    }
+   ]
+  },
+  {
+   "part": "diff",
+   "about": "Temporal world diffing and zero-copy counterfactual simulation.",
+   "names": [
+    {
+     "name": "diff_between",
+     "kind": "function",
+     "signature": "(graph, kinds, t1, t2) -> dict",
+     "doc": "Computes the structural delta across `kinds` between `t1` and `t2`."
+    },
+    {
+     "name": "what_if",
+     "kind": "function",
+     "signature": "(graph, kinds, hypothetical_rows: list[tuple[lighthouse.kinds.Kind, list[dict]]], at=None, situation=None) -> dict",
+     "doc": "Simulates `hypothetical_rows` in memory without writing to the database."
+    }
+   ]
+  },
+  {
+   "part": "trust",
+   "about": "Trust in an agent, read from what the graph already records about its work.",
+   "names": [
+    {
+     "name": "agent_trust",
+     "kind": "function",
+     "signature": "(graph, agent: str) -> dict",
+     "doc": "How far the work of `agent` held: the counts of each kind of evidence, and \"score\",\nfrom 0 to 1, or None for an agent with no evidence. The name is checked like every\nname; it is not looked up as anyone's identity."
     }
    ]
   },
