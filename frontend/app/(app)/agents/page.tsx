@@ -1,34 +1,202 @@
-import { ArrowRight, BookOpenCheck, Bot, CheckCircle2, GitBranch, Network, Radar, ShieldCheck } from "lucide-react";
-import type { Metadata } from "next";
-import Link from "next/link";
 import { Suspense } from "react";
-import { Badge, Card, Loading, RefLink, Stat, ago, number } from "@/app/components/ui";
-import { type Intelligence, type Status, api } from "@/app/lib/api";
+import Link from "next/link";
+import type { Metadata } from "next";
+import {
+  ArrowUpRight,
+  BookOpenCheck,
+  Bot,
+  Clock3,
+  Radar,
+  Radio,
+  Workflow,
+} from "lucide-react";
+import { Loading, When, ago } from "@/app/components/ui";
+import { agentName, said } from "@/app/components/words";
+import {
+  api,
+  type Activity,
+  type Intelligence,
+  type Status,
+} from "@/app/lib/api";
 import { isFresh, utcTime } from "@/app/lib/freshness";
-import { docs } from "@/app/lib/links";
-
-export const metadata: Metadata = { title: "Agent control room" };
+import { caseHref } from "@/app/lib/operations";
+export const metadata: Metadata = { title: "Agent activity" };
 export default function Agents() {
-  return <div className="grid gap-6"><header className="flex flex-wrap items-end justify-between gap-4"><div><p className="eyebrow mb-3">Intelligence / Agent operations</p><h1 className="display">A crew with context<span className="text-[var(--sky)]">.</span></h1><p className="mt-2 max-w-[72ch] text-sm text-muted">Four agents. One connected memory. Watch how signals become investigations, coordinated actions, and lessons.</p></div><Link href="/investigate" className="button inline-flex items-center gap-2 !text-xs"><Network size={15} aria-hidden />Investigate the graph</Link></header><Suspense fallback={<Loading what="agent operations" />}><Body /></Suspense></div>;
+  return (
+    <Suspense fallback={<Loading what="agent activity" />}>
+      <Body />
+    </Suspense>
+  );
 }
 async function Body() {
-  const [status, found] = await Promise.all([api<Status>("/api/status"), api<Intelligence>("/api/intelligence")]);
+  const [status, found, activity] = await Promise.all([
+    api<Status>("/api/status"),
+    api<Intelligence>("/api/intelligence"),
+    api<Activity>("/api/activity", { limit: 15 }),
+  ]);
   const now = utcTime(status.now);
-  const feedOK = isFresh(status.last_poll?.at, status.now, 15) && status.availability.feed;
-  const worldOK = isFresh(status.last_world_poll?.at, status.now, 90) && status.availability.portwatch;
-  const deskOK = status.availability.desk && isFresh(status.last_desk?.at, status.now, 5);
+  const feed =
+    isFresh(status.last_poll?.at, status.now, 15) && status.availability.feed;
+  const world =
+    isFresh(status.last_world_poll?.at, status.now, 90) &&
+    status.availability.portwatch;
+  const desk =
+    status.availability.desk && isFresh(status.last_desk?.at, status.now, 5);
   const agents = [
-    { name: "Watcher", role: "Detect berth signals", text: "Compares expected overlap with the maximum observed in berth history. Opens an episode and hands over evidence.", icon: Radar, good: feedOK, note: `Feed checked ${ago(status.last_poll?.at, now)}`, to: "/berths" },
-    { name: "Port Watcher", role: "Detect global changes", text: "Compares daily activity with a 28-day baseline. Links unusual spells to the ports and prior episodes behind them.", icon: Network, good: worldOK, note: `Source checked ${ago(status.last_world_poll?.at, now)}`, to: "/ports" },
-    { name: "Desk agent", role: "Investigate over MCP", text: "Selects graph tools, traces connections, recalls lessons, and records its assessment. Claims tasks atomically.", icon: Bot, good: deskOK, note: !status.availability.desk ? "Temporarily unavailable" : `Last run ${ago(status.last_desk?.at, now)}`, to: "/desk" },
-    { name: "Reviewer", role: "Learn from outcomes", text: "Turns completed episodes into evidence-backed lessons and successful repeated actions into versioned playbooks.", icon: BookOpenCheck, good: feedOK, note: "Learning requires completed episodes", to: "/learned" },
+    {
+      name: "Arrival watcher",
+      kind: "Rules · after each arrival import",
+      text: "Flags expected berth overlaps and preserves the observations behind them.",
+      icon: Radar,
+      at: status.last_poll?.at,
+      state: feed ? "Checked recently" : "Awaiting update",
+      to: "/berths",
+      metric: `${status.counts.Berth ?? 0} berths in memory`,
+    },
+    {
+      name: "Global trend watcher",
+      kind: "Rules · after new daily observations",
+      text: "Compares daily activity with each port's recent baseline. Observation dates stay attached.",
+      icon: Radio,
+      at: status.last_world_poll?.at,
+      state: world ? "Source checked" : "Awaiting update",
+      to: "/ports",
+      metric: `Observations through ${status.last_world_poll?.newest ?? "—"}`,
+    },
+    {
+      name: "Desk investigator",
+      kind: "AI · graph tools & connected evidence",
+      text: "Investigates queued signals, reads supporting history, and records an assessment for your review.",
+      icon: Bot,
+      at: status.last_desk?.at,
+      state: !desk
+        ? "Awaiting service"
+        : found.tasks.claimed
+          ? "Investigating"
+          : "Ready",
+      to: "/desk",
+      metric: `${found.assessments.total} assessments recorded`,
+    },
+    {
+      name: "Outcome reviewer",
+      kind: "Rules · after completed source episodes",
+      text: "Finds recurring outcomes and preserves supporting or contradicting evidence as lessons.",
+      icon: BookOpenCheck,
+      at: status.last_poll?.at,
+      state: feed ? "Scheduled with imports" : "Awaiting update",
+      to: "/learned",
+      metric: `${status.counts.Lesson ?? 0} lessons · ${status.counts.Playbook ?? 0} playbooks`,
+    },
   ];
-  return <>
-    <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4" aria-label="Agent responsibilities">{agents.map(({ icon: Icon, ...agent }, i) => <Link key={agent.name} href={agent.to} className="card group agent-card"><div className="flex items-center justify-between"><span className="rounded-lg bg-[var(--info-bg)] p-2 text-[var(--sky)]"><Icon size={20} aria-hidden /></span><Badge tone={agent.good ? "closed" : "quiet"}>{agent.good ? "Running" : "Standby"}</Badge></div><p className="eyebrow agent-role mt-5">0{i + 1} / {agent.role}</p><h2 className="display mt-2 text-xl">{agent.name}</h2><p className="agent-description mt-3 text-xs leading-relaxed text-muted">{agent.text}</p><p className="agent-note border-t border-[var(--edge)] pt-3 text-[10px] text-faint">{agent.note}</p></Link>)}</section>
-    <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="Coordination state"><Stat label="Open tasks" value={number(found.tasks.open ?? 0)} note="Available for an atomic claim" /><Stat label="Claimed tasks" value={number(found.tasks.claimed ?? 0)} note="Owned by an agent, with a lease" /><Stat label="Completed tasks" value={number(found.tasks.done ?? 0)} note={`${number(found.handoffs.accepted)} handoffs accepted`} /><Stat label="Desk assessments" value={number(found.assessments.total)} note={`${number(found.assessments.grounded)} passed reference grounding checks`} /></section>
-    <div className="grid items-start gap-5 xl:grid-cols-2"><Card title={<span className="flex items-center gap-2"><GitBranch size={17} className="text-[var(--sky)]" aria-hidden />Connected incident groups</span>} aside="Native algo.WCC"><p className="mb-4 text-xs leading-relaxed text-faint">Episodes grouped through shared entities. A connection suggests where to investigate; it does not establish a common cause.</p>{found.groups.length ? <div className="grid gap-4">{found.groups.map((group, i) => <div key={i} className="rounded-lg border border-[var(--edge)] p-4"><div className="flex items-center justify-between"><h3 className="text-xs font-semibold">Connected group {i + 1}</h3><span className="text-[10px] text-faint">{group.size} graph members</span></div><div className="mt-3 flex flex-wrap gap-2 text-[10px]">{group.members.slice(0, 6).map((ref) => <Link key={`${ref[0]}:${ref[1]}`} href={`/investigate?kind=${ref[0]}&key=${encodeURIComponent(String(ref[1]))}`} className="badge max-w-full truncate">{ref[0]} · {String(ref[1])}</Link>)}</div>{group.size > group.members.length ? <p className="mt-2 text-[10px] text-faint">Showing a bounded sample of members.</p> : null}</div>)}</div> : <p className="py-8 text-center text-sm text-faint">Connected groups appear as episodes share evidence.</p>}</Card>
-    <Card title={<span className="flex items-center gap-2"><Radar size={17} className="text-[var(--sky)]" aria-hidden />Ports central to the call graph</span>} aside="Native PageRank"><p className="mb-4 text-xs leading-relaxed text-faint">Importance from incoming CALLS_AT relationships. This is graph structure, not a disruption forecast or a global traffic ranking.</p><ol className="grid gap-2">{found.central.map((port, i) => <li key={String(port.entity[1])} className="flex items-center gap-3 border-b border-[var(--edge)] py-3"><span className="mono text-[10px] text-faint">{String(i + 1).padStart(2, "0")}</span><span className="min-w-0 flex-1 text-sm"><RefLink refer={port.entity}>{port.name}</RefLink></span><span className="mono text-[10px] text-faint">{port.score.toFixed(5)}</span><Link href={`/investigate?kind=Port&key=${encodeURIComponent(String(port.entity[1]))}`} aria-label={`Investigate ${port.name}`} className="link"><ArrowRight size={13} aria-hidden /></Link></li>)}</ol>{!found.central.length ? <p className="py-8 text-center text-sm text-faint">Port importance appears after the first call import.</p> : null}</Card></div>
-    <Card title="Three memories. One improving loop." aside={<BookOpenCheck size={17} aria-hidden />}><div className="grid gap-6 md:grid-cols-3">{[["Episodic", "Episode", "/episodes", "Observations, decisions and outcomes, in order."], ["Semantic", "Lesson", "/learned", "Lessons supported or contradicted by completed episodes."], ["Procedural", "Playbook", "/learned", "Versioned playbooks, with outcomes and failure-driven disabling."]].map(([label, key, to, text]) => <Link key={key} href={to}><span className="eyebrow">{label}</span><p className="display mt-2 text-3xl tabular">{number(status.counts[key] ?? 0)}</p><p className="mt-2 text-xs leading-relaxed text-muted">{text}</p></Link>)}</div><div className="mt-6 flex flex-wrap items-center justify-between gap-4 border-t border-[var(--edge)] pt-4"><p className="flex max-w-[72ch] items-start gap-2 text-xs leading-relaxed text-muted"><ShieldCheck size={16} className="shrink-0 text-[var(--mint)]" aria-hidden />Private conversations persist in tenant graphs. User identity comes from the sign-in token; the shared world graph contains operational evidence.</p><Link href="/desk/chat" className="button-quiet !text-xs">Open a persistent session ↗</Link></div></Card>
-    <p className="flex items-center gap-2 text-[11px] text-faint"><CheckCircle2 size={14} aria-hidden />Live graph state. No simulated assessments. <a href={docs("/showcase")} className="link ml-auto">Use cases & showcase →</a></p>
-  </>;
+  return (
+    <div className="ops-workspace">
+      <header className="ops-page-heading">
+        <div>
+          <p className="ops-kicker">Behind every investigation</p>
+          <h1>Work you can follow.</h1>
+          <p>
+            See what observed the signal, what investigated it, and what became
+            a lesson.
+          </p>
+        </div>
+        <Link href="/desk" className="ops-primary">
+          Review investigations
+          <ArrowUpRight size={17} />
+        </Link>
+      </header>
+      <section className="ops-activity-banner">
+        <Workflow size={32} />
+        <div>
+          <h2>Evidence moves forward. You make the decision.</h2>
+          <p>
+            Watchers detect signals. Desk investigates. Your team records the
+            next step and outcome.
+          </p>
+        </div>
+        <Link href="/dashboard">Open attention queue →</Link>
+      </section>
+      <section className="ops-agent-grid" aria-label="Agent activity">
+        {agents.map((a, i) => (
+          <article key={a.name} className="ops-agent">
+            <header>
+              <i>
+                <a.icon size={23} />
+              </i>
+              <span>{a.state}</span>
+            </header>
+            <p className="ops-kicker">
+              0{i + 1} / {a.kind}
+            </p>
+            <h2>{a.name}</h2>
+            <p>{a.text}</p>
+            <strong>{a.metric}</strong>
+            <footer>
+              <span>
+                <Clock3 size={13} />
+                {a.at ? ago(a.at, now) : "No completed check"}
+              </span>
+              <Link href={a.to}>
+                Inspect work
+                <ArrowUpRight size={15} />
+              </Link>
+            </footer>
+          </article>
+        ))}
+      </section>
+      <div className="ops-activity-layout">
+        <section className="ops-panel">
+          <div className="ops-panel-heading">
+            <span>Latest recorded work</span>
+            <span className="ops-subtle">
+              From the source evidence timeline
+            </span>
+          </div>
+          <ol className="ops-timeline">
+            {activity.entries.map((e) => (
+              <li key={e.id}>
+                <i>
+                  <Radio size={14} />
+                </i>
+                <div>
+                  <strong>{agentName(e.by)}</strong>
+                  <p>{said(e)}</p>
+                  <small>
+                    <When at={String(e.recorded_at ?? e.at)} />
+                  </small>
+                  <Link href={caseHref(e.episode)}>
+                    Open related case
+                    <ArrowUpRight size={13} />
+                  </Link>
+                </div>
+              </li>
+            ))}
+          </ol>
+        </section>
+        <aside className="ops-panel ops-activity-explainer">
+          <p className="ops-kicker">Read the numbers correctly</p>
+          <h2>Investigation isn’t resolution.</h2>
+          <p>
+            {found.tasks.done ?? 0} automation tasks have finished. That
+            includes signals that cleared before investigation.
+          </p>
+          <div>
+            <strong>{found.assessments.total}</strong>
+            <span>Desk assessments recorded</span>
+          </div>
+          <div>
+            <strong>{found.tasks.claimed ?? 0}</strong>
+            <span>Tasks currently claimed by an agent</span>
+          </div>
+          <p>
+            A human resolution appears only after someone records an outcome on
+            the case.
+          </p>
+          <Link href="/desk" className="ops-outline">
+            Review case outcomes
+            <ArrowUpRight size={14} />
+          </Link>
+        </aside>
+      </div>
+    </div>
+  );
 }

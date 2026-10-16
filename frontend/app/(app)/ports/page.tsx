@@ -3,6 +3,7 @@ import { Suspense } from "react";
 
 import { Card, Loading, When } from "@/app/components/ui";
 import { PortTable } from "@/app/components/PortTable";
+import { WorldMap } from "@/app/components/WorldMap";
 import { type PortRow, type World, api } from "@/app/lib/api";
 
 const QUICK = [
@@ -46,6 +47,10 @@ async function Body({ searchParams }: PageProps<"/ports">) {
   const sorted = [...countries.entries()].sort((a, b) => a[1].name.localeCompare(b[1].name));
   return (
     <>
+      <details className="ops-map-context">
+        <summary>Explore the global activity map <span>Observations through <When at={world.newest_day} day /></span></summary>
+        <WorldMap world={world} />
+      </details>
       <Card>
         <form action="/ports" className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 xl:grid-cols-[minmax(0,290px)_auto_minmax(0,1fr)]">
           <select name="country" defaultValue={country ?? ""} aria-label="Country" className="min-w-0 w-full">

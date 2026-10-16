@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "./operations.css";
 
 /* The colours of a nautical chart: shallow water, white deep water, the ink of the chart,
    and the magenta of a light. Magenta marks only what needs attention. The map colours

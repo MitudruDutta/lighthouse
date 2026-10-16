@@ -1,10 +1,7 @@
 "use client";
 
-import { docs } from "@/app/lib/links";
-
 import {
   BookOpenCheck,
-  BookOpen,
   Database,
   Bot,
   Network,
@@ -16,6 +13,7 @@ import {
   MessagesSquare,
   Search,
   Ship,
+  UserRound,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -26,7 +24,7 @@ const GROUPS: [string, [string, string, LucideIcon][]][] = [
   [
     "Operations",
     [
-      ["/dashboard", "Overview", LayoutDashboard],
+      ["/dashboard", "Needs attention", LayoutDashboard],
       ["/ports", "Global ports", Globe2],
       ["/berths", "Berth board", Ship],
       ["/search", "Search memory", Search],
@@ -35,15 +33,21 @@ const GROUPS: [string, [string, string, LucideIcon][]][] = [
   [
     "Intelligence",
     [
-      ["/agents", "Agent control room", Bot],
+      ["/agents", "Agent activity", Bot],
       ["/investigate", "Investigate", Network],
-      ["/desk", "Desk inbox", Inbox],
+      ["/desk", "Investigations", Inbox],
       ["/desk/chat", "Ask the desk", MessagesSquare],
-      ["/episodes", "Episodes", History],
+      ["/episodes", "Source history", History],
       ["/learned", "Lessons & playbooks", BookOpenCheck],
     ],
   ],
-  ["Workspace", [["/sources", "Data sources", Database], [docs(), "Documentation", BookOpen]]],
+  [
+    "Workspace",
+    [
+      ["/profile", "Profile", UserRound],
+      ["/sources", "Data sources", Database],
+    ],
+  ],
 ];
 
 function current(path: string): string | undefined {
@@ -59,13 +63,28 @@ export function NavList({ at, counts = {} }: { at?: string; counts?: Counts }) {
     <nav aria-label="Workspace pages" className="grid gap-6">
       {GROUPS.map(([group, links]) => (
         <div key={group} className="grid gap-1">
-          <h2 className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-faint">{group}</h2>
+          <h2 className="nav-group-title px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-faint">
+            {group}
+          </h2>
           {links.map(([to, label, Icon]) => (
-            <Link key={to} href={to} className="nav-link shrink-0 text-sm" aria-current={to === at ? "page" : undefined}>
+            <Link
+              key={to}
+              href={to}
+              className="nav-link shrink-0 text-sm"
+              aria-label={label}
+              title={label}
+              aria-current={to === at ? "page" : undefined}
+            >
               <Icon size={16} strokeWidth={1.8} aria-hidden />
-              <span className="flex-1">{label}</span>
+              <span className="nav-label flex-1">{label}</span>
               {counts[to] ? (
-                <span className="tabular rounded-md px-1.5 text-[11px]" style={{ background: "var(--rule-soft)", color: "var(--ink-2)" }}>
+                <span
+                  className="nav-count tabular rounded-md px-1.5 text-[11px]"
+                  style={{
+                    background: "var(--rule-soft)",
+                    color: "var(--ink-2)",
+                  }}
+                >
                   {counts[to]!.toLocaleString("en")}
                 </span>
               ) : null}

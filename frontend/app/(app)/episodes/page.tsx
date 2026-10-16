@@ -16,9 +16,9 @@ export default function Episodes(props: PageProps<"/episodes">) {
     <div className="grid gap-5">
       <div>
         <p className="eyebrow mb-3">Intelligence / Event history</p>
-        <h1 className="display">Episodes<span className="text-[var(--sky)]">.</span></h1>
+        <h1 className="display">Source history<span className="text-[var(--sky)]">.</span></h1>
         <p className="mt-1 text-sm text-muted">
-          What the agents saw, recalled, and did about one event, each entry with its evidence, and how it ended.
+          Source observations and their history. Open a case to review evidence, ownership, and your team’s decisions.
         </p>
       </div>
       <Suspense fallback={<Loading what="episodes" />}>
@@ -56,11 +56,11 @@ async function List({ searchParams }: PageProps<"/episodes">) {
       aside={`${episodes.length} shown`}
     >
       {episodes.length === 0 ? (
-        <Empty>No episode here.</Empty>
+        <Empty>No recorded cases in this view.</Empty>
       ) : (
         <div>
           <p className="mb-3 text-[11px] text-faint xl:hidden">Scroll sideways for evidence, agent and outcome →</p>
-          <div className="overflow-x-auto" role="region" aria-label="Episode history" tabIndex={0}>
+          <div className="overflow-x-auto" role="region" aria-label="Source history" tabIndex={0}>
           <table className="grid episodes-table">
             <thead>
               <tr>
@@ -93,7 +93,7 @@ async function List({ searchParams }: PageProps<"/episodes">) {
                   </td>
                   <td className="text-muted">{ep.by}</td>
                   <td className="num">{ep.entry_count}</td>
-                  <td>{ep.closed_at ? <Badge tone="closed">closed</Badge> : <Badge tone="open">open</Badge>}</td>
+                  <td>{ep.closed_at ? <Badge tone="closed">Signal cleared</Badge> : <Badge tone="open">Signal open</Badge>}</td>
                 </tr>
               ))}
             </tbody>

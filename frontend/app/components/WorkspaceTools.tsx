@@ -5,10 +5,10 @@ import { usePathname, useRouter } from "next/navigation";
 import { Suspense, useEffect, useTransition } from "react";
 
 const NAMES: Record<string, string> = {
-  dashboard: "Overview", ports: "Global ports", berths: "Berth board", episodes: "Episodes",
-  learned: "Lessons & playbooks", desk: "Desk inbox", search: "Search", sources: "Data sources",
+  dashboard: "Needs attention", ports: "Global ports", berths: "Berth board", episodes: "Source history",
+  learned: "Lessons & playbooks", desk: "Investigations", search: "Search", sources: "Data sources",
   vessels: "Vessel details", portcalls: "Port call details",
-  agents: "Agent control room", investigate: "Investigate",
+  agents: "Agent activity", investigate: "Evidence graph", cases: "Case investigation", profile: "Profile",
 };
 
 export function WorkspaceName() {

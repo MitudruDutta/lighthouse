@@ -5,11 +5,18 @@ import { type Checked, type Entry, type Ref, segments } from "../lib/api";
 import { describeTool } from "./words";
 
 /** A time as the API gives it (UTC), in a short readable form. */
-export function When({ at, day }: { at?: string | null; day?: boolean }) {
+export function When({ at, day, timezone }: { at?: string | null; day?: boolean; timezone?: string }) {
   if (!at) return <span className="text-faint">—</span>;
   // A time without a zone is UTC, as the library keeps every time.
   const utc = /T\d{2}:\d{2}(:\d{2}(\.\d+)?)?$/.test(at) ? `${at}Z` : at;
   const text = new Date(utc).toISOString().replace("T", " ");
+  if (timezone && !day) {
+    let formatted: string | undefined;
+    try {
+      formatted = new Intl.DateTimeFormat("en", { timeZone: timezone, month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false, timeZoneName: "short" }).format(new Date(utc));
+    } catch { /* Fall back to UTC when a browser does not know a timezone alias. */ }
+    if (formatted) return <time dateTime={utc}>{formatted}</time>;
+  }
   return <time dateTime={at}>{day ? text.slice(0, 10) : `${text.slice(0, 16)} UTC`}</time>;
 }
 
@@ -162,7 +169,7 @@ export function Title({ children, lead, aside }: { children: ReactNode; lead?: R
 }
 
 const OUTCOMES: Record<string, [string, string]> = {
-  grounded: ["badge-calm", "Checked against the graph"],
+  grounded: ["badge-calm", "Referenced records checked"],
   "not in the graph": ["badge-info", "Not in the graph"],
   unsupported: ["badge-warn", "Names something no tool showed"],
 };
@@ -173,7 +180,9 @@ export function Trace({ found }: { found: Checked }) {
   const calls = (found.tools ?? []).filter((t) => t !== "none");
   const [tone, says] = OUTCOMES[found.outcome ?? ""] ?? [];
   return (
-    <div className="mt-3 grid gap-2 text-xs">
+    <details className="ops-trace mt-3 text-xs">
+      <summary>Supporting lookups{calls.length ? <span>{calls.length} lookup{calls.length === 1 ? "" : "s"}</span> : null}</summary>
+      <div className="mt-3 grid gap-2">
       {found.model ? <p className="text-faint">Answered with {found.model}</p> : null}
       {calls.length ? (
         <ol className="flex flex-wrap gap-1.5">
@@ -190,6 +199,7 @@ export function Trace({ found }: { found: Checked }) {
           {found.unsupported?.length ? <span className="text-muted">{found.unsupported.join(", ")}</span> : null}
         </p>
       ) : null}
-    </div>
+      </div>
+    </details>
   );
 }

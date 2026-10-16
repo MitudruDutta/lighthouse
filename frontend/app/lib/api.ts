@@ -186,7 +186,7 @@ export type Message = {
   by: string;
   mentions: Ref[];
 } & Checked;
-export type Session = { id: string; opened_at: string; active_at?: string; message_count: number };
+export type Session = { id: string; opened_at: string; active_at?: string; messages: number };
 export type Answer = { session: string; seq: number; text: string; tools: string[]; mentions: Ref[] };
 export type ModelChoice = { id: string; provider: string; model: string };
 
@@ -210,10 +210,11 @@ export async function desk<T>(
   path: string,
   token: string,
   body?: unknown,
+  method: "POST" | "PUT" = "POST",
 ): Promise<{ ok: true; data: T } | { ok: false; status: number }> {
   try {
     const response = await fetch(new URL(path, BASE), {
-      method: body === undefined ? "GET" : "POST",
+      method: body === undefined ? "GET" : method,
       headers: { Authorization: `Bearer ${token}`, ...(body === undefined ? {} : { "Content-Type": "application/json" }) },
       body: body === undefined ? undefined : JSON.stringify(body),
       signal: AbortSignal.timeout(body === undefined ? 15_000 : 180_000),
