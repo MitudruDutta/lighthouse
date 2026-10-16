@@ -254,13 +254,15 @@ What the library does not do, and the application must:
 
 ## Product workspace and documentation
 
-The operations workspace runs at **http://localhost:3000**. Documentation is an independent Next.js site at **http://localhost:3002**, with its own build and Docker service in `docs-site/`. Old `/docs` links redirect there.
+The operations workspace runs at **http://localhost:3000**. Sign in with your Lighthouse account, or create one at `/signup`; the same credentials work in Lighthouse Memory. The **Profile** tab saves display name, timezone, default queue, and followed ports and vessels to your private workspace graph. Investigations support ownership, proposed plans, approvals, outcomes, and a persistent decision history; source signals remain separate from human resolution. Documentation is an independent Next.js site at **http://localhost:3002**, with its own build and Docker service in `docs-site/`. Old `/docs` links redirect there.
 
 - **Agent control room** (`/agents`) exposes real task claims, handoffs, assessments, native FalkorDB PageRank, and connected incident groups.
 - **Investigate** (`/investigate`) visualizes bounded entity neighbourhoods and traces shortest known chains with direction and current/historical status.
 - **Data sources** (`/sources`) separates source publication delay from update availability and reports missing coverage and accepted observations. Backend diagnostics are available only through the separately authenticated operator API and local logs.
 - The Desk receives an additional fixed `data_quality` MCP tool to check coverage before making claims. Model-based investigations require a configured model; the control room shows worker health separately from configuration.
 - PortWatch saves a checkpoint after each complete day and stops at an empty or rejected day. Tests cover interruptions, partial writes, retries, graph bounds, query input safety, and missing observations.
+
+Google sign-in uses one OAuth **Web application** client for both products. Set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` in `.env`; register `http://localhost:3000/api/auth/google/callback` and `http://localhost:3003/api/auth/google/callback` as authorized redirect URIs. JavaScript origins are not required for this server-side flow. Existing password accounts can connect their matching Google identity from **Profile** (operations) or **Settings** (Memory). OAuth checks state, PKCE, nonce, issuer, audience, expiry, and verified email; identities link only after authenticating the existing account. When domains change, update `LIGHTHOUSE_APP_URL`, `MEMORY_SITE_URL`, and Google’s redirect URI list together.
 
 Use `scripts/capture_ui.py` to regenerate screenshots against the running sites. See `screenshots/README.md`.
 

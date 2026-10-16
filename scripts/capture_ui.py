@@ -10,6 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("--base-url", default="http://localhost:3000")
 parser.add_argument("--docs-url", default="http://localhost:3002")
+parser.add_argument("--storage-state", type=Path, help="Playwright sign-in state for a screenshot account")
 parser.add_argument("--output", type=Path, default=ROOT / "screenshots")
 args = parser.parse_args()
 BASE = args.base_url.rstrip("/")
@@ -89,8 +90,13 @@ async def main():
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True, args=["--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader"])
         page = await browser.new_page(
-            viewport={"width": 1440, "height": 1000}, device_scale_factor=1
+            viewport={"width": 1440, "height": 1000}, device_scale_factor=1,
+            storage_state=str(args.storage_state) if args.storage_state else None
         )
+        await page.add_init_script("""const getContext = HTMLCanvasElement.prototype.getContext;
+        HTMLCanvasElement.prototype.getContext = function(type, options, ...rest) {
+         return getContext.call(this, type, type.includes('webgl') ? {...options, preserveDrawingBuffer: true} : options, ...rest);
+        };""")
         errors = []
         page.on("pageerror", lambda error: errors.append(str(error)))
         routes = {
@@ -104,6 +110,7 @@ async def main():
             "episodes": "/episodes?state=open",
             "learned": "/learned",
             "desk": "/desk",
+            "profile": "/profile",
             "chat": "/desk/chat",
             "search": "/search?q=Helsinki&kind=Port",
             "docs": DOCS + "/",
@@ -111,6 +118,7 @@ async def main():
         for name, path in routes.items():
             response = await page.goto(url(path), wait_until="networkidle")
             assert response.status == 200, (path, response.status)
+            assert "/login" not in page.url, "Use --storage-state with a signed-in screenshot account."
             assert await page.locator("h1").count() == 1, (path, "missing title")
             text = await page.locator("body").inner_text()
             assert "This page could not be shown" not in text, (path, "error boundary")
@@ -157,7 +165,8 @@ async def main():
         await fallback.close()
         print("Three.js controls, bento cards, reduced motion and WebGL fallback OK", flush=True)
 
-        await page.goto(BASE + "/dashboard", wait_until="networkidle")
+        await page.goto(BASE + "/ports", wait_until="networkidle")
+        await page.locator(".ops-map-context > summary").click()
         chart = page.locator("svg.map")
         original = await chart.get_attribute("viewBox")
         await page.get_by_label("Map region", exact=True).select_option("Asia")
@@ -313,6 +322,7 @@ async def main():
             "ports-of-the-world": "/ports",
             "berths": "/berths",
             "desk": "/desk",
+            "profile": "/profile",
             "ask-the-desk": "/desk/chat",
             "search": routes["search"],
             "port": selected_port,
