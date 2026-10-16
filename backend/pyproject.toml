@@ -9,6 +9,7 @@ dependencies = [
     "falkordb",
     "lighthouse-memory",
     "mcp>=1.26,<2",
+    "google-auth[requests]>=2.40,<3",
 ]
 
 [tool.uv.sources]

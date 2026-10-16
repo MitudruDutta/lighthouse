@@ -41,6 +41,12 @@ services:
   # The read-only routes for the screen, and the desk's routes for people who sign in.
   api:
     <<: *backend
+    environment:
+      FALKORDB_HOST: falkordb
+      FALKORDB_PORT: "6379"
+      LIGHTHOUSE_MEMORY_CONTROL_DB: /data/memory-control.sqlite3
+    volumes:
+      - memory_control:/data
     ports:
       - "127.0.0.1:${API_PORT:-8100}:8100"
     healthcheck:
@@ -65,12 +71,11 @@ services:
       context: frontend
       args:
         NEXT_PUBLIC_LIGHTHOUSE_DOCS_URL: ${LIGHTHOUSE_DOCS_URL:-http://localhost:3002}
+        NEXT_PUBLIC_LIGHTHOUSE_MEMORY_URL: ${MEMORY_SITE_URL:-http://localhost:3003}
     image: lighthouse-screen
     environment:
       LIGHTHOUSE_API: http://api:8100
-      # Signs in the person at this computer by itself. Leave it out for a screen that
-      # others can reach: then each person signs in with their own token.
-      LIGHTHOUSE_TOKEN: ${LIGHTHOUSE_TOKEN:-}
+      LIGHTHOUSE_APP_URL: ${LIGHTHOUSE_APP_URL:-http://localhost:3000}
     depends_on:
       api:
         condition: service_healthy
@@ -113,6 +118,7 @@ services:
     image: lighthouse-memory-screen
     environment:
       MEMORY_API: http://memory-api:8200
+      MEMORY_SITE_URL: ${MEMORY_SITE_URL:-http://localhost:3003}
       MEMORY_PUBLIC_API: ${MEMORY_PUBLIC_API:-http://localhost:8200}
     ports:
       - "127.0.0.1:${MEMORY_SITE_PORT:-3003}:3003"

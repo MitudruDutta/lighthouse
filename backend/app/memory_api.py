@@ -23,6 +23,7 @@ from app.memory_control import (
     new_session,
     password_hash,
     public_user,
+    USER_COLUMNS,
 )
 
 router = APIRouter()
@@ -47,7 +48,7 @@ def signed_in(authorization: Annotated[str | None, Header()] = None) -> dict:
         reject()
     with database() as db:
         user = db.execute(
-            "SELECT u.* FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.hash=? AND s.expires>?",
+            f"SELECT {USER_COLUMNS} FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.hash=? AND s.expires>?",
             (digest(token), int(time.time())),
         ).fetchone()
     if not user:
@@ -128,7 +129,9 @@ def register(form: Credentials) -> dict:
 def login(form: Credentials) -> dict:
     email = email_address(form.email)
     with database() as db:
-        user = db.execute("SELECT * FROM users WHERE email=?", (email,)).fetchone()
+        user = db.execute(
+            f"SELECT {USER_COLUMNS} FROM users u WHERE u.email=?", (email,)
+        ).fetchone()
         # Equal work for unknown accounts limits timing-based account discovery.
         stored = user["password"] if user else DUMMY_PASSWORD
         valid = check_password(form.password, stored)
@@ -166,7 +169,7 @@ def overview(user: User):
         "user": user,
         "workspaces": workspaces,
         "projects": projects,
-        "plan": {"name": "Local preview", "billing_active": False},
+        "plan": {"name": "Workspace", "billing_active": False},
     }
 
 
@@ -192,7 +195,7 @@ def create_project(form: Project, user: User):
             ).fetchone()[0]
             >= 20
         ):
-            reject(409, "This preview supports up to 20 projects per workspace.")
+            reject(409, "A workspace can contain up to 20 projects.")
         project_id, now = identifier(), int(time.time())
         graph_for(project_id)
         db.execute(

@@ -52,6 +52,11 @@ def _users(text: str) -> dict[str, tuple[str, str]]:
 def signed_in(authorization: Annotated[str | None, Header()] = None) -> tuple[str, str]:
     """The tenant and the user of the token in the Authorization header."""
     given = (authorization or "").removeprefix("Bearer ").strip()
+    if given.startswith("lhs_"):
+        from app.account_api import workspace_for
+        from app.memory_api import signed_in as account
+        user = account(authorization)
+        return "account_" + workspace_for(user), user["id"]
     for token, who in _users(os.environ.get("LIGHTHOUSE_DESK_USERS", "")).items():
         if hmac.compare_digest(token.encode(), given.encode()):
             return who
@@ -91,6 +96,7 @@ class Question(BaseModel):
     session: str = Field(pattern=r"^[A-Za-z0-9_-]{1,64}$")
     text: str = Field(min_length=1, max_length=4_000)
     model: str | None = Field(default=None, max_length=300)
+    case_id: str | None = Field(default=None, max_length=200)
 
 
 @router.get("/models")
@@ -107,6 +113,13 @@ def ask(question: Question, graph: Desk, who: User) -> dict:
         raise HTTPException(status_code=400, detail="That model is unavailable. Please choose another.")
     try:
         options = {"model_selection": question.model} if question.model else {}
+        if question.case_id:
+            if lighthouse.episode(graph, question.case_id) is None:
+                raise HTTPException(404, "Case not found.")
+            options["case_id"] = question.case_id
+            from app.operations import decision, prior_outcomes, workspace
+            held = decision(workspace(tenant), question.case_id)
+            options["case_context"] = {"decision": held, "prior_outcomes": prior_outcomes(workspace(tenant), held.get("port", ""), question.case_id)}
         return desk.answer(graph, _memory(tenant), user, question.session, question.text, **options)
     except RuntimeError as exc:  # the model service failed or cannot be reached
         log.warning("the desk could not answer: %s", exc)

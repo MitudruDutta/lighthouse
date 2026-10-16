@@ -6,7 +6,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app import desk_api, operator_api
+from app import account_api, desk_api, google_auth, operator_api, operations
 from app.api import router
 from app.db import get_db
 
@@ -14,6 +14,9 @@ app = FastAPI(title="Lighthouse API")
 app.include_router(router)
 app.include_router(desk_api.router)
 app.include_router(operator_api.router)
+app.include_router(operations.router)
+app.include_router(account_api.router)
+app.include_router(google_auth.router, prefix="/api")
 log = logging.getLogger("lighthouse.api")
 # The screen runs on another port in development. LIGHTHOUSE_ORIGINS lists the origins that
 # may read the API, separated by commas.

@@ -10,9 +10,12 @@ import sqlite3
 import time
 from contextlib import contextmanager
 
+USER_COLUMNS = "u.*, EXISTS(SELECT 1 FROM oauth_identities oi WHERE oi.provider='google' AND oi.user_id=u.id) AS google_connected"
+
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS users(id TEXT PRIMARY KEY,email TEXT NOT NULL UNIQUE,name TEXT NOT NULL,password TEXT NOT NULL,created INTEGER NOT NULL,timezone TEXT NOT NULL DEFAULT 'UTC');
 CREATE TABLE IF NOT EXISTS sessions(hash TEXT PRIMARY KEY,user_id TEXT NOT NULL REFERENCES users(id),expires INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS oauth_identities(provider TEXT NOT NULL,subject TEXT NOT NULL,user_id TEXT NOT NULL REFERENCES users(id),created INTEGER NOT NULL,PRIMARY KEY(provider,subject),UNIQUE(provider,user_id));
 CREATE TABLE IF NOT EXISTS workspaces(id TEXT PRIMARY KEY,owner TEXT NOT NULL REFERENCES users(id),name TEXT NOT NULL,created INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS projects(id TEXT PRIMARY KEY,workspace_id TEXT NOT NULL REFERENCES workspaces(id),name TEXT NOT NULL,description TEXT NOT NULL DEFAULT '',created INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS api_keys(id TEXT PRIMARY KEY,project_id TEXT NOT NULL REFERENCES projects(id),hash TEXT NOT NULL UNIQUE,prefix TEXT NOT NULL,name TEXT NOT NULL,scopes TEXT NOT NULL,created INTEGER NOT NULL,expires INTEGER NOT NULL,revoked INTEGER,last_used INTEGER);
@@ -76,7 +79,11 @@ def new_session(db, user: str) -> str:
 
 
 def public_user(row) -> dict:
-    return {key: row[key] for key in ("id", "email", "name", "timezone", "created")}
+    return {key: row[key] for key in ("id", "email", "name", "timezone", "created")} | {
+        "google_connected": bool(row["google_connected"])
+        if "google_connected" in row.keys()
+        else False
+    }
 
 
 def issue_key(db, project: str, name: str, scopes: list[str], days: int) -> dict:
