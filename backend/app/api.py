@@ -50,7 +50,9 @@ def status(graph: Desk) -> dict:
     open_episodes = graph.ro_query(
         "MATCH (ep:Episode) WHERE ep.closed_at IS NULL RETURN count(ep)"
     ).result_set[0][0]
-    feed, world, desk = (last_poll(graph, source) for source in ("feed", "portwatch", "desk"))
+    feed, world, desk, live = (
+        last_poll(graph, source) for source in ("feed", "portwatch", "desk", "ais")
+    )
 
     def available(source, success):
         failure = last_poll(graph, f"{source}-error")
@@ -76,10 +78,31 @@ def status(graph: Desk) -> dict:
         "last_poll": shown(feed, ("at", "feed_time", "port_calls")),
         "last_world_poll": shown(world, ("at", "ports", "days", "rows", "newest", "state")),
         "last_desk": shown(desk, ("at", "did", "waiting")),
+        "last_ais": shown(live, ("at", "ports", "ships_now")),
         "availability": {
             "feed": available("feed", feed),
             "portwatch": available("portwatch", world),
+            "ais": available("ais", live),
             "desk": readiness()["ready"] and not bool(desk and desk.get("failed")),
+        },
+    }
+
+
+@router.get("/live")
+def live(graph: Desk) -> dict:
+    """Ships stopped at the busiest ports now and today, from live AIS positions. Empty
+    until the live reader has a key and has written once."""
+    rows = graph.ro_query(
+        "MATCH (l:LivePort) RETURN l.port, l.name, l.ships_now, l.ships_today, l.day "
+        "ORDER BY l.ships_now DESC, l.port LIMIT $most",
+        {"most": MOST},
+    ).result_set
+    summary = last_poll(graph, "ais")
+    return {
+        "at": summary["at"] if summary else None,
+        "ports": {
+            key: {"name": name, "now": now_, "today": today, "day": day}
+            for key, name, now_, today, day in rows
         },
     }
 
@@ -203,11 +226,35 @@ def search(
     q: Annotated[str, Query(max_length=1_000)],
     kind: Annotated[str, Query(pattern="^(Vessel|Berth|Port)$")] = "Vessel",
     earlier: bool = False,
+    partial: bool = False,
     limit: Annotated[int, Query(ge=1, le=MOST)] = 10,
 ) -> list[dict]:
     """Vessels, berths, or ports whose name has the words of `q`, best first. With
-    `earlier`, the names they had at any time, each with when it held."""
+    `earlier`, the names they had at any time, each with when it held. With `partial`,
+    those whose name holds `q` anywhere, shortest name first: for a box that searches as
+    a person types."""
     found = kind_named(kind)
+    if partial and not earlier:
+        if not q.strip():
+            return []
+        # The text is a parameter; the label is one of three fixed kinds.
+        rows = graph.ro_query(
+            f"MATCH (n:{found.label}) WHERE toLower(coalesce(n.name, '')) CONTAINS toLower($q) "
+            "RETURN n ORDER BY size(n.name), n.name LIMIT $limit",
+            {"q": q.strip(), "limit": limit},
+        ).result_set
+        return [
+            {
+                "key": node.properties[found.key],
+                "score": 1.0,
+                "values": {
+                    name: value
+                    for name, value in _shown(without_words(node.properties)).items()
+                    if name != found.key
+                },
+            }
+            for (node,) in rows
+        ]
     if earlier:
         return [
             {"key": item["key"], "score": item["score"], "state": _shown(item["state"])}

@@ -627,6 +627,7 @@ dependencies = [
     { name = "lighthouse-graph" },
     { name = "mcp" },
     { name = "uvicorn", extra = ["standard"] },
+    { name = "websockets" },
 ]
 
 [package.dev-dependencies]
@@ -644,6 +645,7 @@ requires-dist = [
     { name = "lighthouse-graph", editable = "../lighthouse-memory" },
     { name = "mcp", specifier = ">=1.26,<2" },
     { name = "uvicorn", extras = ["standard"] },
+    { name = "websockets", specifier = ">=15" },
 ]
 
 [package.metadata.requires-dev]

@@ -6,7 +6,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
-from app import google_auth, memory_agents
+from app import google_auth, memory_agents, memory_mcp, memory_workspaces
 from app.db import get_db
 from app.memory_api import router
 from app.memory_control import database
@@ -46,9 +46,12 @@ class BodyLimit:
         await self.app(scope, replay, send)
 
 
-app = FastAPI(title="Lighthouse Memory API", version="0.1.0")
+app = FastAPI(title="Lighthouse Memory API", version="0.1.0", lifespan=memory_mcp.lifespan)
 app.include_router(router)
 app.include_router(memory_agents.router)
+app.include_router(memory_workspaces.router)
+# Agent clients over MCP, with a project key: the same operations as /v1.
+app.add_route("/mcp", memory_mcp.Endpoint(), methods=["GET", "POST", "DELETE"])
 app.include_router(google_auth.router)
 app.add_middleware(BodyLimit)
 log = logging.getLogger("lighthouse.memory")

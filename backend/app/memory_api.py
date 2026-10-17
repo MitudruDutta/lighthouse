@@ -12,6 +12,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import lighthouse as memory
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
+from lighthouse.values import without_words
 from pydantic import BaseModel, Field
 
 from app.db import get_db
@@ -352,8 +353,10 @@ def list_facts(project: str, q: str = ""):
         rows = graph.ro_query(
             "MATCH (m:Memory) RETURN m ORDER BY m.title,m.key LIMIT 100"
         ).result_set
+    # The search words of a memory are the index's, not the reader's.
     return [
-        dict(row[0].properties) | {"metadata": json.loads(row[0].properties.get("metadata", "{}"))}
+        without_words(row[0].properties)
+        | {"metadata": json.loads(row[0].properties.get("metadata", "{}"))}
         for row in rows
     ]
 
@@ -419,29 +422,35 @@ def console_history(project_id: str, key: str, user: User):
     return memory.history(graph_for(project_id), FACT, key)
 
 
-def project_key(scope: str):
-    def authorize(authorization: Annotated[str | None, Header()] = None):
-        token = bearer(authorization)
-        if not token.startswith("lhm_"):
+def check_key(token: str, scope: str | None, count: bool = True) -> dict:
+    """The active project key behind `token`. `scope` is the access the operation needs;
+    `count` spends one of the key's requests this minute."""
+    if not token.startswith("lhm_"):
+        reject(401, "A valid project API key is required.")
+    now = int(time.time())
+    with database() as db:
+        key = db.execute(
+            "SELECT * FROM api_keys WHERE hash=? AND revoked IS NULL AND expires>?",
+            (digest(token), now),
+        ).fetchone()
+        if not key:
             reject(401, "A valid project API key is required.")
-        now = int(time.time())
-        with database() as db:
-            key = db.execute(
-                "SELECT * FROM api_keys WHERE hash=? AND revoked IS NULL AND expires>?",
-                (digest(token), now),
-            ).fetchone()
-            if not key:
-                reject(401, "A valid project API key is required.")
-            if scope not in json.loads(key["scopes"]):
-                reject(403, "This API key does not allow this operation.")
-            count = db.execute(
+        if scope and scope not in json.loads(key["scopes"]):
+            reject(403, "This API key does not allow this operation.")
+        if count:
+            spent = db.execute(
                 "INSERT INTO key_limits VALUES (?,?,1) ON CONFLICT(key_id) DO UPDATE SET window=excluded.window,count=CASE WHEN key_limits.window=excluded.window THEN key_limits.count+1 ELSE 1 END RETURNING count",
                 (key["id"], now // 60),
             ).fetchone()[0]
-            if count > 120:
+            if spent > 120:
                 reject(429, "Request limit reached. Retry shortly.")
             db.execute("UPDATE api_keys SET last_used=? WHERE id=?", (now, key["id"]))
-        return dict(key)
+    return dict(key)
+
+
+def project_key(scope: str):
+    def authorize(authorization: Annotated[str | None, Header()] = None):
+        return check_key(bearer(authorization), scope)
 
     return authorize
 

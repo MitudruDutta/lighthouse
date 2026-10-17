@@ -34,7 +34,7 @@ This is a local developer preview. Billing, managed hosting, email verification,
 | Path | Contents |
 | --- | --- |
 | `lighthouse-memory/` | The memory library, Python package `lighthouse`, published on PyPI as `lighthouse-graph`. Generic: it has no code for ports or for any other product. See its README for the model, the write rule, and the API. |
-| `backend/` | The port desk. `app/portcalls.py` maps the port call feed to library rows. `app/berths.py` works out what a berth has held and where more is expected. `app/watcher.py` is the agent that acts on that. `app/reviewer.py` turns overloads that ended into lessons and playbooks. `app/mcp_server.py` offers the graph to agents as tools over MCP. `app/portwatch.py` reads the ports of the world from IMF PortWatch. `app/portwatcher.py` is the agent that acts on unusual days at them. `app/poller.py` reads the feed every few minutes and runs the two agents after each read, and PortWatch once an hour. `app/web.py` reads public JSON without trusting it. `app/api.py` serves the screen: read-only routes under `/api`. |
+| `backend/` | The port desk. `app/portcalls.py` maps the port call feed to library rows. `app/berths.py` works out what a berth has held and where more is expected. `app/watcher.py` is the agent that acts on that. `app/reviewer.py` turns overloads that ended into lessons and playbooks. `app/mcp_server.py` offers the graph to agents as tools over MCP. `app/portwatch.py` reads the ports of the world from IMF PortWatch. `app/portwatcher.py` is the agent that acts on unusual days at them. `app/poller.py` reads the feed every few minutes and runs the two agents after each read, and PortWatch once an hour. `app/ais.py` counts the cargo ships and tankers in the busiest ports from live AIS positions. `app/web.py` reads public JSON without trusting it. `app/api.py` serves the screen: read-only routes under `/api`. |
 | `frontend/` | The screen of the port desk, in Next.js: it reads the API from the server and writes nothing. An overview with a map of the ports of the world, the ports of a country and the days of one port, the berth board of Finland, the episodes with their evidence, and what was learned. |
 | `memory-site/` | Independent Lighthouse Memory landing page and authenticated developer console, served on port 3003. |
 | `docs-site/` | Memory-only documentation on port 3002, using the Fumadocs notebook shell adapted from Rehearsal, with Lighthouse’s warm product palette. |
@@ -195,13 +195,14 @@ A Forecaster that predicts lateness is not planned. The feed's final expected ar
 
 ### Data
 
-Checked by hand. No key and no login for any of it.
+Checked by hand. No key and no login for any of it, except the live positions of aisstream.io, which need a free key.
 
 | Source | Contents | Access | Terms |
 | --- | --- | --- | --- |
 | Digitraffic port calls (Fintraffic, Finland) | 270 port calls updated in 24 hours across 28 ports; 148 with both expected and actual arrival time; berth, previous port, next port | `https://meri.digitraffic.fi/api/port-call/v1/port-calls` | CC BY 4.0; credit "Fintraffic / digitraffic.fi" |
 | Digitraffic ship positions | 890 ships live | `https://meri.digitraffic.fi/api/ais/v1/locations`, also MQTT | CC BY 4.0 |
 | Digitraffic vessel details | Name, IMO number, type, dimensions | `https://meri.digitraffic.fi/api/port-call/v1/vessel-details` | CC BY 4.0 |
+| aisstream.io live positions | Cargo ships and tankers stopped at the 50 busiest ports, within minutes: AIS position reports inside a box around each port, and each ship's type from its static data. PortWatch publishes about a week later | WebSocket `wss://stream.aisstream.io/v0/stream`; `app/ais.py`, the `ais` service; `AISSTREAM_API_KEY` in `.env` (free, from aisstream.io → API Keys) | aisstream.io terms |
 | IMF PortWatch | Daily port calls by ship type and estimated import and export tonnes, for 2,065 ports in 180 countries (Asia and Pacific 777, Europe 564, North America 291, South America 210, Africa 195; India 37), some days behind; 1,480 ports carry a UN/LOCODE | ArcGIS feature service `services9.arcgis.com/weJ1QsnbMYJlCHdG`, `Daily_Ports_Data` and `PortWatch_ports_database` | IMF terms: commercial reuse of IMF data needs the IMF's permission (copyright@imf.org); credited as "Source: IMF PortWatch" |
 
 The port call feed carries ship master and agent names. Those fields are personal data and are dropped on load.
@@ -256,8 +257,6 @@ The operations workspace runs at **http://localhost:3000**. Sign in with your Li
 - PortWatch saves a checkpoint after each complete day and stops at an empty or rejected day. Tests cover interruptions, partial writes, retries, graph bounds, query input safety, and missing observations.
 
 Google sign-in uses one OAuth **Web application** client for both products. Set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` in `.env`; register `http://localhost:3000/api/auth/google/callback` and `http://localhost:3003/api/auth/google/callback` as authorized redirect URIs. JavaScript origins are not required for this server-side flow. Existing password accounts can connect their matching Google identity from **Profile** (operations) or **Settings** (Memory). OAuth checks state, PKCE, nonce, issuer, audience, expiry, and verified email; identities link only after authenticating the existing account. When domains change, update `LIGHTHOUSE_APP_URL`, `MEMORY_SITE_URL`, and Google’s redirect URI list together.
-
-Use `scripts/capture_ui.py` to check the running sites and regenerate screenshots in `screenshots/ui-review/`, which is not committed. It needs Playwright: run `uv run --with playwright playwright install chromium` once, then `uv run --with playwright python scripts/capture_ui.py`. Pass `--storage-state` with a saved sign-in to capture the signed-in pages.
 
 Sign-in, registration, and Google sign-in are limited per browser address and, for failed logins, per email: ten failures in 15 minutes pause that account's logins whatever address they come from. The websites pass the browser's address to the APIs with `LIGHTHOUSE_PROXY_TOKEN`, which `./setup.sh` generates; without it every browser shares the website server's limit. Behind a reverse proxy, have it append the client to `X-Forwarded-For`.
 

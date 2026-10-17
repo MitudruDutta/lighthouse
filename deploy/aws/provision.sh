@@ -59,7 +59,8 @@ else
   secret() { od -An -tx1 -N24 /dev/urandom | tr -d ' \n'; }
   {
     for key in LIGHTHOUSE_MODEL_PROVIDER LIGHTHOUSE_MODEL_URL LIGHTHOUSE_MODEL LIGHTHOUSE_MODEL_KEY \
-               LIGHTHOUSE_MODEL_PROTOCOL LIGHTHOUSE_MODEL_REASONING GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET; do
+               LIGHTHOUSE_MODEL_PROTOCOL LIGHTHOUSE_MODEL_REASONING GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET \
+               AISSTREAM_API_KEY; do
       value=$(local_value "$key"); [ -n "$value" ] && echo "$key=$value"
     done
     echo "REGISTRY=$REGISTRY"

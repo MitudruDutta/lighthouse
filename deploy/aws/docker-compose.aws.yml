@@ -24,6 +24,8 @@ services:
     image: *backend-image
   desk:
     image: *backend-image
+  ais:
+    image: *backend-image
   memory-api:
     image: *backend-image
     ports: !reset []

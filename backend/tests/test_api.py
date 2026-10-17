@@ -88,6 +88,13 @@ def test_vessels_are_found_by_name_now_and_earlier(desk, graph):
     assert [(e["key"], e["state"]["name"]) for e in earlier] == [(9000003, "Nordic Star")]
     berths = desk.get("/api/search", params={"q": "va8", "kind": "Berth"}).json()
     assert [b["key"] for b in berths] == ["FIHEL/VUOS/VA8"]
+    # Part of a name, as a person types it; the name of now only.
+    typed = desk.get("/api/search", params={"q": "ALTIC D", "partial": True}).json()
+    assert [(v["key"], v["values"]["name"]) for v in typed] == [(9000003, "Baltic Dawn")]
+    assert desk.get("/api/search", params={"q": "ordic", "partial": True}).json() == []
+    assert desk.get("/api/search", params={"q": " ", "partial": True}).json() == []
+    hostile = {"q": "') RETURN 1 //", "partial": True}
+    assert desk.get("/api/search", params=hostile).json() == []
 
 
 def test_vessel_and_berth_pages(desk):

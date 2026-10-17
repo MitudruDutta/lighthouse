@@ -74,6 +74,12 @@ services:
     <<: *backend
     command: ["python", "-m", "app.desk", "world"]
 
+  # Live ship positions at the busiest ports, from aisstream.io, written every quarter of
+  # an hour. Idle until AISSTREAM_API_KEY is set in .env.
+  ais:
+    <<: *backend
+    command: ["python", "-m", "app.ais", "world"]
+
   screen:
     build:
       context: frontend

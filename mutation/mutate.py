@@ -38,6 +38,8 @@ PO, AP, MN = "app/poller.py", "app/api.py", "app/main.py"
 WEB, PW = "app/web.py", "app/portwatch.py"
 PWA = "app/portwatcher.py"
 MA, MG = "app/memory_api.py", "app/memory_agents.py"
+MW, MC = "app/memory_workspaces.py", "app/memory_mcp.py"
+AIS = "app/ais.py"
 S, X = "lighthouse/snapshot.py", "lighthouse/extraction.py"
 # The tests most likely to catch a bug in a file run first; the whole suite runs only if they pass.
 FIRST = {PWA: "test_portwatcher test_poller", WEB: "test_portcalls test_portwatch", PW: "test_portwatch", PO: "test_poller", AP: "test_api", MN: "test_api test_health", X: "test_extraction", S: "test_snapshot test_algorithms", WP: "test_partial", WB: "test_batches test_late test_partial test_attacks test_vector", WL: "test_late test_batches", WF: "test_failures test_attacks test_conversation", WR: "test_rows test_attacks test_batches", V: "test_values test_attacks test_write", C: "test_clock test_attacks",
@@ -45,7 +47,7 @@ FIRST = {PWA: "test_portwatcher test_poller", WEB: "test_portcalls test_portwatc
          H: "test_handoffs", T: "test_tasks", TR: "test_traverse", TX: "test_text", VE: "test_vector", RK: "test_rank",
          L: "test_lessons", PB: "test_playbooks", A: "test_algorithms", CV: "test_conversation",
          B: "test_berths", WA: "test_watcher test_reviewer", M: "test_mcp_server",
-         PR: "test_promotion", RV: "test_reviewer", MA: "test_memory_product", MG: "test_memory_product"}
+         PR: "test_promotion", RV: "test_reviewer", MA: "test_memory_product", MG: "test_memory_product", MW: "test_memory_workspaces", MC: "test_memory_mcp", AIS: "test_ais"}
 
 LIBRARY = [
     # --- the write rule
@@ -1186,6 +1188,27 @@ BACKEND = [
     ("agents: any agent accepts a handoff", MG, "    if result[\"status\"] == \"refused\":\n        reject(403, \"This handoff was given to another agent.\")", "    pass"),
     ("agents: an outcome without closing", MG, '    if form.type == "outcome":\n        reject(422, "Close the episode to record its outcome.")', "    pass"),
     ("agents: a task done by anyone", MG, "    if not changed:\n        reject(409,", "    if False:\n        reject(409,"),
+    # --- workspaces and projects
+    ("workspaces: a delete needs no name", MW, '    if form.confirm != found["name"]:\n        reject(422, "Type the project name to delete it.")', "    pass"),
+    ("workspaces: the only workspace deleted", MW, "            < 2\n", "            < 1\n"),
+    ("workspaces: a deleted project keeps its graph", MW, '        get_db().select_graph("memory_" + project_id).delete()', "        pass"),
+    ("workspaces: a deleted project keeps its keys", MW, '    db.execute("DELETE FROM api_keys WHERE project_id=?", (project_id,))', '    db.execute("UPDATE api_keys SET name=name WHERE project_id=?", (project_id,))'),
+    ("workspaces: anyone renames a workspace", MW, '        "SELECT * FROM workspaces WHERE id=? AND owner=?", (workspace_id, user["id"])', '        "SELECT * FROM workspaces WHERE id=? OR owner=?", (workspace_id, user["id"])'),
+    ("workspaces: no limit on workspaces", MW, "        if held.fetchone()[0] >= WORKSPACES:", "        if False:"),
+    # --- the Memory API over MCP
+    ("mcp: a read key writes", MC, '    return api.check_key(token, scope, count=False)', '    return api.check_key(token, None, count=False)'),
+    ("mcp: no key needed", MC, "            await to_thread.run_sync(api.check_key, token, None)", "            pass"),
+    ("mcp: database errors reach the agent", MC, '        raise ToolError("Memory is temporarily unavailable. Please try again shortly.") from None', "        raise"),
+    ("mcp: any episode id", MC, "    if not re.fullmatch(pattern, value):", "    if False:"),
+    ("api: keys of any scope pass", MA, "        if scope and scope not in json.loads(key[\"scopes\"]):", "        if False:"),
+    ("api: search words shown", MA, "        without_words(row[0].properties)", "        dict(row[0].properties)"),
+    ("api: partial names only from the start", AP, "toLower(coalesce(n.name, '')) CONTAINS toLower($q)", "toLower(coalesce(n.name, '')) STARTS WITH toLower($q)"),
+    # --- live ship positions
+    ("ais: a moving ship counts", AIS, "    return ship, lat, lon, status in STOPPED or speed < SLOW,", "    return ship, lat, lon, True,"),
+    ("ais: in port now never ends", AIS, "if at - when <= RECENT and", "if True and"),
+    ("ais: a tug or a barge counts", AIS, "if at - when <= RECENT and self.types.get(ship) in CARGO", "if at - when <= RECENT"),
+    ("ais: today never starts again", AIS, "            self.day, self.today = when.date().isoformat(), {}", "            self.day = when.date().isoformat()"),
+    ("ais: the stream asked for no ports", AIS, '        "BoundingBoxes": [port.box() for port in tally.ports],', '        "BoundingBoxes": [],'),
 ]
 
 total, survived = 0, []

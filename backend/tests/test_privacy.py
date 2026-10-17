@@ -39,6 +39,7 @@ def test_customer_status_uses_allowlists_even_when_diagnostics_contain_secrets(c
             "state": "partial",
             "skipped": 7,
         },
+        "ais": {"at": "2026-10-15T12:00:00", "ports": 50, "ships_now": 3, "error": SECRET},
         "desk": {
             "at": "2026-10-15T12:00:00",
             "failed": SECRET,
@@ -53,7 +54,8 @@ def test_customer_status_uses_allowlists_even_when_diagnostics_contain_secrets(c
     )
     found = client.get("/api/status").json()
     assert SECRET not in json.dumps(found)
-    assert found["availability"] == {"feed": False, "portwatch": True, "desk": False}
+    assert found["availability"] == {"feed": False, "portwatch": True, "ais": True, "desk": False}
+    assert found["last_ais"] == {"at": "2026-10-15T12:00:00", "ports": 50, "ships_now": 3}
     assert found["last_desk"] == {"at": "2026-10-15T12:00:00", "did": {}, "waiting": 4}
     assert found["last_poll"]["port_calls"] == {"created": 2}
     assert found["last_world_poll"]["rows"] == {"unchanged": 2}
