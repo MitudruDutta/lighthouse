@@ -90,7 +90,9 @@ def violations(package: pathlib.Path, tests: pathlib.Path) -> list[str]:
             found.append(f"driver layer: {name}: one database, no driver and no query store")
         if path.stem in SERVER_NAMES:
             found.append(f"server: {name}: a server is a separate project")
-        if path.is_file() and path.suffix != ".py":
+        # py.typed is the empty marker that says the package has type hints (PEP 561).
+        marker = name == "py.typed" and path.stat().st_size == 0
+        if path.is_file() and path.suffix != ".py" and not marker:
             found.append(f"not python: {name}: the package holds source files only")
         if path.suffix != ".py" or not path.is_file():
             continue
@@ -274,6 +276,8 @@ PLANTED = {
     ),
     "a data file": ("not python", ADD, "defaults.json", "{}\n"),
     "a compiled module": ("not python", ADD, "fast.so", "\x7fELF"),
+    "a type marker that holds data": ("not python", ADD, "py.typed", "{}\n"),
+    "a type marker in a subpackage": ("not python", ADD, "recall/py.typed", ""),
 }
 
 

@@ -22,3 +22,6 @@ research_notes/
 screenshots/
 .lighthouse/
 .env.setup-tmp
+# What a build of a package makes
+dist/
+build/
