@@ -1,0 +1,78 @@
+# Publish the memory library to PyPI as lighthouse-graph.
+#
+# Push a tag named after the version in lighthouse-memory/pyproject.toml:
+#     git tag lighthouse-graph-v0.1.0 && git push origin lighthouse-graph-v0.1.0
+# The tests run against FalkorDB first; the package is published only if they pass.
+# PyPI trusts this workflow by its name ("trusted publishing"): no token is stored.
+name: Publish lighthouse-graph
+
+on:
+  push:
+    tags: ["lighthouse-graph-v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      falkordb:
+        # FalkorDB 6.0.2: the image of docker-compose.yml, pinned by the same digest.
+        image: falkordb/falkordb@sha256:107455e862a824e45e8e9f5a7fbfdf5e00a08b14e13eae2577c72fd9e3f59ba6
+        ports: ["26379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+    defaults:
+      run:
+        working-directory: lighthouse-memory
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --locked
+      - run: uv run ruff check . && uv run ruff format --check .
+      - run: uv run pytest -q
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: lighthouse-memory
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v6
+      - name: The tag names the version that is built
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          version=$(sed -n 's/^version = "\(.*\)"/\1/p' pyproject.toml)
+          test "lighthouse-graph-v$version" = "${GITHUB_REF_NAME}" || {
+            echo "tag ${GITHUB_REF_NAME} does not match version $version in pyproject.toml"
+            exit 1
+          }
+      - run: uv build
+      - run: uvx twine check --strict dist/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: lighthouse-memory/dist/
+
+  publish:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/lighthouse-graph
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1

@@ -624,7 +624,7 @@ dependencies = [
     { name = "falkordb" },
     { name = "fastapi" },
     { name = "google-auth", extra = ["requests"] },
-    { name = "lighthouse-memory" },
+    { name = "lighthouse-graph" },
     { name = "mcp" },
     { name = "uvicorn", extra = ["standard"] },
 ]
@@ -641,7 +641,7 @@ requires-dist = [
     { name = "falkordb" },
     { name = "fastapi" },
     { name = "google-auth", extras = ["requests"], specifier = ">=2.40,<3" },
-    { name = "lighthouse-memory", editable = "../lighthouse-memory" },
+    { name = "lighthouse-graph", editable = "../lighthouse-memory" },
     { name = "mcp", specifier = ">=1.26,<2" },
     { name = "uvicorn", extras = ["standard"] },
 ]
@@ -654,15 +654,15 @@ dev = [
 ]
 
 [[package]]
-name = "lighthouse-memory"
-version = "0.0.0"
+name = "lighthouse-graph"
+version = "0.1.0"
 source = { editable = "../lighthouse-memory" }
 dependencies = [
     { name = "falkordb" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "falkordb" }]
+requires-dist = [{ name = "falkordb", specifier = ">=1.7.1" }]
 
 [package.metadata.requires-dev]
 dev = [

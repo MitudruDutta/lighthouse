@@ -1,8 +1,14 @@
 # Lighthouse memory
 
-Agent memory on FalkorDB for structured events. Python package `lighthouse`.
+Agent memory on FalkorDB for structured events.
 
-The library stores what is true about entities, keeps every earlier version, and lets agents coordinate through the same graph. It has no LLM on the write path and no code for any one product. The port desk in `../backend` is one application built on it.
+```bash
+pip install lighthouse-graph
+```
+
+The package installs as `lighthouse-graph` and is imported as `lighthouse`. It needs Python 3.12 or later and a running FalkorDB. The tests run against FalkorDB 6.0.2: `docker run -p 6379:6379 falkordb/falkordb:6.0.2` gives one.
+
+The library stores what is true about entities, keeps every earlier version, and lets agents coordinate through the same graph. It has no LLM on the write path and no code for any one product. The port desk, in the same repository, is one application built on it.
 
 **Status: first version.** Built and tested: versioned entities, relations with validity windows, time-travel reads, late rows put into history at their time, episodes with evidence, lessons, playbooks, promotion of what repeats into lessons and playbooks, handoffs, recall by the graph, by words, and by meaning, graph algorithms with answers that are kept until the graph grows, conversation history per user with summaries and erasure, write receipts and failure records, task claims with order and leases, partial updates, algorithms at one time, rows drawn from the text of entries, what relied on a fact or an entry that turned out wrong, the difference between two times and a what-if on top of one, trust in an agent from its record, one graph per tenant, and limits on every input. The full list is in [Capabilities](#capabilities).
 
