@@ -138,10 +138,13 @@ function MemoryGraph({
   facts,
   edges,
   select,
+  loading = false,
 }: {
   facts: Fact[];
   edges: Summary["edges"];
   select: (fact: Fact) => void;
+  // The project is still being read: no memories yet does not mean none.
+  loading?: boolean;
 }) {
   const nodes = facts.slice(0, 12);
   const height = nodes.length <= 3 ? 220 : 360;
@@ -227,6 +230,10 @@ function MemoryGraph({
             );
           })}
         </svg>
+      ) : loading ? (
+        <p className="graph-loading" role="status">
+          Loading this project’s memories…
+        </p>
       ) : (
         <Empty
           title="Your graph has room to grow."
@@ -597,6 +604,7 @@ export function Console({
                   </div>
                   <MemoryGraph
                     facts={facts}
+                    loading={!current}
                     edges={summary?.edges ?? []}
                     select={(fact) => {
                       router.push(href("memory"));
@@ -860,7 +868,11 @@ export function Console({
                 <div className="panel-heading">
                   <div>
                     <h2>Memory explorer</h2>
-                    <p>{facts.length} memories loaded · up to 100 shown</p>
+                    <p>
+                      {current
+                        ? `${facts.length} memories loaded · up to 100 shown`
+                        : "Loading…"}
+                    </p>
                   </div>
                   <button
                     className="button button-small"
@@ -888,6 +900,7 @@ export function Console({
                 </div>
                 <MemoryGraph
                   facts={shown}
+                  loading={!current}
                   edges={summary?.edges ?? []}
                   select={(fact) => void inspect(fact)}
                 />

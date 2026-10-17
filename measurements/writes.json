@@ -1,17 +1,17 @@
 {
   "measure": "writes",
-  "at": "2026-10-17T08:44:27",
-  "commit": null,
-  "dirty": null,
+  "at": "2026-10-17T10:19:49",
+  "commit": "5a33b68",
+  "dirty": true,
   "params": {
     "events": 300
   },
   "result": {
-    "events": 288,
+    "events": 300,
     "llm_calls": 0,
     "llm_calls_per_event": 0.0,
-    "latency_ms_p50": 7.7,
-    "latency_ms_p95": 12.4,
-    "batch_events_per_second": 776
+    "latency_ms_p50": 5.2,
+    "latency_ms_p95": 7.8,
+    "batch_events_per_second": 1168
   }
 }

@@ -430,6 +430,8 @@ a {
   }
 }
 .lh-header {
+  /* Above the page: a code block or a positioned button of the page must scroll under it. */
+  z-index: 40;
   height: 72px;
   background: color-mix(in oklab, var(--background) 94%, transparent);
   backdrop-filter: blur(15px);

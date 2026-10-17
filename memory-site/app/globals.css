@@ -760,6 +760,12 @@ code {
 .panel-heading > .muted {
   font-size: 12px;
 }
+.graph-loading {
+  padding: 72px 20px;
+  text-align: center;
+  font-size: 14px;
+  color: var(--muted);
+}
 .project-graph {
   border: 1px solid #f3ece7;
   border-radius: 6px;

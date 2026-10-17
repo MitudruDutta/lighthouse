@@ -5,8 +5,10 @@ export const metadata = { title: "Tenants" };
 One FalkorDB holds many graphs, and a query never spans two. The memory uses that to keep tenants apart.
 
 ```python
-from lighthouse import world, tenant
+from falkordb import FalkorDB
+from lighthouse import tenant, world
 
+db = FalkorDB(host="127.0.0.1", port=6379)
 shared = world(db)              # the graph every tenant may read: "world"
 mine = tenant(db, "acme")       # the private graph of one tenant: "tenant:acme"
 ```

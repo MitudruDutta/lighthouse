@@ -177,7 +177,7 @@ async def main():
         await page.get_by_role("button", name="Reset map").click()
         assert await chart.get_attribute("viewBox") == original
         all_ports = await chart.locator("a").count()
-        await page.get_by_label("Unusual only", exact=True).check()
+        await page.get_by_label("Show only unusual ports on the map", exact=True).check()
         assert 0 < await chart.locator("a").count() < all_ports
         await chart.locator("a").first.focus()
         await page.keyboard.press("Enter")

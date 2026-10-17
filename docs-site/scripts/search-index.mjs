@@ -1,7 +1,9 @@
 import { readdir, readFile, writeFile } from "node:fs/promises";
 import { join, relative } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const root = new URL("../app/", import.meta.url).pathname;
+// fileURLToPath, not URL.pathname: on Windows the pathname is "/C:/...", not a path.
+const root = fileURLToPath(new URL("../app/", import.meta.url));
 const pages = [];
 async function walk(directory) {
   for (const file of await readdir(directory, { withFileTypes: true })) {
@@ -9,7 +11,7 @@ async function walk(directory) {
     if (file.isDirectory()) await walk(path);
     else if (/^page\.(mdx|tsx)$/.test(file.name)) {
       const source = await readFile(path, "utf8");
-      const route = `/${relative(root, directory)}`.replace(/\/$/, "") || "/";
+      const route = `/${relative(root, directory).replaceAll("\\", "/")}`.replace(/\/$/, "") || "/";
       const title = route === "/" ? "Overview" : route === "/reference" ? "Python API" : source.match(/^# (.+)$/m)?.[1] ?? route.slice(1);
       let text = source.replace(/^export .+$/gm, "").replace(/<[^>]+>/g, " ").replace(/[#*`|{}]/g, " ").replace(/\s+/g, " ").trim();
       if (route === "/reference") {

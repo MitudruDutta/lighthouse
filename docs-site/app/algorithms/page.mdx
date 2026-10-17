@@ -12,6 +12,8 @@ Four questions about the graph as a whole. FalkorDB computes the answers; the me
 | `connection(graph, start, end, kinds=(), relations=None, max_hops=6, at=None)`               | How two things are connected: the shortest chain, step by step               | `shortestPath`     |
 
 ```python
+from lighthouse import connection, groups, important
+
 groups(graph, [DEVICE], ["ABOUT"], records=["Episode"])  # the episodes about the same devices
 important(graph, [DEVICE], "LOCATED_IN", limit=3)        # the rooms most devices were in
 connection(graph, (DEVICE, "d1"), (DEVICE, "d7"))        # through which rooms and teams
@@ -22,6 +24,7 @@ connection(graph, (DEVICE, "d1"), (DEVICE, "d7"))        # through which rooms a
 Without `at`, the four see every relation that was ever true. `connection()` says for each step whether the relation holds now, since when, and until when:
 
 ```python
+# what connection() gives: one step for each relation of the chain
 [{"from": ("Device", "d1"), "relation": "LOCATED_IN", "to": ("Room", "r1"),
   "forward": True, "current": False, "since": ..., "until": ...}]
 ```

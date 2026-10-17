@@ -26,13 +26,23 @@ A renamed thing is found by its new name with `search()`, and by its old one wit
 The memory holds no model: you pass a function that turns texts into vectors.
 
 ```python
-MANUAL = Kind("Manual", key="code", text=("title", "body"), dimensions=384)
+from lighthouse import Kind, embed, ensure_schema, nearest, remember
 
-def embedder(texts):  # your model: a list of texts in, one vector for each out
-    ...
+# `dimensions` is the size of your model's vectors: 384, 768, or more. 3 for this stand-in.
+MANUAL = Kind("Manual", key="code", text=("title", "body"), dimensions=3)
+ensure_schema(graph, [MANUAL])
+remember(graph, MANUAL, by="docs", rows=[
+    {"key": "m1", "t": "2026-01-01T00:00:00Z",
+     "values": {"title": "Pump seals", "body": "Replace a seal that leaks."}},
+    {"key": "m2", "t": "2026-01-01T00:00:00Z",
+     "values": {"title": "Fan care", "body": "Clean the fan every month."}},
+])
 
-embed(graph, MANUAL, embedder, model="name-of-the-model")   # off the write path
-nearest(graph, MANUAL, "the seal of my pump leaks", embedder, model="name-of-the-model")
+def embedder(texts):  # your model: texts in, one vector for each out. A stand-in here.
+    return [[t.count("s") + 1.0, t.count("e") + 1.0, t.count("a") + 1.0] for t in texts]
+
+embed(graph, MANUAL, embedder, model="stand-in")  # off the write path: remember() never asks a model
+nearest(graph, MANUAL, "the seal of my pump leaks", embedder, model="stand-in")[0]["key"]
 ```
 
 - `embed()` gives a vector to each entity whose text has none. `remember()` never asks a model.
@@ -42,7 +52,12 @@ nearest(graph, MANUAL, "the seal of my pump leaks", embedder, model="name-of-the
 ## All three
 
 ```python
-fuse({"graph": similar(...), "words": search(...), "meaning": nearest(...)})
+from lighthouse import fuse, search, similar
+
+fuse({
+    "graph": similar(graph, DEVICE, "d1"),          # devices that share d1's rooms and teams
+    "words": search(graph, DEVICE, "pump sensor"),  # devices whose note has the words
+})  # add "meaning": nearest(...) for a kind with `dimensions`
 ```
 
 The scores of the three cannot be compared, so `fuse()` uses only the places (reciprocal rank fusion), and says which ranking put each result where.

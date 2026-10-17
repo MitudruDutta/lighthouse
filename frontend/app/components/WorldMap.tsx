@@ -68,7 +68,7 @@ export function WorldMap({ world }: { world: World; beam?: boolean }) {
           <select aria-label="Map region" value={region} className="!py-1.5 !text-xs" onChange={(event) => { setRegion(event.target.value); setZoom(1); setSelected(null); }}>
             {Object.keys(REGIONS).map((name) => <option key={name}>{name}</option>)}
           </select>
-          <label className="flex cursor-pointer items-center gap-1.5 text-[11px] text-muted"><input type="checkbox" checked={onlyUnusual} onChange={(event) => { setOnlyUnusual(event.target.checked); setSelected(null); }} />Unusual only</label>
+          <label className="flex cursor-pointer items-center gap-1.5 text-[11px] text-muted"><input type="checkbox" aria-label="Show only unusual ports on the map" checked={onlyUnusual} onChange={(event) => { setOnlyUnusual(event.target.checked); setSelected(null); }} />Unusual only</label>
         </div>
         <div className="map-controls">
           <button type="button" aria-label="Zoom out" disabled={zoom <= 1} onClick={() => setZoom((z) => Math.max(1, z / 1.5))}><Minus size={14} aria-hidden /></button>

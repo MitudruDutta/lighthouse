@@ -1,8 +1,8 @@
 {
   "measure": "claims",
-  "at": "2026-10-17T08:45:16",
-  "commit": null,
-  "dirty": null,
+  "at": "2026-10-17T10:20:18",
+  "commit": "5a33b68",
+  "dirty": true,
   "params": {
     "agents": 16,
     "tasks": 500

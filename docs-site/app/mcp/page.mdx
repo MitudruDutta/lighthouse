@@ -6,7 +6,11 @@ Lighthouse Memory is a Python library, not a bundled MCP server. Wrap the memory
 
 ## A read-only tool
 
-This minimal wrapper exposes current state and history for one declared entity kind. Install the MCP Python SDK separately; it is not a dependency of Lighthouse Memory.
+This minimal wrapper exposes current state and history for one declared entity kind. The MCP Python SDK is not a dependency of Lighthouse Memory; install it beside it. Version 2 of the SDK renamed the classes used here, so keep to version 1:
+
+```bash
+pip install lighthouse-graph "mcp>=1.26,<2"
+```
 
 ```python
 import json

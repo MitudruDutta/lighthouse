@@ -1,8 +1,8 @@
 {
   "measure": "history",
-  "at": "2026-10-17T08:45:04",
-  "commit": null,
-  "dirty": null,
+  "at": "2026-10-17T10:20:04",
+  "commit": "5a33b68",
+  "dirty": true,
   "params": {
     "entities": 500,
     "versions": 20,

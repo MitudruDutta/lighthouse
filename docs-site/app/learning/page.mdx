@@ -37,11 +37,18 @@ Writing what an agent will do is riskier than writing what it knows. A playbook 
 | A stop of its own | After 3 failures in a row it switches itself off, in the query that records the failure. |
 
 ```python
-from lighthouse import write_playbook, playbooks_for, ran
+from lighthouse import close_episode, open_episode, playbooks_for, ran, write_playbook
+
+# A playbook rests on episodes that ended: three of them, unless `needs` says otherwise.
+for name in ("e1", "e2", "e3"):
+    open_episode(graph, name, by="watcher", about=[(DEVICE, "d1")])
+    close_episode(graph, name, by="reviewer", outcome={"cause": "fan", "fixed": True})
 
 write_playbook(graph, "hot-device", by="reviewer", trigger={"status": "hot"},
                steps=[{"do": "check the fan"}], supported_by=["e1", "e2", "e3"])
 playbooks_for(graph, {"status": "hot", "room": "r2"})[0]["steps"]  # [{"do": "check the fan"}]
+
+open_episode(graph, "e4", by="watcher", about=[(DEVICE, "d1")])
 ran(graph, "hot-device", by="watcher", episode_id="e4", succeeded=True)
 ```
 
@@ -52,19 +59,23 @@ A trigger fits a situation when every property of the trigger is in the situatio
 What repeats in episodes that ended becomes a lesson or a playbook. The memory cannot tell what a repeat is, so you pass a rule: a function of one ended episode that says what it shows.
 
 ```python
+from lighthouse import promote
+
 def rule(episode):
     outcome = episode["entries"][-1]
+    if "cause" not in outcome:  # this episode says nothing about a cause
+        return []
     return [
         {"lesson": "d1-fan", "statement": "d1 gets hot because of its fan",
          "about": [(DEVICE, "d1")], "agrees": outcome["cause"] == "fan"},
         {"playbook": "cool-d1", "trigger": {"status": "hot", "device": "d1"},
-         "steps": [{"do": outcome["step"]}]},
-        {"ran": "cool-d1", "succeeded": outcome["fixed"]},
+         "steps": [{"do": "clean the fan"}]},
     ]
 
-promote(graph, "reviewer", rule, at_least=3)
+promote(graph, "reviewer", rule, at_least=3)  # e1, e2, e3 agree: the lesson and the playbook
 ```
 
 - A lesson is learned when `at_least` episodes agree with it; after that each episode weighs it.
 - A playbook is written when `at_least` episodes show the same trigger and steps.
+- For a playbook that ran in the episode, a rule can also return `{"ran": name, "succeeded": bool}`: that judges the run.
 - Every episode counts once, so `promote()` can run after every read of a source and writes nothing twice.

@@ -214,7 +214,7 @@ Every claim comes from the running system: `cd backend && uv run python -m app.m
 
 | Claim | Measure | Result |
 | --- | --- | --- |
-| Writing a memory needs no LLM | `writes`: the live Finnish port call feed, one port call at a time, counting the model calls made | 0 LLM calls for 288 port calls. One port call: 7.7 ms at the 50th percentile, 12.4 ms at the 95th. 776 port calls a second in one batch. |
+| Writing a memory needs no LLM | `writes`: the live Finnish port call feed, one port call at a time, counting the model calls made | 0 LLM calls for 300 port calls. One port call: 5.2 ms at the 50th percentile, 7.8 ms at the 95th. 1,168 port calls a second in one batch. |
 | History is exact | `history`: 500 entities, 7,711 changes, written once in time order and once shuffled so that rows arrive late | In order: 7,711 facts read back, 0 wrong. Shuffled: 2,271 late rows fell inside a State that held again after them; each was refused as `stale` and kept as a WriteFailure. 829 facts are wrong as a result, and every one of them holds a refused row: none is wrong silently. A `stale` failure keeps the refused values but not the row's time, so two such rows of one entity with the same values count on one node. |
 | Memory survives a restart | `restart`, then `docker compose restart falkordb`, then `restart --check` | The mark written before the restart is read after it. FalkorDB keeps an append-only file and has two minutes to stop: before both, a stop that cut the last snapshot short lost what came after it. |
 | Agents never double-claim | `claims`: 16 agents on their own connections race for 500 tasks | 500 claims won, 0 tasks won twice, 0 tasks with two claims |
@@ -222,14 +222,6 @@ Every claim comes from the running system: `cd backend && uv run python -m app.m
 | Memory helps | `memory`: MEMORY_RESULT_PENDING | MEMORY_RESULT_PENDING |
 
 Not claimed in advance: that memory improves arrival forecasts. When it was checked, the feed's final expected arrival time already had a median error of 0 minutes, with most arrivals within one hour.
-
-## Hackathon notes
-
-- **Original work.** Nothing is copied from the team's earlier Plimsoll project. If a general-purpose utility is carried over later, it is listed here.
-- **Built before the event.** `lighthouse-memory/` is the team's own memory library, a separate project; the organisers confirmed it may be used. The port desk was started on it before the event as well: the project scaffold, the feed ingest, the berth load rule, the Watcher, the Reviewer, the MCP server, and the mutation check.
-- **AI assistance.** Claude Code was used for the research, these notes, the memory model sketch, and as a coding assistant. The team reviews, tests, and can explain every query, the graph model, and the architecture.
-- **Data.** Public open data under CC BY 4.0. No private, login-protected, or paywalled data. Personal fields are dropped.
-
 
 ## Open questions
 

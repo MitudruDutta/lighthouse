@@ -37,9 +37,11 @@ What follows from the rule:
 | `pointing_at(graph, kind, relation, key, when=None)` | The keys of the entities that pointed at a target |
 
 ```python
-as_of(graph, DEVICE, "d1", "2026-01-01T12:00:00Z")["status"]    # "ok"
+from lighthouse import as_of, pointing_at, related
+
+as_of(graph, DEVICE, "d1", "2026-01-01T12:00:00Z")["status"]        # "ok"
 related(graph, DEVICE, "d1", "LOCATED_IN", "2026-01-01T12:00:00Z")  # ["r1"]
-pointing_at(graph, DEVICE, "LOCATED_IN", "r2")                    # ["d1"]
+pointing_at(graph, DEVICE, "LOCATED_IN", "r2")                      # ["d1"]
 ```
 
 ## Partial updates
@@ -47,8 +49,12 @@ pointing_at(graph, DEVICE, "LOCATED_IN", "r2")                    # ["d1"]
 `update(graph, kind, key, t, by, values=None, relations=None, entry=None)` changes what it names from `t` on and keeps the rest as the current State says.
 
 ```python
-update(graph, DEVICE, "d1", "2026-01-01T13:00:00Z", by="agent", values={"status": "hot"})
-update(graph, DEVICE, "d1", "2026-01-01T14:00:00Z", by="agent", relations={"LOCATED_IN": "r2"})
+from lighthouse import update
+
+# d1 is hot in r2 since 2026-01-02 (the quickstart). Each update is later than that.
+update(graph, DEVICE, "d1", "2026-01-03T09:00:00Z", by="agent", values={"status": "ok"})
+update(graph, DEVICE, "d1", "2026-01-03T10:00:00Z", by="agent", relations={"LOCATED_IN": "r3"})
+as_of(graph, DEVICE, "d1", "2026-01-03T10:00:00Z")["note"]  # "pump room sensor": kept
 ```
 
 - A value of `None` is removed. A relation it names gets the targets it gives; a relation it does not name keeps its edges.

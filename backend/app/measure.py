@@ -27,6 +27,7 @@ from pathlib import Path
 
 import lighthouse
 from lighthouse import Kind, add_task, claim, ensure_schema, history, lesson, remember, tenant
+from lighthouse.kinds import STAMP
 
 from app import model, portcalls, portwatch, portwatcher, reviewer
 from app.db import get_db
@@ -110,7 +111,9 @@ def _replay(rows: list[dict], truth: dict[str, list]) -> dict:
                 if held != [fact["status"]] or inside:
                     wrong += 1
                     unexplained += not any(
-                        k == key and begins <= datetime.fromisoformat(t) and (ends is None or datetime.fromisoformat(t) < ends)
+                        k == key
+                        and begins <= datetime.fromisoformat(t)
+                        and (ends is None or datetime.fromisoformat(t) < ends)
                         for k, t in stale
                     )
     finally:
@@ -198,7 +201,10 @@ def tenants(rows: int) -> dict:
         remember(
             mine,
             SENSOR,
-            [{"key": f"s{n}", "t": "2026-01-01T00:00:00", "values": {"status": "secret"}} for n in range(rows)],
+            [
+                {"key": f"s{n}", "t": "2026-01-01T00:00:00", "values": {"status": "secret"}}
+                for n in range(rows)
+            ],
             by="measure",
         )
         seen = {
@@ -222,7 +228,11 @@ def restart(check: bool) -> dict:
     rows = graph.ro_query("MATCH (m:Mark {id: 1}) RETURN m.at").result_set
     graph.delete()
     uptime = get_db().connection.info("server").get("uptime_in_seconds")
-    return {"mark_found": bool(rows), "marked_at": rows[0][0] if rows else None, "database_uptime_s": uptime}
+    return {
+        "mark_found": bool(rows),
+        "marked_at": rows[0][0] if rows else None,
+        "database_uptime_s": uptime,
+    }
 
 
 def _wilson(right: int, n: int) -> list[float]:
@@ -277,9 +287,33 @@ def _guesses(graph, key: str, state: str) -> dict:
     }
 
 
+# What the PortWatch days are kept as. Everything else in their graph was written by a replay.
+KEPT = {"Port", "State", "Poll", STAMP}
+
+
+def _clear_replay(graph) -> int:
+    """Delete what a replay wrote, and keep the PortWatch days. Returns how many nodes went.
+    A node has several labels (a Port is an Entity too): it goes only when none is kept."""
+    gone = 0
+    for (label,) in graph.ro_query("CALL db.labels() YIELD label RETURN label").result_set:
+        if label in KEPT:
+            continue
+        while True:
+            (deleted,) = graph.query(
+                f"MATCH (n:`{label}`) WHERE none(l IN labels(n) WHERE l IN $kept) "
+                "WITH n LIMIT 10000 DETACH DELETE n RETURN count(n)",
+                {"kept": sorted(KEPT)},
+                timeout=LONG,
+            ).result_set[0]
+            gone += deleted
+            if deleted < 10000:
+                break
+    return gone
+
+
 def memory(days: int, review_every: int, read: bool = True) -> dict:
     """Replays PortWatch day by day through the Port Watcher and the Reviewer, as the poller
-    does, on a copy of real data. When a port turns quiet or busy, each way of guessing says
+    does, on the kept days of real data, in place: a copy would hold them twice in memory. When a port turns quiet or busy, each way of guessing says
     whether the spell will pass within SHORT days; when it ends, each guess is scored.
 
       always_passes  no memory: the same guess every time
@@ -295,9 +329,8 @@ def memory(days: int, review_every: int, read: bool = True) -> dict:
     ensure_schema(data, portcalls.KINDS)
     # Without `read`, the days kept from an earlier run are replayed as they are.
     loaded = portwatch.update(data, backfill=days) if read else {"days": [], "state": "not read"}
-    replay = f"measure_memory_{uuid.uuid4().hex[:8]}"
-    db.connection.execute_command("GRAPH.COPY", DATA, replay)
-    graph = db.select_graph(replay)
+    graph = data
+    _clear_replay(graph)  # what a replay that stopped halfway left
     try:
         span = graph.ro_query(
             "MATCH (:Port)-[:HAS_STATE]->(s:State) WHERE s.calls IS NOT NULL "
@@ -313,11 +346,16 @@ def memory(days: int, review_every: int, read: bool = True) -> dict:
             for did in portwatcher.watch(graph, [str(day)]):
                 if did["did"] == "opened":
                     seen = lighthouse.episode(graph, did["episode"])["entries"][0]
-                    guesses[did["episode"]] = (_guesses(graph, did["port"], seen["state"]), seen["state"])
+                    guesses[did["episode"]] = (
+                        _guesses(graph, did["port"], seen["state"]),
+                        seen["state"],
+                    )
                 elif did["did"] == "ended" and did["episode"] in guesses:
                     end = lighthouse.episode(graph, did["episode"])["entries"][-1]
                     said, state = guesses.pop(did["episode"])
-                    scored.append({"state": state, "passed": end["days"] <= portwatcher.SHORT, **said})
+                    scored.append(
+                        {"state": state, "passed": end["days"] <= portwatcher.SHORT, **said}
+                    )
             n += 1
             if n % review_every == 0:
                 reviewer.review(graph)
@@ -325,13 +363,19 @@ def memory(days: int, review_every: int, read: bool = True) -> dict:
         open_at_end = len(guesses)
         seconds = round(time.perf_counter() - started)
     finally:
-        graph.delete()
+        _clear_replay(graph)
 
     def score(way: str, rows: list[dict]) -> dict:
         right = sum(
-            (row[way] if row[way] is not None else row["base_rate"]) == row["passed"] for row in rows
+            (row[way] if row[way] is not None else row["base_rate"]) == row["passed"]
+            for row in rows
         )
-        return {"right": right, "of": len(rows), "accuracy": round(right / len(rows), 3) if rows else None, "ci95": _wilson(right, len(rows))}
+        return {
+            "right": right,
+            "of": len(rows),
+            "accuracy": round(right / len(rows), 3) if rows else None,
+            "ci95": _wilson(right, len(rows)),
+        }
 
     result = {
         "days": [str(first), str(last)],
@@ -339,10 +383,14 @@ def memory(days: int, review_every: int, read: bool = True) -> dict:
         "spells_scored": len(scored),
         "spells_still_open": open_at_end,
         "passed_within_days": portwatcher.SHORT,
-        "share_that_passed": round(sum(r["passed"] for r in scored) / len(scored), 3) if scored else None,
+        "share_that_passed": round(sum(r["passed"] for r in scored) / len(scored), 3)
+        if scored
+        else None,
         "replay_seconds": seconds,
         "review_every_days": review_every,
-        "all_spells": {way: score(way, scored) for way in ("always_passes", "base_rate", "lesson", "episodes")},
+        "all_spells": {
+            way: score(way, scored) for way in ("always_passes", "base_rate", "lesson", "episodes")
+        },
     }
     for way in ("lesson", "episodes"):
         covered = [row for row in scored if row[way] is not None]
@@ -360,7 +408,9 @@ def memory(days: int, review_every: int, read: bool = True) -> dict:
 
 
 def main(argv=None) -> None:
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     sub = parser.add_subparsers(dest="measure", required=True)
     sub.add_parser("writes").add_argument("--events", type=int, default=300)
     h = sub.add_parser("history")
@@ -387,9 +437,12 @@ def main(argv=None) -> None:
         "memory": lambda: memory(args.days, args.review_every, args.read),
     }[args.measure]
     result = run()
+
     def git(*command):
         try:
-            found = subprocess.run(["git", *command], check=False, cwd=ROOT, capture_output=True, text=True)
+            found = subprocess.run(
+                ["git", *command], check=False, cwd=ROOT, capture_output=True, text=True
+            )
             return found.stdout.strip()
         except FileNotFoundError:  # no git where it runs, such as a container
             return None
@@ -410,7 +463,9 @@ def main(argv=None) -> None:
     print(json.dumps(report, indent=2, default=str))
     OUT.mkdir(exist_ok=True)
     name = args.measure + ("-check" if args.measure == "restart" and args.check else "")
-    (OUT / f"{name}.json").write_text(json.dumps(report, indent=2, default=str) + "\n", encoding="utf-8", newline="\n")
+    (OUT / f"{name}.json").write_text(
+        json.dumps(report, indent=2, default=str) + "\n", encoding="utf-8", newline="\n"
+    )
 
 
 if __name__ == "__main__":

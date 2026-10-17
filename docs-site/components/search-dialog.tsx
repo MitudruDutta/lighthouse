@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import index from "@/app/search-index.json";
+import { rank } from "./search-rank";
 import {
   SearchDialog,
   SearchDialogClose,
@@ -53,15 +54,7 @@ function NoResults() {
  */
 export default function StaticSearchDialog(props: SharedProps) {
   const [query, setQuery] = useState("");
-  const words = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
-  const found = index
-    .filter((page) =>
-      words.every((word) =>
-        `${page.title} ${page.text}`.toLowerCase().includes(word),
-      ),
-    )
-    .slice(0, 15)
-    .map((page) => ({
+  const found = rank(index, query).map((page) => ({
       type: "page" as const,
       id: page.path,
       url: page.path,

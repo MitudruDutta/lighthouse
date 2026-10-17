@@ -35,11 +35,16 @@ said_about(graph, "ann", (DEVICE, "d1"))[0]["text"]   # "the fan stopped": newes
 ## A long session
 
 ```python
-found = context(graph, "ann", "main", last=20)
-# {"summary": None, "upto": 0, "messages": [the last 20], "waiting": 37}
-older = messages(graph, "ann", "main", last=37, before=found["messages"][0]["seq"])
-summarize(graph, "ann", "main", your_model_sums_up(older), upto=37, by="desk")
+def your_model_sums_up(texts):  # your model: the texts in, a short summary out
+    return "ann asked why d1 was hot; the fan had stopped"
+
+kept = messages(graph, "ann", "main")
+summarize(graph, "ann", "main", your_model_sums_up([m["text"] for m in kept]),
+          upto=kept[-1]["seq"], by="desk")
+context(graph, "ann", "main")["summary"]  # "ann asked why d1 was hot; the fan had stopped"
 ```
+
+`context()` gives the summary, the messages after it, and with `waiting` how many older messages are not summed up yet: sum up again when it grows. [Models and agent integration](/integrations) has the whole loop.
 
 ## Forgetting
 
