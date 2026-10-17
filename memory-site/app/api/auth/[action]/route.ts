@@ -42,7 +42,10 @@ export async function POST(
       result.cookies.set(COOKIE, data.token, {
         httpOnly: true,
         sameSite: "strict",
-        secure: request.nextUrl.protocol === "https:",
+        // Behind a proxy that ends TLS, the request reaches this server as http.
+        secure:
+          request.nextUrl.protocol === "https:" ||
+          request.headers.get("x-forwarded-proto") === "https",
         path: "/",
         maxAge: 604800,
       });
