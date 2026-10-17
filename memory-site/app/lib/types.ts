@@ -11,6 +11,7 @@ export type Overview = {
     name: string;
     email: string;
     timezone: string;
+    created?: number;
     google_connected?: boolean;
   };
   workspaces: { id: string; name: string }[];

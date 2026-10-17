@@ -3,27 +3,33 @@ import { cookies } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import { COOKIE, DOCS, request } from "@/app/lib/server";
 import { Console } from "@/app/components/Console";
+import "@/app/console.css";
 export const metadata = { title: "Developer console" };
 export default async function Page({
   params,
   searchParams,
 }: {
   params: Promise<{ section?: string[] }>;
-  searchParams: Promise<{ project?: string }>;
+  searchParams: Promise<{ project?: string; workspace?: string; tab?: string }>;
 }) {
   const { section } = await params;
   const view = section?.[0] ?? "overview";
-  if (view === "billing") redirect("/dashboard/usage");
+  const query = await searchParams;
+  // Earlier addresses of two pages.
+  const moved: Record<string, string> = { billing: "plan", connect: "agents" };
+  if (moved[view])
+    redirect(`/dashboard/${moved[view]}${query.project ? `?project=${query.project}` : ""}`);
   if (
     (section && section.length > 1) ||
     ![
       "overview",
       "projects",
-      "keys",
       "memory",
+      "agents",
+      "keys",
       "usage",
+      "plan",
       "settings",
-      "connect",
     ].includes(view)
   )
     notFound();
@@ -39,12 +45,13 @@ export default async function Page({
         <Link href="/dashboard">Try again</Link>
       </main>
     );
-  const project = (await searchParams).project;
   return (
     <Console
       initial={response.data}
       view={view}
-      requestedProject={project}
+      requestedProject={query.project}
+      requestedWorkspace={query.workspace}
+      tab={query.tab}
       docs={DOCS}
       publicApi={process.env.MEMORY_PUBLIC_API ?? "http://localhost:8200"}
     />

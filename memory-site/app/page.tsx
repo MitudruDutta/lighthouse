@@ -12,6 +12,10 @@ import {
 import { Brand, Mark } from "./components/Brand";
 import { MemoryWalkthrough } from "./components/MemoryWalkthrough";
 import { CodeExample, MemoryFlow } from "./components/MemoryFlow";
+import { BlastRadius } from "./components/BlastRadius";
+import { PLANS } from "./lib/plans";
+import { signedIn } from "./lib/session";
+import "./standout.css";
 const DOCS = process.env.NEXT_PUBLIC_MEMORY_DOCS_URL ?? "http://localhost:3002";
 const FEATURES = [
   {
@@ -39,7 +43,15 @@ const FEATURES = [
     href: "/coordination",
   },
 ];
-export default function Home() {
+// From the measures in the repository's measurements/ folder, run against FalkorDB 6.0.2.
+const MEASURED = [
+  ["0", "model calls to write 300 port calls"],
+  ["5.2 ms", "to write one, at the median"],
+  ["0 of 500", "tasks claimed twice by 16 racing agents"],
+  ["0 of 7,711", "facts wrong after replaying their changes in order"],
+];
+export default async function Home() {
+  const user = await signedIn();
   return (
     <div className="marketing">
       <header className="site-header">
@@ -47,18 +59,27 @@ export default function Home() {
         <nav className="desktop-links" aria-label="Main navigation">
           <a href="#product">Why Lighthouse</a>
           <a href="#how-it-works">Developers</a>
-          <a href="#use-cases">Use cases</a>
+          <a href="#only">What only it does</a>
+          <a href="#pricing">Pricing</a>
           <a href={DOCS}>
             Docs <ArrowUpRight size={13} />
           </a>
         </nav>
         <div className="header-actions">
-          <Link href="/login" className="header-login">
-            Sign in
-          </Link>
-          <Link href="/signup" className="button button-small">
-            Start building <ArrowUpRight size={14} />
-          </Link>
+          {user ? (
+            <Link href="/dashboard" className="button button-small">
+              Open console <ArrowUpRight size={14} />
+            </Link>
+          ) : (
+            <>
+              <Link href="/login" className="header-login">
+                Sign in
+              </Link>
+              <Link href="/signup" className="button button-small">
+                Start building <ArrowUpRight size={14} />
+              </Link>
+            </>
+          )}
           <details className="mobile-menu">
             <summary aria-label="Open navigation">
               <span />
@@ -67,9 +88,14 @@ export default function Home() {
             <nav aria-label="Mobile navigation">
               <a href="#product">Why Lighthouse</a>
               <a href="#how-it-works">Developers</a>
-              <a href="#use-cases">Use cases</a>
+              <a href="#only">What only it does</a>
+              <a href="#pricing">Pricing</a>
               <a href={DOCS}>Documentation</a>
-              <Link href="/login">Sign in</Link>
+              {user ? (
+                <Link href="/dashboard">Open console</Link>
+              ) : (
+                <Link href="/login">Sign in</Link>
+              )}
             </nav>
           </details>
         </div>
@@ -94,8 +120,8 @@ export default function Home() {
               every version, follow the evidence, and carry the work forward.
             </p>
             <div className="hero-actions">
-              <Link href="/signup" className="button">
-                Start building
+              <Link href={user ? "/dashboard" : "/signup"} className="button">
+                {user ? "Open console" : "Start building"}
                 <ArrowUpRight size={15} />
               </Link>
               <a href={`${DOCS}/library`} className="button button-outline">
@@ -236,6 +262,36 @@ export default function Home() {
           </div>
           <CodeExample />
         </section>
+        <section id="only" className="section only-section">
+          <div className="section-heading split-heading">
+            <span className="eyebrow">WHAT ONLY LIGHTHOUSE DOES</span>
+            <h2>
+              When a fact turns out wrong,
+              <br />
+              <span>see everything it touched.</span>
+            </h2>
+            <p>
+              Memories that overwrite cannot tell you what an agent believed
+              yesterday, or which decisions a bad reading led to. Lighthouse
+              keeps every version and every citation, so it can rewind any
+              answer and trace the blast radius of a wrong fact. In
+              milliseconds, with no model call.
+            </p>
+          </div>
+          <BlastRadius />
+          <div className="measured">
+            {MEASURED.map(([value, label]) => (
+              <div key={label}>
+                <strong>{value}</strong>
+                <span>{label}</span>
+              </div>
+            ))}
+            <a href={`${DOCS}/benchmarks`}>
+              How it was measured
+              <ArrowUpRight size={13} />
+            </a>
+          </div>
+        </section>
         <MemoryWalkthrough docs={DOCS} />
         <section id="use-cases" className="section use-cases">
           <div>
@@ -299,64 +355,59 @@ export default function Home() {
             <span>Versioned evidence</span>
           </div>
         </section>
-        <section id="start" className="section pricing-section">
+        <section id="pricing" className="section plans-section">
           <div className="section-heading">
-            <span className="eyebrow">05 / START WITH A REAL PROJECT</span>
+            <span className="eyebrow">05 / PRICING</span>
             <h2>
-              Your next agent.
+              Free while it grows.
               <br />
-              <span>A longer memory.</span>
+              <span>Open source for good.</span>
             </h2>
             <p>
-              Connect a project, preserve its context, and build on every
-              observation.
+              The library is Apache-2.0 and runs on your own FalkorDB. The hosted
+              memory, with its console and MCP endpoint, is free during the
+              preview; billing is not switched on.
             </p>
           </div>
-          <div className="pricing-grid">
-            <article className="price-card">
-              <span className="plan-label">YOUR WORKSPACE</span>
-              <h3>One place for connected context.</h3>
-              <p>
-                Create projects, issue scoped keys, and inspect the memory your
-                agents share.
-              </p>
-              <ul>
-                {[
-                  "Projects with their own memory graph",
-                  "Scoped API keys and usage history",
-                  "Versioned facts and connections",
-                  "A dashboard to inspect the evidence",
-                ].map((text) => (
-                  <li key={text}>
-                    <Check size={14} />
-                    {text}
-                  </li>
-                ))}
-              </ul>
-              <Link href="/signup" className="button">
-                Create your workspace
-                <ArrowUpRight size={14} />
-              </Link>
-            </article>
-            <article className="price-card cloud-card">
-              <span className="plan-label">BUILD YOUR WAY</span>
-              <h3>
-                Start with the API.
-                <br />
-                Go deeper with the library.
-              </h3>
-              <p>
-                Write structured memories through the API. Use the Python
-                library for episodes, lessons, and agent coordination.
-              </p>
-              <a href={`${DOCS}/memory-api`} className="button button-outline">
-                Explore the API
-                <ArrowUpRight size={14} />
-              </a>
-              <a href={`${DOCS}/library`} className="cloud-status">
-                Open the Python quickstart →
-              </a>
-            </article>
+          <div className="plans">
+            {PLANS.map((plan) => (
+              <article
+                key={plan.id}
+                className="plan"
+                data-current={plan.current || undefined}
+              >
+                <header>
+                  <h3>{plan.name}</h3>
+                  {plan.current ? <span>Available now</span> : null}
+                  {plan.soon ? <span data-soon>Coming soon</span> : null}
+                </header>
+                <p className="plan-price">
+                  <strong>{plan.price}</strong>
+                  <small>{plan.cadence}</small>
+                </p>
+                <p>{plan.summary}</p>
+                <ul>
+                  {plan.features.map((feature) => (
+                    <li key={feature}>
+                      <Check size={14} />
+                      {feature}
+                    </li>
+                  ))}
+                </ul>
+                {plan.href === "docs" ? (
+                  <a href={`${DOCS}/library`} className="button button-outline button-small">
+                    {plan.action}
+                  </a>
+                ) : plan.href === "signup" ? (
+                  <Link href="/signup" className="button button-small">
+                    {plan.action}
+                    <ArrowUpRight size={14} />
+                  </Link>
+                ) : (
+                  <span className="plan-soon">{plan.action}</span>
+                )}
+              </article>
+            ))}
           </div>
         </section>
         <section className="final-cta">

@@ -1,0 +1,12 @@
+{
+  "name": "lighthouse-memory",
+  "version": "0.1.0",
+  "description": "A project's Lighthouse Memory in Claude Code: memories with every version kept, episodes with evidence, tasks, and handoffs between agents.",
+  "author": {
+    "name": "Mitudru Dutta"
+  },
+  "homepage": "https://github.com/MitudruDutta/lighthouse",
+  "repository": "https://github.com/MitudruDutta/lighthouse",
+  "license": "Apache-2.0",
+  "keywords": ["memory", "mcp", "falkordb", "agents", "knowledge graph"]
+}

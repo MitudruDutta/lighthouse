@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "lighthouse-memory": {
+      "type": "http",
+      "url": "${LIGHTHOUSE_MEMORY_URL}/mcp",
+      "headers": {
+        "Authorization": "Bearer ${LIGHTHOUSE_API_KEY}"
+      }
+    }
+  }
+}

@@ -41,7 +41,10 @@ export async function POST(
     if (response.ok && data.token)
       result.cookies.set(COOKIE, data.token, {
         httpOnly: true,
-        sameSite: "strict",
+        // Lax, not strict: a strict cookie is left out when a page is reached from another
+        // site, and again on every reload of that page, which signs the person out.
+        // Requests that change anything are checked for this site's origin instead.
+        sameSite: "lax",
         // Behind a proxy that ends TLS, the request reaches this server as http.
         secure:
           request.nextUrl.protocol === "https:" ||

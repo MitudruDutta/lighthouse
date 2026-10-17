@@ -871,91 +871,6 @@
   color: #606852;
   padding-top: 34px;
 }
-.pricing-section {
-  display: grid;
-  grid-template-columns: 0.75fr 1.25fr;
-  gap: 4vw;
-}
-.pricing-section .section-heading h2 {
-  font-size: clamp(32px, 3vw, 56px);
-}
-.pricing-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 18px;
-}
-.price-card {
-  min-width: 0;
-  border: 1px solid var(--line);
-  padding: 28px;
-  border-radius: 12px;
-  background: #fffcf6;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-}
-.plan-label {
-  font: 11px var(--font-mono);
-  color: #7e624d;
-  margin-bottom: 22px;
-}
-.price-card h3 {
-  font-size: 24px;
-  font-weight: 500;
-  letter-spacing: -0.035em;
-}
-.price {
-  font-size: 46px;
-  letter-spacing: -0.05em;
-  line-height: 1.1;
-}
-.price span {
-  display: block;
-  font-size: 12px;
-  color: var(--muted);
-  letter-spacing: 0;
-  margin-top: 10px;
-}
-.price-card ul {
-  padding: 0;
-  margin: 27px 0;
-  list-style: none;
-  display: grid;
-  gap: 14px;
-}
-.price-card li {
-  display: flex;
-  gap: 9px;
-  font-size: 12px;
-  color: var(--muted);
-  line-height: 1.7;
-}
-.price-card li svg {
-  color: var(--blue);
-  flex-shrink: 0;
-  margin-top: 2px;
-}
-.price-card .button {
-  font-size: 12px;
-  margin-top: auto;
-  padding-inline: 17px;
-  gap: 10px;
-}
-.cloud-card {
-  background: #eee8dc;
-}
-.cloud-card > p {
-  color: var(--muted);
-  font-size: 13px;
-  line-height: 1.9;
-  margin: 15px 0 30px;
-}
-.cloud-status {
-  display: block;
-  font-size: 12px;
-  color: #736558;
-  margin-top: 18px;
-}
 .final-cta {
   padding: 70px var(--gutter);
   display: grid;
@@ -1144,12 +1059,6 @@
   }
   .compatibility > a {
     display: none;
-  }
-  .pricing-section {
-    grid-template-columns: 1fr;
-  }
-  .pricing-section .section-heading {
-    max-width: 600px;
   }
   .trust-section {
     grid-template-columns: 30px 1fr 1fr;
@@ -1640,15 +1549,6 @@
     gap: 13px;
     font-size: 12px;
   }
-  .pricing-grid {
-    grid-template-columns: 1fr;
-  }
-  .price-card {
-    padding: 28px;
-  }
-  .price-card .button {
-    min-height: 43px;
-  }
   .final-cta h2 {
     font-size: 48px;
   }
@@ -1725,13 +1625,11 @@
   font-size: 13px;
 }
 .feature-card p,
-.use-case-list p,
-.cloud-card > p {
+.use-case-list p {
   font-size: 15px;
   line-height: 1.75;
 }
 .feature-card a,
-.price-card li,
 .marketing-footer a,
 .marketing-footer > p {
   font-size: 14px;
@@ -2266,10 +2164,6 @@
   }
   .code-caption {
     font-size: 11px;
-  }
-  .price-card li,
-  .cloud-card > p {
-    font-size: 14px;
   }
   .marketing-footer > div a {
     font-size: 13px;
