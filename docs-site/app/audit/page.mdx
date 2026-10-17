@@ -1,0 +1,85 @@
+export const metadata = { title: "Audit and time travel" };
+
+# Audit and time travel
+
+Every write keeps the version before it, and every entry names what it rests on. So the memory can answer questions about itself: what changed between two moments, what a change would do, what rested on a fact that turned out wrong, and how far an agent's work held. No model is asked; each answer is a few queries.
+
+| Function                                                         | Answers                                                                  |
+| ---------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| `diff_between(graph, kinds, t1, t2)`                             | What was added, changed, linked, and unlinked between two moments        |
+| `what_if(graph, kinds, hypothetical_rows, at=None, situation=None)` | What rows would do to the graph's groups and ranking, without writing them |
+| `impact_of_entry(graph, entry_id)`                               | Every entry, episode, handoff, lesson, and playbook that rests on an entry |
+| `impact_of_state(graph, kind, key, since, until)`                | The same for an entity, for what cited it during a stretch of time        |
+| `invalidate_entry(graph, entry_id, by, reason, at=None)`         | Retracts an entry without deleting it, and gives its impact               |
+| `agent_trust(graph, agent)`                                      | How far an agent's work held, from what the graph already records         |
+
+The examples go on from the earlier pages: device `d1` was `ok` in room `r1`, then `hot` in `r2`, and episode `d1-overheat` records what the watcher, the forecaster, and the reviewer did about it.
+
+## What changed between two moments
+
+```python
+from lighthouse import diff_between
+
+day_one, day_two = "2026-01-01T12:00:00Z", "2026-01-02T12:00:00Z"
+diff_between(graph, [DEVICE], day_one, day_two)["values_changed"][0]["changed_keys"]  # ["status"]
+changes = diff_between(graph, [DEVICE], day_one, day_two)
+len(changes["relations_opened"]), len(changes["relations_closed"])  # (1, 1): r2 opened, r1 closed
+```
+
+The answer has `entities_added`, `values_changed` with the values before and after, `relations_opened` and `relations_closed` with their times, and the episodes opened and closed in between. It reads only the versions that began in the window, through the index on when a version begins.
+
+## What a change would do
+
+`what_if()` lays rows over the graph as it is at `at` (now, by default) and compares: the groups that form (connected components), the entities whose importance (PageRank) shifts, and with `situation`, the playbooks that would fire. Nothing is written.
+
+```python
+from lighthouse import what_if
+
+back = {"key": "d1", "t": "2026-01-03T11:00:00Z",
+        "values": {"status": "hot", "note": "pump room sensor"},
+        "relations": {"LOCATED_IN": "r1"}}
+what_if(graph, [DEVICE], [(DEVICE, [back])], situation={"status": "hot"})["playbooks"][0]["name"]  # "hot-device"
+history(graph, DEVICE, "d1")[-1]["status"]  # "ok": nothing was written
+```
+
+## What rested on an entry
+
+The watcher's observation started the episode; the forecast cited it, and the reviewer's outcome cited the forecast. A lesson rests on the episode.
+
+```python
+from lighthouse import impact_of_entry, impact_of_state
+
+impact_of_entry(graph, "d1-overheat/1")["downstream_entries"]  # ["d1-overheat/2", "d1-overheat/3"]
+impact_of_entry(graph, "d1-overheat/1")["lessons"][0]["at_risk"]  # True
+impact_of_state(graph, DEVICE, "d1", "2026-01-01T00:00:00Z", "2030-01-01T00:00:00Z")["direct_entries"]  # ["d1-overheat/1"]
+```
+
+The search follows what was built on what: `CITES` from entry to evidence, `FROM` from a version to the entry it came from, `POINTS_TO` from a handoff, and `SUPPORTED_BY` from a lesson or a playbook. A handoff counts while it waits; one that was accepted is done. `tainted_support` counts the episodes in the impact that a lesson or playbook rests on. A lesson is `at_risk` when no episode it rests on is left outside the impact; a playbook, when fewer than three are, the evidence it needed to be written.
+
+## Retract a fact, keep the record
+
+```python
+from lighthouse import agent_trust, invalidate_entry
+
+retracted = invalidate_entry(graph, "d1-overheat/1", by="reviewer",
+                             reason="the sensor was miscalibrated")
+# retracted: {"id": "d1-overheat/1", "status": "invalidated", "impact": {...}}
+impact_of_entry(graph, "d1-overheat/1")["invalidated"]  # True
+episode(graph, "d1-overheat")["entries"][0]["invalidated_by"]  # "reviewer"
+invalidate_entry(graph, "d1-overheat/1", by="reviewer", reason="again")["status"]  # "exists"
+```
+
+- Nothing is deleted. The entry gains `invalidated_at`, `invalidated_by`, and `invalidated_why`, and keeps everything else, so the record still says what the agent saw and why it acted.
+- A second retraction of the same entry is `exists`; an entry that is not there is `unknown`, and the refusal is kept as a WriteFailure, like every refusal.
+- The memory marks only the entry. What to do with the records in its impact, such as reopening an episode or retiring a lesson, is your application's decision, made with the functions of the earlier pages.
+
+## How far an agent's work held
+
+```python
+agent_trust(graph, "watcher")["entries_invalidated"]  # 1
+agent_trust(graph, "nobody")["score"]  # None: no evidence, nothing is known
+```
+
+Four kinds of evidence are counted for and against an agent: entries it wrote against those later invalidated; closed episodes it wrote in that a lesson rests on, against those that contradict one; playbook runs it recorded that succeeded, against those that failed; and versions it wrote that held for at least a minute, against those replaced sooner. The score is the mean of the four rates, each smoothed as (for + 1) / (for + against + 2), over the kinds the agent has, so many versions do not drown a few failed runs. It reads only what the graph already holds; the name is not checked against anyone's identity.
+
+See [episodes and evidence](/episodes), [lessons and playbooks](/learning), and the [Python API](/reference#impact_of_entry).

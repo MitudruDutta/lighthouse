@@ -18,6 +18,7 @@ export const PARTS: [string, [string, string][]][] = [
       ["/learning", "Lessons & playbooks"],
       ["/coordination", "Tasks & handoffs"],
       ["/conversations", "Conversation memory"],
+      ["/audit", "Audit & time travel"],
     ],
   ],
   [
@@ -25,7 +26,7 @@ export const PARTS: [string, [string, string][]][] = [
     [
       ["/recall", "Graph, text & vector recall"],
       ["/algorithms", "Graph algorithms"],
-      ["/mcp", "Expose memory through MCP"],
+      ["/mcp", "Agents, MCP & plugins"],
     ],
   ],
   [
@@ -41,6 +42,7 @@ export const PARTS: [string, [string, string][]][] = [
     [
       ["/reference", "Python API"],
       ["/memory-api", "Memory HTTP API"],
+      ["/benchmarks", "Benchmarks"],
     ],
   ],
 ];

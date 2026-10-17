@@ -111,6 +111,23 @@ export default function Home() {
               </td>
             </tr>
             <tr>
+              <td>Audit and time travel</td>
+              <td>
+                Diff two moments, preview a change, and trace what rested on a
+                wrong fact.
+              </td>
+              <td>
+                <Link href="/audit">Audit</Link>
+              </td>
+            </tr>
+            <tr>
+              <td>MCP endpoint and Claude Code plugin</td>
+              <td>Give Claude, Cursor, VS Code, or Codex a project&apos;s memory.</td>
+              <td>
+                <Link href="/mcp">Agents</Link>
+              </td>
+            </tr>
+            <tr>
               <td>Sessions and tenant graphs</td>
               <td>
                 Keep conversation context within authenticated boundaries.

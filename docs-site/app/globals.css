@@ -330,8 +330,19 @@
 .lh-prose :where(td, th) {
   vertical-align: top;
 }
-.lh-prose :where(td:first-child) > :where(code):first-child {
-  white-space: nowrap;
+/* A name in the first column stays whole; a long signature breaks after its commas, so
+   the column keeps a readable width and the others keep theirs. */
+.lh-prose :where(td:first-child) {
+  min-width: 11rem;
+  max-width: 24rem;
+}
+.lh-prose td:first-child > code:first-child {
+  white-space: normal;
+  background: none;
+  border: 0;
+  padding: 0;
+  font-weight: 500;
+  line-height: 1.6;
 }
 /* An endpoint or a scope is read whole: the table scrolls in its frame rather than break
    one mid-word. Only a token wider than the frame itself wraps. */

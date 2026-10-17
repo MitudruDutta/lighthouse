@@ -29,6 +29,7 @@ episodes_about(graph, DEVICE, "d1")[0]["outcome"]  # {"failed": False, ...}
 | `recorded` | The entry took the next number of the episode             |
 | `unknown`  | The episode does not exist                                |
 | `closed`   | The episode has its outcome                               |
+| `full`     | The episode has 5,000 entries, the most one can hold      |
 | `missing`  | Something in `about` or `cites` does not exist            |
 | `invalid`  | The values, references, or time cannot be stored          |
 | `failed`   | The database refused the query                            |

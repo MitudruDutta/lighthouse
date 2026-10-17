@@ -69,10 +69,14 @@ Episode, task, and handoff ids follow the same rule without `/`, because an entr
 
 Each project key permits 120 authenticated requests per UTC minute. Invalid credentials return `401`; insufficient scope, or a handoff given to another agent, returns `403`; an unknown episode or handoff returns `404`; a closed episode, or a task this agent does not hold, returns `409`; invalid input or a reference that does not exist returns `422`; excessive request size returns `413`; request limits return `429`. Service failures return a safe `503` message, with diagnostic details kept in server logs.
 
+The same operations are MCP tools at `/mcp`, for agent clients such as Claude Code, Cursor, VS Code, and Codex: see [agents, MCP, and plugins](/mcp).
+
 The HTTP service covers structured writes, text search, history, connection paths, episodes, tasks, and handoffs. Lessons, playbooks, promotion, conversations, and semantic recall are available through the [Python library](/reference), not these HTTP endpoints.
 
 ## Preview status
 
-The current service is a local developer preview. Paid subscriptions, managed cloud hosting, email verification, password recovery, and team invitations are not active. Each account has a private workspace; each project has a separate graph. The preview supports 20 projects per workspace and 20 active keys per project, with expiry between 1 and 365 days.
+The current service is a developer preview, free while billing is not active. Managed hosting plans, email verification, password recovery, and team invitations are not active yet. An account has up to 5 workspaces, each with up to 20 projects; each project has a separate graph and up to 20 active keys, with expiry between 1 and 365 days.
+
+A project or a workspace can be deleted from the console's settings, after typing its name. Deleting a project deletes its graph, with every memory and version, its keys, and its usage; deleting a workspace deletes its projects. An account's only workspace cannot be deleted.
 
 See [security and limits](/security), [tenant graphs](/tenants), and [the library quickstart](/library) for direct FalkorDB integration.

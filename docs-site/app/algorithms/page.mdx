@@ -7,7 +7,7 @@ Four questions about the graph as a whole. FalkorDB computes the answers; the me
 | Function                                                                                     | Answers                                                                      | By                 |
 | -------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- | ------------------ |
 | `groups(graph, kinds, relations=None, records=(), at_least=2, limit=100, show=100, at=None)` | Which things are linked, directly or through others: the sets, largest first | `algo.WCC`         |
-| `important(graph, kinds, relation=None, limit=10, at=None)`                                  | Which entities much points at, most of all when that is important itself     | `algo.pageRank`    |
+| `important(graph, kinds, relation=None, limit=10, at=None)`                                  | Which entities the most links point to, counting links from important ones more | `algo.pageRank`    |
 | `between(graph, kinds, relations=None, limit=10, sample=None, seed=1, at=None)`              | Which entities lie on the shortest paths between others                      | `algo.betweenness` |
 | `connection(graph, start, end, kinds=(), relations=None, max_hops=6, at=None)`               | How two things are connected: the shortest chain, step by step               | `shortestPath`     |
 

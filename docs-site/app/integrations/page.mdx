@@ -42,7 +42,7 @@ See [semantic recall](/recall#by-meaning) and the exact [embed API](/reference#e
 
 ## Tool-using agents
 
-Expose a small set of memory operations through your agent framework or [an MCP wrapper](/mcp). The model can choose a tool; trusted code executes it against an authorized graph and returns bounded evidence. Record observations, decisions, and outcomes in [episodes](/episodes).
+Connect an MCP client to the hosted Memory service with a project key, or expose a small set of memory operations through your agent framework or [your own MCP server](/mcp). The model can choose a tool; trusted code executes it against an authorized graph and returns bounded evidence. Record observations, decisions, and outcomes in [episodes](/episodes).
 
 Keep model credentials on your server. Apply timeouts, spending limits, retries, and output validation in the client that owns the request. Lighthouse's write receipts describe storage outcomes; they do not certify a model's answer.
 

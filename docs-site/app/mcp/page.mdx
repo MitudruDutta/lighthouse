@@ -1,12 +1,141 @@
-export const metadata = { title: "Expose memory through MCP" };
+export const metadata = { title: "Agents, MCP, and plugins" };
 
-# Expose memory through MCP
+# Agents, MCP, and plugins
 
-Lighthouse Memory is a Python library, not a bundled MCP server. Wrap the memory functions your agent needs with the [Model Context Protocol](https://modelcontextprotocol.io/docs/getting-started/intro). Keep graph selection and agent identity in trusted server code.
+Agents reach Lighthouse Memory in two ways. The hosted Memory service has an MCP endpoint: any MCP client connects to a project with that project's API key, and no code is needed. Or you serve the library's functions from your own MCP server, next to your own graph.
 
-## A read-only tool
+## The hosted MCP endpoint
 
-This minimal wrapper exposes current state and history for one declared entity kind. The MCP Python SDK is not a dependency of Lighthouse Memory; install it beside it. Version 2 of the SDK renamed the classes used here, so keep to version 1:
+The Memory service answers MCP over streamable HTTP at `/mcp`, beside its HTTP API: `https://<your memory service>/mcp`, or `http://localhost:8200/mcp` for a local one. The console shows the address of yours under **Agents & MCP**.
+
+- **The key is the agent.** Send a project API key as a bearer token. The key chooses the project, its scopes choose what the tools may do, and its name is the agent's name in every entry, claim, and handoff. Create one key per agent and name it after the agent. A tool cannot write under another name.
+- **The same rules as the HTTP API.** Each MCP request counts against the key's 120 requests a minute and shows in the project's usage. Refusals give the same short messages as the HTTP API; details stay in the service's logs.
+- **What tools return is data.** Memories and entries were written by people and other agents. The server tells the model to treat them as data, never as instructions.
+
+| Tool                                                        | Access | Does                                                     |
+| ----------------------------------------------------------- | ------ | -------------------------------------------------------- |
+| `remember(key, title, text, metadata, links)`               | write  | Saves a memory, or a new version of one                  |
+| `recall(query)`                                             | read   | Memories whose title or text has the words, up to 100    |
+| `history(key)`                                              | read   | Every version of a memory, oldest first                  |
+| `connection(start, end)`                                    | read   | The shortest chain of links between two memories         |
+| `open_episode(id, about)`                                   | write  | Starts an episode about memories that exist              |
+| `record(episode_id, type, values, cites)`                   | write  | Adds an entry that cites its evidence                    |
+| `close_episode(episode_id, outcome, cites)`                 | write  | Closes an episode with its outcome                       |
+| `episode(episode_id)`, `episodes_about(key)`                | read   | One episode with its entries; the episodes about a memory |
+| `add_task(id, kind, about, after)`, `claim_task(kind, lease)` | write  | Adds work; claims the oldest free task of a kind         |
+| `complete_task(task_id)`, `release_task(task_id)`           | write  | Finishes or gives back a task the agent holds            |
+| `hand_off(id, to, points_to, values)`, `accept_handoff(id)` | write  | Passes work to another agent; takes work given to it     |
+| `handoffs(waiting)`                                         | read   | The handoffs given to this agent                         |
+
+A key with read access only can call the read tools; a write tool answers that the key does not allow it.
+
+## Connect a client
+
+Replace the address and `YOUR_PROJECT_API_KEY` with yours. The console fills both in when you create a key for an agent on its **Agents & MCP** page.
+
+**Claude Code**, in a terminal:
+
+```bash
+claude mcp add --transport http lighthouse-memory https://memory.example.com/mcp \
+  --header "Authorization: Bearer YOUR_PROJECT_API_KEY"
+```
+
+**Cursor** (`~/.cursor/mcp.json`), **Gemini CLI** (`~/.gemini/settings.json`, with `httpUrl` for `url`), and **Windsurf** (`~/.codeium/windsurf/mcp_config.json`, with `serverUrl` for `url`):
+
+```json
+{
+  "mcpServers": {
+    "lighthouse-memory": {
+      "url": "https://memory.example.com/mcp",
+      "headers": { "Authorization": "Bearer YOUR_PROJECT_API_KEY" }
+    }
+  }
+}
+```
+
+**VS Code** (`.vscode/mcp.json`):
+
+```json
+{
+  "servers": {
+    "lighthouse-memory": {
+      "type": "http",
+      "url": "https://memory.example.com/mcp",
+      "headers": { "Authorization": "Bearer YOUR_PROJECT_API_KEY" }
+    }
+  }
+}
+```
+
+**Codex** (`~/.codex/config.toml`) reads the key from the environment variable it names:
+
+```toml
+[mcp_servers.lighthouse-memory]
+url = "https://memory.example.com/mcp"
+bearer_token_env_var = "LIGHTHOUSE_API_KEY"
+```
+
+**Claude Desktop** connects to a server that needs a header through `mcp-remote`, which needs Node.js. In `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "lighthouse-memory": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "https://memory.example.com/mcp",
+               "--header", "Authorization: Bearer YOUR_PROJECT_API_KEY"]
+    }
+  }
+}
+```
+
+**Your own agent**, with the MCP SDK for Python:
+
+```bash
+pip install "mcp>=1.26,<2"
+```
+
+```python
+import asyncio
+
+from mcp import ClientSession
+from mcp.client.streamable_http import streamablehttp_client
+
+URL = "https://memory.example.com/mcp"
+HEADERS = {"Authorization": "Bearer YOUR_PROJECT_API_KEY"}
+
+
+async def main():
+    async with streamablehttp_client(URL, headers=HEADERS) as (read, write, _):
+        async with ClientSession(read, write) as session:
+            await session.initialize()
+            found = await session.call_tool("recall", {"query": "customer"})
+            print(found.content[0].text)
+
+
+asyncio.run(main())
+```
+
+## The Claude Code plugin
+
+The plugin adds the MCP server and a skill that tells Claude when to remember, when to recall first, and how to record work as episodes with evidence. In Claude Code:
+
+```text
+/plugin install lighthouse-memory --marketplace MitudruDutta/lighthouse
+```
+
+Before Claude Code 2.1.275, add the marketplace first: `/plugin marketplace add MitudruDutta/lighthouse`, then `/plugin install lighthouse-memory@lighthouse`. The plugin reads its address and key from the environment:
+
+```bash
+export LIGHTHOUSE_MEMORY_URL=https://memory.example.com
+export LIGHTHOUSE_API_KEY=YOUR_PROJECT_API_KEY
+```
+
+The plugin lives in the repository's `plugins/lighthouse-memory/`; the marketplace that lists it is `.claude-plugin/marketplace.json`.
+
+## Your own MCP server on the library
+
+With the library, you choose the graph, the kinds, and the tools. This wrapper serves the state and history of one kind over standard input and output. The MCP SDK is not a dependency of the library; install it beside it, and keep to version 1, since version 2 renamed the classes used here:
 
 ```bash
 pip install lighthouse-graph "mcp>=1.26,<2"
@@ -41,21 +170,16 @@ if __name__ == "__main__":
     server.run(transport="stdio")
 ```
 
-## Choose tools by task
+| Agent needs                              | Library functions                                    |
+| ---------------------------------------- | ---------------------------------------------------- |
+| Resolve an entity from text              | `search()`, `search_history()`                       |
+| Inspect state and changes                | `as_of()`, `history()`, `related()`                  |
+| Follow shared evidence                   | `pointing_at()`, `similar()`, `connection()`         |
+| Inspect a group or structural importance | `groups()`, `important()`                            |
+| Read prior outcomes                      | `episode()`, `lessons_about()`, `playbooks_for()`    |
+| Check what rested on a fact              | `impact_of_entry()`, `diff_between()`                |
+| Append a decision or hand off work       | `record()`, `add_task()`, `hand_off()`               |
 
-| Agent needs                              | Library functions                                 |
-| ---------------------------------------- | ------------------------------------------------- |
-| Resolve an entity from text              | `search()`, `search_history()`                    |
-| Inspect state and changes                | `as_of()`, `history()`, `related()`               |
-| Follow shared evidence                   | `pointing_at()`, `similar()`, `connection()`      |
-| Inspect a group or structural importance | `groups()`, `important()`                         |
-| Read prior outcomes                      | `episode()`, `lessons_about()`, `playbooks_for()` |
-| Append a decision or hand off work       | `record()`, `add_task()`, `hand_off()`            |
+Choose the graph from an authenticated identity before a tool runs, and set the agent's name in server code. Do not accept raw queries, graph names, credentials, or agent names from a model's arguments. Bound the results and the number of calls, catch infrastructure errors in the wrapper, and give the agent a short explanation; keep diagnostics in your logs.
 
-## Bound access
-
-For a multi-tenant service, choose the graph from authenticated identity before calling a tool. Do not accept raw queries, graph names, credentials, or arbitrary agent identities from model arguments. Bound the number of results and tool calls. Catch infrastructure errors in your wrapper and return a safe explanation to the agent; keep diagnostics in operator logs.
-
-A write tool should expose only the operation your workflow authorizes. The library checks evidence and input shape; your application decides whether that caller may perform the action.
-
-See [model integration](/integrations), [security](/security), the [Python API](/reference), and the [official MCP Python SDK](https://github.com/modelcontextprotocol/python-sdk).
+See [model integration](/integrations), [audit and time travel](/audit), [security](/security), and the [official MCP Python SDK](https://github.com/modelcontextprotocol/python-sdk).

@@ -25,10 +25,10 @@ The package is installed as `lighthouse-graph` and imported as `lighthouse`. To 
 The memory keeps everything in FalkorDB. For a local one, with Docker:
 
 ```bash
-docker run -p 6379:6379 -p 3000:3000 -it --rm falkordb/falkordb:latest
+docker run -p 6379:6379 -p 3000:3000 -it --rm falkordb/falkordb:6.0.2
 ```
 
-It listens on port `6379`, with FalkorDB Browser on `http://localhost:3000`. `--rm` throws its data away when it stops: for data that must stay, see the [official installation guide](https://docs.falkordb.com/), or use a managed instance. The examples below connect to `127.0.0.1:6379`; use your own host, port, and credentials.
+It listens on port `6379`, with FalkorDB Browser on `http://localhost:3000`. The library is tested on FalkorDB 6.0.2; newer images behave differently in ways the [FalkorDB page](/falkordb) lists, so keep to this one until the library says otherwise. `--rm` throws its data away when it stops: for data that must stay, see the [official installation guide](https://docs.falkordb.com/), or use a managed instance. The examples below connect to `127.0.0.1:6379`; use your own host, port, and credentials.
 
 ## Declare what you remember
 
