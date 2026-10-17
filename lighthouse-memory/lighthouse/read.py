@@ -23,12 +23,16 @@ def version(state, entry) -> dict:
     return without_words(state.properties) | ({"entry": entry} if entry is not None else {})
 
 
-def pages(graph: Graph, query: str, params: dict) -> list:
-    """Every row of a read query that ends in ORDER BY, however many there are."""
+def pages(graph: Graph, query: str, params: dict, timeout: int | None = None) -> list:
+    """Every row of a read query that ends in ORDER BY, however many there are. `timeout`
+    is milliseconds for each page, for a read whose cost grows with the history it reads;
+    without one, the server's own limit holds."""
     rows, skip = [], 0
     while True:
         page = graph.ro_query(
-            f"{query} SKIP $skip LIMIT $page", params | {"skip": skip, "page": PAGE}
+            f"{query} SKIP $skip LIMIT $page",
+            params | {"skip": skip, "page": PAGE},
+            timeout=timeout,
         )
         rows += page.result_set
         if len(page.result_set) < PAGE:

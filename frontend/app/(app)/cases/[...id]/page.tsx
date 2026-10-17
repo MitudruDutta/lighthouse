@@ -272,6 +272,7 @@ async function Body({ params }: PageProps<"/cases/[...id]">) {
               models={choices}
               selected={choices[0]?.id}
               caseId={id}
+              unavailable={!models.ok}
             />
           </section>
           <section className="ops-panel">
@@ -301,7 +302,7 @@ async function Body({ params }: PageProps<"/cases/[...id]">) {
             </ol>
           </section>
         </div>
-        <aside className="ops-case-rail">
+        <aside className="ops-case-rail" aria-label="Case actions">
           <section className="ops-panel ops-decision">
             <p className="ops-kicker">Move this case forward</p>
             <h2>

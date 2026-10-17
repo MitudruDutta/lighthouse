@@ -26,6 +26,14 @@ services:
     image: falkordb/falkordb@sha256:107455e862a824e45e8e9f5a7fbfdf5e00a08b14e13eae2577c72fd9e3f59ba6
     # It crashed once under heavy test load (SIGSEGV): come back on its own.
     restart: unless-stopped
+    environment:
+      # Every write reaches the disk within a second, in the append-only file. Snapshots
+      # alone lose what came after the last one: up to an hour of writes, after a crash or
+      # a stop that cuts the last snapshot short.
+      REDIS_ARGS: --appendonly yes --appendfsync everysec
+    # The last snapshot on stop takes time: 14 s with a year of PortWatch in the graph.
+    # Docker's default of 10 s would kill it halfway.
+    stop_grace_period: 2m
     ports:
       - "127.0.0.1:${FALKORDB_PORT:-26379}:6379"
       # FalkorDB Browser

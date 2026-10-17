@@ -2,23 +2,23 @@ export const metadata = { title: "Quickstart" };
 
 # Quickstart
 
-The memory is the Python package `lighthouse` in `lighthouse-memory/`. It depends on one package, the FalkorDB client, and needs Python 3.12 or later and a running FalkorDB.
+The memory is the Python package `lighthouse`, published on PyPI as `lighthouse-graph`. It depends on one package, the FalkorDB client, and needs Python 3.12 or later and a running FalkorDB.
 
 Using project API keys instead? See the [Memory HTTP API](/memory-api). This quickstart covers direct Python access.
 
 ## Install
 
-From your project, with uv:
-
 ```bash
-uv add --editable ../lighthouse-memory
+pip install lighthouse-graph
 ```
 
-or with pip:
+or with uv:
 
 ```bash
-pip install -e ../lighthouse-memory
+uv add lighthouse-graph
 ```
+
+The package is installed as `lighthouse-graph` and imported as `lighthouse`. To change the library itself, install it from a clone of the repository instead: `pip install -e lighthouse-memory`.
 
 Connect to a running FalkorDB instance. Follow the [official installation guide](https://docs.falkordb.com/) or use a managed instance. The example below assumes a local database on port `6379`; use your own host, port, and credentials.
 

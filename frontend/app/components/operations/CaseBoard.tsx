@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { active, caseHref, STATUS, type Queue } from "@/app/lib/operations";
 import { utcTime } from "@/app/lib/freshness";
+import { excerpt, plain } from "@/app/components/words";
 
 function date(value: string, timezone: string, clock = false) {
   return new Intl.DateTimeFormat("en", {
@@ -118,7 +119,7 @@ export default function CaseBoard({
               OPERATIONS BRIEF
             </span>
             <div className="ops-brief-number">
-              {open.length.toLocaleString()}
+              {open.length.toLocaleString("en")}
               <span>
                 cases need
                 <br />a next step.
@@ -383,9 +384,7 @@ export default function CaseBoard({
                     </div>
                   ) : c.assessment ? (
                     <p className="ops-case-excerpt">
-                      {String(c.assessment.text)
-                        .replaceAll("**", "")
-                        .slice(0, 185)}
+                      {excerpt(plain(String(c.assessment.text)), 185)}
                     </p>
                   ) : (
                     <p className="ops-case-excerpt">

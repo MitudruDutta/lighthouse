@@ -172,7 +172,7 @@ async function Body() {
             ))}
           </ol>
         </section>
-        <aside className="ops-panel ops-activity-explainer">
+        <aside className="ops-panel ops-activity-explainer" aria-label="Reading the numbers">
           <p className="ops-kicker">Read the numbers correctly</p>
           <h2>Investigation isn’t resolution.</h2>
           <p>

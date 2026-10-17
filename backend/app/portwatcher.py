@@ -29,7 +29,7 @@ from lighthouse import (
     record,
     used,
 )
-from lighthouse.read import pages
+from lighthouse.read import READ_TIMEOUT, pages
 from lighthouse.values import whole_number
 
 from app.portcalls import PORT
@@ -82,7 +82,10 @@ def series(graph: Graph, first: date, last: date) -> dict[str, dict]:
     """{port: {"name", "calls": {day: port calls}}} for the days from `first` to `last`."""
     params = {"first": f"{first}T00:00:00", "last": f"{last}T00:00:00"}
     found: dict[str, dict] = {}
-    for key, start, end, calls, name in pages(graph, DAYS, params):
+    # Each page reads the States of every day before `last`, so its cost grows with the
+    # history kept: on a year of PortWatch, about half a second a page and 6 s for the
+    # 28 days. The server's 1 s limit then stops a page whenever the database is busy.
+    for key, start, end, calls, name in pages(graph, DAYS, params, timeout=READ_TIMEOUT):
         port = found.setdefault(key, {"name": name, "calls": {}})
         port["name"] = name or port["name"]
         day = max(start.date(), first)

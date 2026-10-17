@@ -34,13 +34,42 @@ Reusing an identifier writes a new version when its values change. Writes use UT
 
 List responses include `data` and `limit`. No pagination is currently available. The console’s usage page records successful memory operations; it is an activity record, not a billing meter. Failed and refused requests are not included in those totals.
 
+## Coordinate agents
+
+A project key also acts as one agent, named by the key: create one key per agent, such as `watcher` or `desk`. The key decides who wrote an entry, who holds a task, and who gives or accepts a handoff. A request cannot name another writer.
+
+An episode records one event in order. Start it about memories that exist, append entries that cite their evidence, and close it with an outcome:
+
+```bash
+curl "$LIGHTHOUSE_MEMORY_URL/v1/episodes/overload-1/entries"   -H "Authorization: Bearer $LIGHTHOUSE_MEMORY_KEY"   -H "Content-Type: application/json"   -d '{"type":"observation","values":{"expected":5},"cites":{"memories":["berth-vc2"],"entries":[],"episodes":[]}}'
+```
+
+| Method | Endpoint                               | Scope          | Result                                                                 |
+| ------ | -------------------------------------- | -------------- | ---------------------------------------------------------------------- |
+| POST   | `/v1/episodes`                         | `memory:write` | `{"id","about":[memory ids]}` starts an episode: opened or exists      |
+| POST   | `/v1/episodes/overload-1/entries`      | `memory:write` | Appends an entry; the receipt names it `overload-1/1`, `overload-1/2`… |
+| POST   | `/v1/episodes/overload-1/close`        | `memory:write` | Records `{"outcome":{…}}` as the last entry; the episode takes no more |
+| GET    | `/v1/episodes/overload-1`              | `memory:read`  | The episode with its entries in order, each with what it cites         |
+| GET    | `/v1/memories/berth-vc2/episodes`      | `memory:read`  | Episodes about one memory, newest first, each with its outcome         |
+| POST   | `/v1/tasks`                            | `memory:write` | `{"id","kind","about","after":[task ids]}` adds an open task           |
+| POST   | `/v1/tasks/claim`                      | `memory:write` | `{"kind","lease"}` gives this agent the oldest free task, or `null`    |
+| POST   | `/v1/tasks/review-1/complete`          | `memory:write` | Marks the task done; only the agent that holds it can                  |
+| POST   | `/v1/tasks/review-1/release`           | `memory:write` | Opens the task again for another agent                                 |
+| POST   | `/v1/handoffs`                         | `memory:write` | `{"id","to","points_to":{…},"values":{…}}` passes work to an agent     |
+| GET    | `/v1/handoffs?waiting=true`            | `memory:read`  | Handoffs given to this agent, oldest first; `false` includes accepted  |
+| POST   | `/v1/handoffs/h1/accept`               | `memory:write` | Accepts a handoff given to this agent, once                            |
+
+`cites` and `points_to` name entry ids, episode ids, and memory ids, each of which must exist in the project. A claim is one atomic step, so two agents never hold the same task. A task with `after` waits until those tasks are done. A claim with a `lease` in seconds, up to seven days, can be taken by another agent once it runs out.
+
 ## Limits and errors
 
 Requests are bounded to 64 KiB. Identifiers contain 1–100 characters: letters, digits, `_`, `.`, `:`, `/`, or `-`, starting with a letter or digit. Titles support 200 characters, memory text 12,000 characters, metadata 12,000 JSON characters, and each memory up to 50 outgoing connections.
 
-Each project key permits 120 authenticated requests per UTC minute. Invalid credentials return `401`; insufficient scope returns `403`; invalid input returns `422`; excessive request size returns `413`; request limits return `429`. Service failures return a safe `503` message, with diagnostic details kept in server logs.
+Episode, task, and handoff ids follow the same rule without `/`, because an entry id is the episode id, `/`, and its number.
 
-The HTTP service currently covers structured writes, text search, history, and connection paths. Episodes, lessons, playbooks, conversations, semantic recall, and coordination are available through the [Python library](/reference), not these HTTP endpoints.
+Each project key permits 120 authenticated requests per UTC minute. Invalid credentials return `401`; insufficient scope, or a handoff given to another agent, returns `403`; an unknown episode or handoff returns `404`; a closed episode, or a task this agent does not hold, returns `409`; invalid input or a reference that does not exist returns `422`; excessive request size returns `413`; request limits return `429`. Service failures return a safe `503` message, with diagnostic details kept in server logs.
+
+The HTTP service covers structured writes, text search, history, connection paths, episodes, tasks, and handoffs. Lessons, playbooks, promotion, conversations, and semantic recall are available through the [Python library](/reference), not these HTTP endpoints.
 
 ## Preview status
 

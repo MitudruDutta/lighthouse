@@ -3,6 +3,7 @@ call feed by the UN/LOCODE. The service here is a stand-in with the shape of the
 
 import math
 import re
+import urllib.error
 
 import pytest
 from fastapi.testclient import TestClient
@@ -254,6 +255,43 @@ def test_a_newest_day_that_is_not_a_day_is_refused(graph, newest):
 
     with pytest.raises(ValueError, match="newest day"):
         portwatch.update(graph, answer)
+
+
+def test_errors_that_pass_are_asked_again_and_others_are_not(graph, service, monkeypatch):
+    monkeypatch.setattr(portwatch, "RETRIES", (0, 0))
+    failures = {"left": 2}
+
+    def flaky(url, what, headers=None, params=None):
+        if url == portwatch.DAYS_URL and failures["left"]:
+            failures["left"] -= 1
+            raise urllib.error.HTTPError(url, 304, "Not Modified", {}, None)
+        return service(url, what, headers, params)
+
+    summary = portwatch.update(graph, flaky, backfill=2)
+    assert summary["state"] == "complete" and summary["days"] == ["2026-10-08", "2026-10-09"]
+    assert failures["left"] == 0
+    asked = []
+
+    def gone(url, what, headers=None, params=None):
+        if url != portwatch.DAYS_URL:
+            return service(url, what, headers, params)
+        asked.append(url)
+        raise urllib.error.HTTPError(url, 404, "Not Found", {}, None)
+
+    with pytest.raises(urllib.error.HTTPError):
+        portwatch.update(graph, gone)
+    assert len(asked) == 1  # a 404 does not pass: asked once
+    down = []
+
+    def unavailable(url, what, headers=None, params=None):
+        if url != portwatch.DAYS_URL:
+            return service(url, what, headers, params)
+        down.append(url)
+        raise urllib.error.HTTPError(url, 503, "Unavailable", {}, None)
+
+    with pytest.raises(urllib.error.HTTPError):
+        portwatch.update(graph, unavailable)
+    assert len(down) == 3  # asked, and asked again twice
 
 
 def test_a_service_that_never_stops_paging_is_refused(graph, service, monkeypatch):

@@ -1,0 +1,14 @@
+{
+  "measure": "restart",
+  "at": "2026-10-17T08:46:25",
+  "commit": null,
+  "dirty": null,
+  "params": {
+    "check": true
+  },
+  "result": {
+    "mark_found": true,
+    "marked_at": "2026-10-17T08:45:57",
+    "database_uptime_s": 24
+  }
+}

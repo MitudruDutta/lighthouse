@@ -22,3 +22,5 @@ research_notes/
 screenshots/
 .lighthouse/
 .env.setup-tmp
+# What a long measure printed while it ran; its result is the .json beside it
+measurements/*.log

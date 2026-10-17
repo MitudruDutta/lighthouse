@@ -9,6 +9,29 @@ export const AGENT_NAMES: Record<string, string> = {
   portwatch: "PortWatch",
 };
 
+/** What a model wrote in Markdown, as plain words for a short preview: without code
+ * marks, emphasis, list bullets, or heading marks, with one space between words. The
+ * underscores of names such as `port_days` stay. */
+export function plain(text: string): string {
+  return text
+    .replace(/```[\s\S]*?```/g, " ")
+    .replace(/`([^`]*)`/g, "$1")
+    .replace(/\*\*(.*?)\*\*/g, "$1")
+    .replace(/^\s{0,3}(?:[*+-]|\d+\.|#{1,6})\s+/gm, "")
+    .replace(/\*(\S[^*]*?)\*/g, "$1")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/** At most `most` characters, cut between words, with an ellipsis when it was cut. */
+export function excerpt(text: string, most: number): string {
+  if (text.length <= most) return text;
+  const cut = text.slice(0, most - 1);
+  const space = cut.lastIndexOf(" ");
+  const kept = space > most * 0.6 ? cut.slice(0, space) : cut;
+  return `${kept.replace(/[\s,;:.–-]+$/, "")}…`;
+}
+
 export function agentName(by: string | undefined): string {
   return (by && AGENT_NAMES[by]) ?? by ?? "An agent";
 }
@@ -88,9 +111,8 @@ export function said(entry: Entry): string {
     case "action":
       return entry.to ? `Raised a task and handed the episode to the ${agentName(String(entry.to)).toLowerCase()}` : String(entry.did ?? "Acted");
     case "assessment": {
-      const text = String(entry.text ?? "").replaceAll("**", "").replace(/\s+/g, " ");
-      const first = text.split(/(?<=[.!?])\s/)[0] ?? text;
-      return first.length > 160 ? `${first.slice(0, 157)}…` : first;
+      const text = plain(String(entry.text ?? ""));
+      return excerpt(text.split(/(?<=[.!?])\s/)[0] ?? text, 160);
     }
     case "outcome":
       if (entry.back_to_usual) return `Back to usual after ${number(entry.days)} day${entry.days === 1 ? "" : "s"}`;

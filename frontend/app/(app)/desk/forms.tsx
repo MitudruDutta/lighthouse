@@ -40,20 +40,24 @@ export function Ask({
   models,
   selected,
   caseId,
+  unavailable = false,
 }: {
   session?: string;
   fresh?: boolean;
   models: ModelChoice[];
   selected?: string;
   caseId?: string;
+  // The list of models could not be read. An empty list that was read means none is set up.
+  unavailable?: boolean;
 }) {
   const [error, action] = useActionState(ask, null);
   const [text, setText] = useState("");
+  const ready = models.length > 0;
   return (
     <form action={action} className="grid gap-2">
       <input type="hidden" name="session" value={session ?? ""} />
       {caseId ? <input type="hidden" name="case_id" value={caseId} /> : null}
-      {fresh ? (
+      {fresh && ready ? (
         <div className="mb-1 grid gap-2 sm:grid-cols-2">
           {(caseId
             ? [
@@ -79,22 +83,26 @@ export function Ask({
           id="desk-model"
           name="model"
           defaultValue={selected ?? models[0]?.id ?? ""}
-          disabled={!models.length}
+          disabled={!ready}
         >
-          {models.length ? (
+          {ready ? (
             models.map((choice) => (
               <option key={choice.id} value={choice.id}>
                 {choice.provider} · {choice.model}
               </option>
             ))
           ) : (
-            <option value="">Temporarily unavailable</option>
+            <option value="">
+              {unavailable ? "Temporarily unavailable" : "No model set up"}
+            </option>
           )}
         </select>
         <p>
-          {models.length
+          {ready
             ? "Choose a model for your next question. Memory stays with this session."
-            : "Your conversations are saved. The assistant is temporarily unavailable."}
+            : unavailable
+              ? "Your conversations are saved. The assistant is temporarily unavailable."
+              : "The Desk needs a model to answer. An administrator adds a model API key to .env and runs ./setup.sh again. Monitoring, cases, and search work without one."}
         </p>
       </div>
       <textarea
@@ -104,8 +112,13 @@ export function Ask({
         rows={3}
         required
         maxLength={4000}
-        placeholder="Ask the desk: which ports in India are unusual now? What waits at berth VC2?"
-        className="w-full rounded-md border p-2 text-sm"
+        disabled={!ready}
+        placeholder={
+          ready
+            ? "Ask the desk: which ports in India are unusual now? What waits at berth VC2?"
+            : "The Desk answers once a model is set up."
+        }
+        className="w-full rounded-md border p-2 text-sm disabled:opacity-60"
         style={{
           borderColor: "var(--line)",
           background: "var(--panel)",
@@ -116,7 +129,7 @@ export function Ask({
         <Send
           idle="Ask"
           busy="The desk is looking into it…"
-          disabled={!models.length}
+          disabled={!ready}
         />
         {error ? (
           <p className="text-sm" style={{ color: "var(--hot)" }}>

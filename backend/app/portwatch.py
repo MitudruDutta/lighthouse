@@ -14,6 +14,8 @@ the history of a port is its days, and as_of() gives the numbers of any day.
 import json
 import math
 import re
+import time
+import urllib.error
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date, timedelta
@@ -34,6 +36,10 @@ BACKFILL = 30  # days read when the graph has none yet
 BY = "portwatch"
 MOST = 200  # ports or days in one answer
 WORKERS = 4  # days asked for at once: a public service, used gently
+# Seconds to wait before asking again after an error the service gets over, such as a 503
+# or a 304 that its cache gives for no reason. One such error would otherwise lose a read.
+RETRIES = (2, 8)
+PASSING = {304, 429, 500, 502, 503, 504}
 
 _LOCODE = re.compile(r"[A-Z]{2}[A-Z0-9]{3}")
 _DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
@@ -52,6 +58,20 @@ DAY = {
 PLACE = {"portname": "name", "country": "country", "ISO3": "iso3", "continent": "continent"}
 
 
+def _ask(read, url: str, params: dict):
+    """One answer of the service, asked for again after an error that passes."""
+    for wait in (*RETRIES, None):
+        try:
+            return read(url, "PortWatch", params=params)
+        except urllib.error.HTTPError as exc:
+            if exc.code not in PASSING or wait is None:
+                raise
+        except (urllib.error.URLError, TimeoutError):
+            if wait is None:
+                raise
+        time.sleep(wait)
+
+
 def _features(read, url: str, where: str, fields: str) -> list[dict]:
     """Every row that `where` selects, a page at a time."""
     rows = []
@@ -65,7 +85,7 @@ def _features(read, url: str, where: str, fields: str) -> list[dict]:
             "returnGeometry": "false",
             "f": "json",
         }
-        answer = read(url, "PortWatch", params=params)
+        answer = _ask(read, url, params)
         features = answer.get("features") if isinstance(answer, dict) else None
         if not isinstance(features, list):
             error = answer.get("error") if isinstance(answer, dict) else None
@@ -80,7 +100,7 @@ def _latest(read) -> str:
     """The newest day that PortWatch has, as YYYY-MM-DD."""
     stat = [{"statisticType": "max", "onStatisticField": "date", "outStatisticFieldName": "d"}]
     params = {"where": "1=1", "outStatistics": json.dumps(stat), "f": "json"}
-    answer = read(DAYS_URL, "PortWatch", params=params)
+    answer = _ask(read, DAYS_URL, params)
     try:
         found = answer["features"][0]["attributes"]["d"]
     except (KeyError, IndexError, TypeError):

@@ -1,0 +1,17 @@
+{
+  "measure": "tenants",
+  "at": "2026-10-17T08:45:44",
+  "commit": null,
+  "dirty": null,
+  "params": {
+    "rows": 200
+  },
+  "result": {
+    "rows_in_one_tenant": 200,
+    "seen_from_the_other": {
+      "nodes": 0,
+      "search": 0,
+      "history": 0
+    }
+  }
+}

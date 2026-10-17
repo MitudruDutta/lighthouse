@@ -80,7 +80,7 @@ jobs:
       - run: bun run lint
       # PageProps and LayoutProps are types that Next.js generates from the routes.
       - run: node_modules/.bin/next typegen && node_modules/.bin/tsc --noEmit
-      - if: matrix.app == 'frontend'
+      - if: matrix.app != 'memory-site'
         run: bun test
       - run: bun run build
       # The build writes the search index again: the committed one must be current.

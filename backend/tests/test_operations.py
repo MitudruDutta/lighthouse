@@ -192,3 +192,13 @@ def test_followed_vessel_is_recognized_in_queue_and_case(client, graph):
     ).json()
     assert queue["cases"][0]["watching"] is True
     assert detail["case"]["watching"] is True
+
+
+def test_a_berth_the_feed_cannot_name_is_shown_by_its_code(client, graph):
+    def title():
+        return client.get("/api/operations/cases", headers=auth()).json()["cases"][0]["title"]
+
+    graph.query("MERGE (b:Berth {key:'FIHEL/VC2'}) SET b.name='Ei tiedossa'")
+    assert title() == "Arrival overlap at FIHEL/VC2"
+    graph.query("MATCH (b:Berth {key:'FIHEL/VC2'}) SET b.name='Länsisatama 2'")
+    assert title() == "Arrival overlap at Länsisatama 2"

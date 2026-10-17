@@ -1,5 +1,6 @@
 import { ArrowRight, BookOpen, Code2, GitBranch, Layers3 } from "lucide-react";
 import Link from "next/link";
+import { InstallCommand } from "@/components/install-command";
 
 const PATHS = [
   {
@@ -40,10 +41,17 @@ export default function Home() {
           observations to decisions. A model-independent memory library built on
           FalkorDB.
         </p>
-        <Link href="/library" className="button-quiet">
-          Start building{" "}
-          <ArrowRight size={13} className="inline ml-2" aria-hidden />
-        </Link>
+        <div className="hero-actions">
+          <Link href="/library" className="button-quiet">
+            Start building{" "}
+            <ArrowRight size={13} className="inline ml-2" aria-hidden />
+          </Link>
+          <InstallCommand command="pip install lighthouse-graph" />
+        </div>
+        <p className="hero-note">
+          Python 3.12 or later and a running FalkorDB. Import it as{" "}
+          <code>lighthouse</code>.
+        </p>
       </div>
       <h2 id="choose-your-path">Choose your path</h2>
       <div className="docs-cards">

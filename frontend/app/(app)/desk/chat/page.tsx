@@ -5,7 +5,6 @@ import { Suspense } from "react";
 
 import { Card, Loading, Prose, RefLink, Trace, When } from "@/app/components/ui";
 import { DESK_COOKIE, type Message, type ModelChoice, type Session, desk } from "@/app/lib/api";
-import { signOut } from "../actions";
 import { Ask } from "../forms";
 
 export const metadata: Metadata = { title: "Ask the desk" };
@@ -69,12 +68,8 @@ async function Body({ searchParams }: PageProps<"/desk/chat">) {
             </li>
           ))}
         </ul>
-        {own ? (
-        <form action={signOut} className="mt-4">
-          <button type="submit" className="!bg-transparent !p-0 text-xs !font-normal text-faint underline">
-            Sign out
-          </button>
-        </form>
+        {mine.data.length === 0 ? (
+          <p className="mt-3 text-xs text-muted">Your sessions appear here after your first question.</p>
         ) : null}
       </Card>
       <Card title={current ? "This session" : "A new session"}>
@@ -99,7 +94,7 @@ async function Body({ searchParams }: PageProps<"/desk/chat">) {
             </li>
           ))}
         </ol>
-        <Ask key={selected} session={current} fresh={shown.length === 0} models={models} selected={selected} />
+        <Ask key={selected} session={current} fresh={shown.length === 0} models={models} selected={selected} unavailable={!choices.ok} />
       </Card>
     </div>
   );

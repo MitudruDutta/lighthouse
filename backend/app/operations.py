@@ -137,6 +137,11 @@ def save_profile(body: Profile, graph: Desk, memory: Private, who: User):
     return profile(memory, who[1])
 
 
+# Names the feed gives a berth it cannot name: "not known", in Finnish. Shown as a name, two
+# such berths would read as one place, so the berth's code is shown instead.
+PLACEHOLDER_NAMES = {"ei tiedossa", "unknown"}
+
+
 def name_locations(graph, sources):
     keys = [(source.get("observation") or {}).get("berth") for source in sources.values()]
     names = dict(
@@ -147,7 +152,9 @@ def name_locations(graph, sources):
         ).result_set
     )
     for source in sources.values():
-        source["berth_name"] = names.get((source.get("observation") or {}).get("berth"))
+        name = names.get((source.get("observation") or {}).get("berth"))
+        known = isinstance(name, str) and name.strip().lower() not in PLACEHOLDER_NAMES
+        source["berth_name"] = name if known else None
 
 
 def source_rows(graph):

@@ -1,0 +1,41 @@
+{
+  "measure": "history",
+  "at": "2026-10-17T08:45:04",
+  "commit": null,
+  "dirty": null,
+  "params": {
+    "entities": 500,
+    "versions": 20,
+    "seed": 7
+  },
+  "result": {
+    "entities": 500,
+    "in_order": {
+      "rows": 7711,
+      "receipts": {
+        "created": 500,
+        "changed": 7211
+      },
+      "write_failure_nodes": 0,
+      "refusals_recorded": 0,
+      "facts_read_back": 7711,
+      "facts_wrong": 0,
+      "facts_wrong_without_a_refused_row": 0
+    },
+    "shuffled": {
+      "rows": 7711,
+      "receipts": {
+        "created": 500,
+        "inserted": 3167,
+        "changed": 973,
+        "unchanged": 800,
+        "stale": 2271
+      },
+      "write_failure_nodes": 1300,
+      "refusals_recorded": 2271,
+      "facts_read_back": 4134,
+      "facts_wrong": 829,
+      "facts_wrong_without_a_refused_row": 0
+    }
+  }
+}

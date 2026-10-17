@@ -1,0 +1,18 @@
+{
+  "measure": "claims",
+  "at": "2026-10-17T08:45:16",
+  "commit": null,
+  "dirty": null,
+  "params": {
+    "agents": 16,
+    "tasks": 500
+  },
+  "result": {
+    "agents": 16,
+    "tasks": 500,
+    "claims_won": 500,
+    "tasks_won_twice": 0,
+    "tasks_with_two_claims": 0,
+    "tasks_unclaimed": 0
+  }
+}

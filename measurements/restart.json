@@ -1,0 +1,13 @@
+{
+  "measure": "restart",
+  "at": "2026-10-17T08:45:57",
+  "commit": null,
+  "dirty": null,
+  "params": {
+    "check": false
+  },
+  "result": {
+    "marked_at": "2026-10-17T08:45:57",
+    "next": "docker compose restart falkordb, then --check"
+  }
+}

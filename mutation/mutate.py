@@ -37,6 +37,7 @@ PR, RV = "lighthouse/promotion.py", "app/reviewer.py"
 PO, AP, MN = "app/poller.py", "app/api.py", "app/main.py"
 WEB, PW = "app/web.py", "app/portwatch.py"
 PWA = "app/portwatcher.py"
+MA, MG = "app/memory_api.py", "app/memory_agents.py"
 S, X = "lighthouse/snapshot.py", "lighthouse/extraction.py"
 # The tests most likely to catch a bug in a file run first; the whole suite runs only if they pass.
 FIRST = {PWA: "test_portwatcher test_poller", WEB: "test_portcalls test_portwatch", PW: "test_portwatch", PO: "test_poller", AP: "test_api", MN: "test_api test_health", X: "test_extraction", S: "test_snapshot test_algorithms", WP: "test_partial", WB: "test_batches test_late test_partial test_attacks test_vector", WL: "test_late test_batches", WF: "test_failures test_attacks test_conversation", WR: "test_rows test_attacks test_batches", V: "test_values test_attacks test_write", C: "test_clock test_attacks",
@@ -44,7 +45,7 @@ FIRST = {PWA: "test_portwatcher test_poller", WEB: "test_portcalls test_portwatc
          H: "test_handoffs", T: "test_tasks", TR: "test_traverse", TX: "test_text", VE: "test_vector", RK: "test_rank",
          L: "test_lessons", PB: "test_playbooks", A: "test_algorithms", CV: "test_conversation",
          B: "test_berths", WA: "test_watcher test_reviewer", M: "test_mcp_server",
-         PR: "test_promotion", RV: "test_reviewer"}
+         PR: "test_promotion", RV: "test_reviewer", MA: "test_memory_product", MG: "test_memory_product"}
 
 LIBRARY = [
     # --- the write rule
@@ -1171,6 +1172,20 @@ BACKEND = [
     ("feed that is not json crashes", WEB, "    except (ValueError, RecursionError) as exc:", "    except KeyError as exc:"),
     ("feed of any shape accepted", P, '    if not isinstance(feed, dict) or not isinstance(feed.get("portCalls"), list):', "    if False:"),
     ("packed feed not unpacked", WEB, '        if response.headers.get("Content-Encoding") == "gzip":', "        if False:"),
+    ("portwatch: an error that passes is not asked again", PW, "    for wait in (*RETRIES, None):", "    for wait in (None,):"),
+    ("portwatch: every error is asked again", PW, "            if exc.code not in PASSING or wait is None:", "            if wait is None:"),
+    # --- sign-in limits of the Memory API
+    ("limits: any caller names its address", MA, "    if secret and forwarded and hmac.compare_digest(proof.encode(), secret.encode()):", "    if forwarded:"),
+    ("limits: failed logins not counted", MA, '        db.execute("INSERT INTO login_failures VALUES (?,?)", (account, now))', "        pass"),
+    ("limits: a login clears no failures", MA, '            db.execute("DELETE FROM login_failures WHERE account=?", (account,))', "            pass"),
+    ("limits: one failure too many", MA, "    if failures >= LOGIN_FAILURES:", "    if failures > LOGIN_FAILURES:"),
+    ("limits: every caller shares one address", MA, '    return request.client.host if request.client else "unknown"', '    return "unknown"'),
+    # --- agents over the Memory API
+    ("agents: refusals pass as receipts", MG, "    if result[\"status\"] in REFUSED:\n        reject(*REFUSED[result[\"status\"]])", "    pass"),
+    ("agents: a read key opens episodes", MG, "def open_episode(form: EpisodeStart, key: WriteKey):", "def open_episode(form: EpisodeStart, key: ReadKey):"),
+    ("agents: any agent accepts a handoff", MG, "    if result[\"status\"] == \"refused\":\n        reject(403, \"This handoff was given to another agent.\")", "    pass"),
+    ("agents: an outcome without closing", MG, '    if form.type == "outcome":\n        reject(422, "Close the episode to record its outcome.")', "    pass"),
+    ("agents: a task done by anyone", MG, "    if not changed:\n        reject(409,", "    if False:\n        reject(409,"),
 ]
 
 total, survived = 0, []

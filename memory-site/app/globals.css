@@ -235,13 +235,13 @@ code {
 .auth-story > div {
   padding: 70px 0;
 }
-.auth-story h1 {
+.auth-story h2 {
   font-size: 70px;
   letter-spacing: -0.06em;
   line-height: 1.07;
   font-weight: 550;
 }
-.auth-story h1 em {
+.auth-story h2 em {
   color: var(--blue);
   font-style: normal;
 }
@@ -307,7 +307,7 @@ code {
   background: var(--blue-soft);
   margin-bottom: 28px;
 }
-.auth-form-wrap h2 {
+.auth-form-wrap h1 {
   font-size: 30px;
   letter-spacing: -0.04em;
   font-weight: 550;
@@ -327,10 +327,16 @@ code {
 }
 .password-field button {
   position: absolute;
-  right: 10px;
-  top: 11px;
+  right: 4px;
+  top: 50%;
+  translate: 0 -50%;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
   background: none;
   border: 0;
+  border-radius: 6px;
   color: var(--muted);
   padding: 0;
 }
@@ -346,6 +352,9 @@ code {
 .auth-switch a {
   color: var(--blue);
   margin-left: 5px;
+  /* A link in a sentence is told apart by more than its colour. */
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 .auth-assurance {
   display: flex;
@@ -518,6 +527,10 @@ code {
   padding: 18px 0;
 }
 .profile-mini button {
+  display: grid;
+  place-items: center;
+  min-width: 32px;
+  min-height: 32px;
   background: none;
   border: 0;
   color: var(--muted);
@@ -1244,6 +1257,8 @@ td code {
   border-radius: 6px;
   overflow: hidden;
   background: #2d1f16;
+  /* The muted text of the light pages, lightened to read on this dark block. */
+  --muted: #a09184;
 }
 .console-code > div {
   display: flex;
@@ -1484,7 +1499,7 @@ td code {
   .auth-form-section {
     padding: 35px;
   }
-  .auth-story h1 {
+  .auth-story h2 {
     font-size: 57px;
   }
   .welcome-graphic {
@@ -1506,7 +1521,7 @@ td code {
     padding: 50px 0;
     max-width: 400px;
   }
-  .auth-form-wrap h2 {
+  .auth-form-wrap h1 {
     font-size: 29px;
   }
   .auth-footnote {
@@ -1864,10 +1879,13 @@ td code,
   font-size: 12px;
 }
 .auth-story {
+  /* The accent and the muted text of the light pages, lightened to read on this panel. */
+  --blue: #e68a73;
+  --muted: #ada096;
   background: #30252c;
   color: #ffefdb;
 }
-.auth-story h1 em,
+.auth-story h2 em,
 .auth-story p,
 .auth-story > small,
 .auth-story .brand-sub {
@@ -2057,7 +2075,7 @@ td code,
   display: flex;
   align-items: center;
   gap: 13px;
-  color: #68786f;
+  color: #63726a;
   font-size: 12px;
   margin: 22px 0;
 }

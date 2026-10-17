@@ -333,8 +333,10 @@
 .lh-prose :where(td:first-child) > :where(code):first-child {
   white-space: nowrap;
 }
+/* An endpoint or a scope is read whole: the table scrolls in its frame rather than break
+   one mid-word. Only a token wider than the frame itself wraps. */
 .lh-prose :where(td:not(:first-child)) :where(code) {
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
 /* Code blocks: 14 / 22 px. */
@@ -641,6 +643,20 @@ a {
   padding: 50px 23px 23px;
   border-radius: 0;
 }
+/* The tables of a docstring in the Python API: names and meanings, columns lined up. */
+.docstring-table {
+  font:
+    13px/1.65 var(--font-mono),
+    monospace;
+  white-space: pre;
+  overflow-x: auto;
+  margin: 0;
+  padding: 10px 14px;
+  color: var(--foreground);
+  background: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+}
 .lh-code-block pre code {
   background: none;
   border: 0;
@@ -708,6 +724,55 @@ a {
   padding: 11px 17px;
   font-size: 15px;
   text-decoration: none;
+}
+.hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+.install-command {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  max-width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--card);
+  padding: 4px 4px 4px 14px;
+}
+.install-command code {
+  font: 14px var(--font-mono);
+  color: var(--foreground);
+  /* Not the chip of code in a sentence: the frame around it is the chip. */
+  background: none;
+  border: 0;
+  padding: 0;
+  white-space: nowrap;
+  overflow-x: auto;
+}
+.install-command code > span {
+  color: var(--muted-foreground);
+}
+.install-command button {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  border-radius: 5px;
+  color: var(--muted-foreground);
+  cursor: pointer;
+}
+.install-command button:hover {
+  color: var(--foreground);
+  background: var(--muted);
+}
+.docs-home-hero > p.hero-note {
+  margin-top: 12px;
+  font-size: 13px;
+  color: var(--muted-foreground);
 }
 .docs-cards {
   display: grid;

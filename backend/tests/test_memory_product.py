@@ -48,11 +48,11 @@ def project(client, headers, data):
     return response.json()["id"]
 
 
-def key(client, headers, project, scopes=("memory:read", "memory:write")):
+def key(client, headers, project, scopes=("memory:read", "memory:write"), name="Test agent"):
     response = client.post(
         f"/console/projects/{project}/keys",
         headers=headers,
-        json={"name": "Test agent", "scopes": list(scopes), "days": 30},
+        json={"name": name, "scopes": list(scopes), "days": 30},
     )
     assert response.status_code == 200, response.text
     data = response.json()
@@ -318,3 +318,85 @@ def test_sign_in_limit_follows_the_browser_only_with_the_proxy_token(client, mon
     assert login("198.51.100.7", "pröxy".encode()) == 429
     monkeypatch.delenv("LIGHTHOUSE_PROXY_TOKEN")
     assert login("198.51.100.7", "") == 429
+
+
+def test_agents_coordinate_through_episodes_tasks_and_handoffs(client):
+    owner, data = account(client)
+    pid = project(client, owner, data)
+    watcher, _ = key(client, owner, pid, name="watcher")
+    desk, _ = key(client, owner, pid, name="desk")
+    reader, _ = key(client, owner, pid, scopes=("memory:read",), name="reader")
+    fact = {"key": "berth:vc2", "title": "Berth VC2", "text": "Holds four ships at most."}
+    assert client.post("/v1/memories", headers=watcher, json=fact).status_code == 200
+
+    start = {"id": "overload-1", "about": ["berth:vc2"]}
+    assert client.post("/v1/episodes", headers=watcher, json=start).json()["status"] == "opened"
+    assert client.post("/v1/episodes", headers=watcher, json=start).json()["status"] == "exists"
+    missing = {"id": "overload-2", "about": ["berth:none"]}
+    assert client.post("/v1/episodes", headers=watcher, json=missing).status_code == 422
+    assert client.post("/v1/episodes", headers=reader, json=start).status_code == 403
+
+    seen = {
+        "type": "observation",
+        "values": {"expected": 5},
+        "cites": {"memories": ["berth:vc2"]},
+        "by": "mallory",  # the writer comes from the key, never from the request
+    }
+    entries = "/v1/episodes/overload-1/entries"
+    written = client.post(entries, headers=watcher, json=seen)
+    assert written.json() == {"id": "overload-1/1", "seq": 1, "status": "recorded"}
+    unknown = {**seen, "cites": {"entries": ["overload-1/9"]}}
+    assert client.post(entries, headers=watcher, json=unknown).status_code == 422
+    outcome = client.post(entries, headers=watcher, json={**seen, "type": "outcome"})
+    assert outcome.status_code == 422 and "Close the episode" in outcome.json()["detail"]
+    assert client.post("/v1/episodes/nope/entries", headers=watcher, json=seen).status_code == 404
+    assert client.get("/v1/episodes/bad%20id", headers=reader).status_code == 422
+    (entry,) = client.get("/v1/episodes/overload-1", headers=reader).json()["data"]["entries"]
+    assert entry["by"] == "watcher" and entry["expected"] == 5
+    assert entry["cites"] == [["Memory", "berth:vc2"]]
+
+    task = {"id": "review-1", "kind": "review", "about": "berth:vc2"}
+    assert client.post("/v1/tasks", headers=watcher, json=task).json()["status"] == "added"
+    assert client.post("/v1/tasks", headers=watcher, json=task).json()["status"] == "exists"
+    waiting = {"id": "review-2", "kind": "review", "after": ["review-0"]}
+    assert client.post("/v1/tasks", headers=watcher, json=waiting).status_code == 422
+    claimed = client.post("/v1/tasks/claim", headers=desk, json={"kind": "review", "lease": 60})
+    assert claimed.json()["data"]["id"] == "review-1"
+    assert client.post("/v1/tasks/claim", headers=watcher, json={"kind": "review"}).json() == {
+        "data": None
+    }
+    assert client.post("/v1/tasks/review-1/complete", headers=watcher).status_code == 409
+    done = client.post("/v1/tasks/review-1/complete", headers=desk)
+    assert done.json() == {"id": "review-1", "status": "done"}
+
+    given = {
+        "id": "h1",
+        "to": "desk",
+        "points_to": {"entries": ["overload-1/1"]},
+        "values": {"ask": "check the berth"},
+    }
+    assert client.post("/v1/handoffs", headers=watcher, json=given).json()["status"] == "given"
+    empty = {**given, "id": "h2", "points_to": {}}
+    assert client.post("/v1/handoffs", headers=watcher, json=empty).status_code == 422
+    (handed,) = client.get("/v1/handoffs", headers=desk).json()["data"]
+    assert handed["by"] == "watcher" and handed["ask"] == "check the berth"
+    assert handed["points_to"] == [["Entry", "overload-1/1"]]
+    assert client.get("/v1/handoffs", headers=watcher).json()["data"] == []
+    assert client.post("/v1/handoffs/h1/accept", headers=watcher).status_code == 403
+    assert client.post("/v1/handoffs/h1/accept", headers=desk).json()["status"] == "accepted"
+    assert client.post("/v1/handoffs/h1/accept", headers=desk).json()["status"] == "exists"
+    assert client.get("/v1/handoffs", headers=desk).json()["data"] == []
+    assert len(client.get("/v1/handoffs?waiting=false", headers=desk).json()["data"]) == 1
+
+    closing = {"outcome": {"held": True}, "cites": {"entries": ["overload-1/1"]}}
+    closed = client.post("/v1/episodes/overload-1/close", headers=watcher, json=closing)
+    assert closed.json()["status"] == "recorded"
+    assert client.post(entries, headers=watcher, json=seen).status_code == 409
+    (about,) = client.get("/v1/memories/berth:vc2/episodes", headers=reader).json()["data"]
+    assert about["id"] == "overload-1" and about["outcome"]["held"] is True
+
+    # Another account's agents cannot see this project's episodes, tasks, or handoffs.
+    stranger, stranger_data = account(client, "Stranger")
+    outsider, _ = key(client, stranger, project(client, stranger, stranger_data), name="desk")
+    assert client.get("/v1/episodes/overload-1", headers=outsider).status_code == 404
+    assert client.get("/v1/handoffs?waiting=false", headers=outsider).json()["data"] == []

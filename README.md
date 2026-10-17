@@ -25,7 +25,7 @@ Run setup again to apply changes; it preserves your settings and graph data. Use
 
 The independent Memory website includes accounts, private workspaces, projects, scoped expiring API keys, a memory explorer with version history and connections, usage records, and profile preferences. Each project owns a separate FalkorDB graph. Account and key metadata persist in the `memory_control` Docker volume; graph data persist in `falkordb_data`.
 
-Create an account at http://localhost:3003/signup, create a project, and issue a key under **API keys**. Use the dashboard’s **Connect** example against http://localhost:8200. Project keys authenticate the HTTP service; the Python library connects directly to FalkorDB and requires no Lighthouse API key. The HTTP service currently exposes structured memory writes, search, history, and connection paths; the Python library provides the broader episodes, learning, coordination, and conversation APIs.
+Create an account at http://localhost:3003/signup, create a project, and issue a key under **API keys**. Use the dashboard’s **Connect** example against http://localhost:8200. Project keys authenticate the HTTP service; the Python library connects directly to FalkorDB and requires no Lighthouse API key. The HTTP service exposes structured memory writes, search, history, connection paths, and agent coordination: episodes, task claims, and handoffs, with each project key acting as the agent it is named after. The Python library adds learning (lessons, playbooks, promotion) and conversations.
 
 This is a local developer preview. Billing, managed hosting, email verification, password recovery, and team invitations are not active. Do not expose this preview directly to the public internet. The API reference is available at http://localhost:8200/docs. Diagnostics remain in server logs; customers receive safe messages.
 
@@ -33,7 +33,7 @@ This is a local developer preview. Billing, managed hosting, email verification,
 
 | Path | Contents |
 | --- | --- |
-| `lighthouse-memory/` | The memory library, Python package `lighthouse`. Generic: it has no code for ports or for any other product. See its README for the model, the write rule, and the API. |
+| `lighthouse-memory/` | The memory library, Python package `lighthouse`, published on PyPI as `lighthouse-graph`. Generic: it has no code for ports or for any other product. See its README for the model, the write rule, and the API. |
 | `backend/` | The port desk. `app/portcalls.py` maps the port call feed to library rows. `app/berths.py` works out what a berth has held and where more is expected. `app/watcher.py` is the agent that acts on that. `app/reviewer.py` turns overloads that ended into lessons and playbooks. `app/mcp_server.py` offers the graph to agents as tools over MCP. `app/portwatch.py` reads the ports of the world from IMF PortWatch. `app/portwatcher.py` is the agent that acts on unusual days at them. `app/poller.py` reads the feed every few minutes and runs the two agents after each read, and PortWatch once an hour. `app/web.py` reads public JSON without trusting it. `app/api.py` serves the screen: read-only routes under `/api`. |
 | `frontend/` | The screen of the port desk, in Next.js: it reads the API from the server and writes nothing. An overview with a map of the ports of the world, the ports of a country and the days of one port, the berth board of Finland, the episodes with their evidence, and what was learned. |
 | `memory-site/` | Independent Lighthouse Memory landing page and authenticated developer console, served on port 3003. |
@@ -188,9 +188,10 @@ Working name. A crew of four agents on one Lighthouse memory.
 | --- | --- |
 | Watcher | Built. After each poll, finds berths where more port calls are expected than the berth ever held, and acts on what memory says |
 | Port Watcher | Built. After each new day from PortWatch, finds ports of the world whose port calls fell to half the usual or rose to twice the usual, opens an episode with the port as evidence, recalls what was learned about the port, and hands it to the desk |
-| Forecaster | Asks memory what happened in similar past cases and predicts lateness and knock-on effects at the berth |
-| Desk | Talks to the user, remembers past sessions, keeps the watch list |
-| Reviewer | Built for overloads and ports: writes lessons and playbooks from overloads that ended, judges the playbooks that ran, and learns per port whether a quiet or busy spell passes within three days. Grading forecasts waits for the Forecaster |
+| Desk | Built. Talks to the user over the graph's MCP tools, remembers past sessions, keeps the watch list. Needs a configured model |
+| Reviewer | Built for overloads and ports: writes lessons and playbooks from overloads that ended, judges the playbooks that ran, and learns per port whether a quiet or busy spell passes within three days |
+
+A Forecaster that predicts lateness is not planned. The feed's final expected arrival time already has a median error of 0 minutes (see [What is measured](#what-is-measured)), so a forecast would have little to add.
 
 ### Data
 
@@ -207,18 +208,18 @@ The port call feed carries ship master and agent names. Those fields are persona
 
 The live part covers Finnish ports only. A hundred foreign ports appear as previous or next port.
 
-## What will be measured
+## What is measured
 
-Every claim in the submission comes from the running system.
+Every claim comes from the running system: `cd backend && uv run python -m app.measure <name>` runs one measure against the FalkorDB of `docker compose up -d` and writes its result, with the commit it ran on, to `measurements/<name>.json`. Each one writes to throwaway graphs of its own. The numbers below are from one laptop, 2026-10-17, in a Linux container under WSL.
 
-| Claim | Measure |
-| --- | --- |
-| Writing a memory needs no LLM | LLM calls per stored event: 0. Write latency at the 50th and 95th percentile. Events per second. |
-| History is exact | Replay a known sequence of changes; every closed fact is the right one |
-| Memory survives a restart | Stop the process, start it, ask about yesterday |
-| Agents never double-claim | Many agents race for the same tasks; each task ends with one owner |
-| Tenants are isolated | A query in one tenant returns nothing from another |
-| Memory helps | Same task with memory on and off, several runs. Reported even if the gain is small or negative. |
+| Claim | Measure | Result |
+| --- | --- | --- |
+| Writing a memory needs no LLM | `writes`: the live Finnish port call feed, one port call at a time, counting the model calls made | 0 LLM calls for 288 port calls. One port call: 7.7 ms at the 50th percentile, 12.4 ms at the 95th. 776 port calls a second in one batch. |
+| History is exact | `history`: 500 entities, 7,711 changes, written once in time order and once shuffled so that rows arrive late | In order: 7,711 facts read back, 0 wrong. Shuffled: 2,271 late rows fell inside a State that held again after them; each was refused as `stale` and kept as a WriteFailure. 829 facts are wrong as a result, and every one of them holds a refused row: none is wrong silently. A `stale` failure keeps the refused values but not the row's time, so two such rows of one entity with the same values count on one node. |
+| Memory survives a restart | `restart`, then `docker compose restart falkordb`, then `restart --check` | The mark written before the restart is read after it. FalkorDB keeps an append-only file and has two minutes to stop: before both, a stop that cut the last snapshot short lost what came after it. |
+| Agents never double-claim | `claims`: 16 agents on their own connections race for 500 tasks | 500 claims won, 0 tasks won twice, 0 tasks with two claims |
+| Tenants are isolated | `tenants`: 200 rows in one tenant's graph, read from another's | 0 nodes, 0 search results, 0 versions seen |
+| Memory helps | `memory`: MEMORY_RESULT_PENDING | MEMORY_RESULT_PENDING |
 
 Not claimed in advance: that memory improves arrival forecasts. When it was checked, the feed's final expected arrival time already had a median error of 0 minutes, with most arrivals within one hour.
 
@@ -234,7 +235,7 @@ Not claimed in advance: that memory improves arrival forecasts. When it was chec
 
 - Where FalkorDB runs with a disk for the live deployment.
 - Which LLM provider, and whether an embedding model is needed from the start.
-- Which model drives the Desk and the Forecaster. The tools are served; no provider is chosen and no key is set, so no agent selects tools yet.
+- Which model drives the Desk by default. `.env.example` names `deepseek-v4.1-flash` on Ollama's cloud, and nine providers are supported, but no key is set, so the Desk answers only once one is added.
 - Whether a berth overload is the right thing to act on. It is what the feed shows; a planner at a port has not been asked.
 - Written permission from the IMF before PortWatch data is used commercially.
 - Live, ship-by-ship data outside Finland. AIS streams with wide coverage exist; their coverage near Indian ports and their terms are not checked yet.

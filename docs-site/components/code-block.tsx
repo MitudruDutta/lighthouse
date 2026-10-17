@@ -22,7 +22,8 @@ export function CodeBlock({ children, ...props }: ComponentProps<"pre">) {
         {copied ? <Check size={15} /> : <Copy size={15} />}
         <span>{copied ? "Copied" : "Copy"}</span>
       </button>
-      <pre ref={ref} {...props}>
+      {/* Long lines scroll: a keyboard reaches them through the block itself. */}
+      <pre ref={ref} tabIndex={0} {...props}>
         {children}
       </pre>
     </div>

@@ -63,7 +63,7 @@ export default function WorkspaceShell({
       <a href="#workspace" className="skip-link">
         Skip to content
       </a>
-      <aside className="side workspace-sidebar">
+      <aside className="side workspace-sidebar" aria-label="Workspace">
         <div className="workspace-brand">
           <Link href="/" aria-label="Lighthouse home">
             <Logo size={32} />

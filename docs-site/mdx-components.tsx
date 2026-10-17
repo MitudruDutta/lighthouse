@@ -16,8 +16,10 @@ const components: MDXComponents = {
         {...props}
       />
     ),
+  // A wide table scrolls in its frame: a keyboard reaches it through the frame itself.
+  // No landmark: a page has several tables, and every landmark needs a name of its own.
   table: (props) => (
-    <div className="table-wrap">
+    <div className="table-wrap" tabIndex={0}>
       <table {...props} />
     </div>
   ),

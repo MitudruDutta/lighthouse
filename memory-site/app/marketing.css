@@ -1,6 +1,6 @@
 .marketing {
   --ink: #30252c;
-  --muted: #736960;
+  --muted: #655c54;
   --faint: #93857a;
   --line: #ded7ca;
   --soft: #eee9df;
@@ -568,7 +568,7 @@
 .feature-card p {
   font-size: 13px;
   line-height: 1.8;
-  color: #716255;
+  color: #695b4f;
   max-width: 460px;
   margin-bottom: 22px;
 }
@@ -624,7 +624,7 @@
 }
 .history-preview code {
   font-size: 12px;
-  color: #9a7356;
+  color: #87654c;
   margin-left: auto;
 }
 .history-preview small {
@@ -706,6 +706,13 @@
   color: #b89f94;
   font-size: 12px;
   padding: 6px 0;
+}
+.code-tabs > button {
+  display: grid;
+  place-items: center;
+  min-width: 32px;
+  min-height: 32px;
+  padding: 6px;
 }
 .code-tabs button[aria-pressed="true"] {
   color: #ffd1a8;
@@ -801,7 +808,7 @@
   padding-top: 0;
 }
 .use-case-list a > span {
-  color: #ad8160;
+  color: #8c6548;
   font: 11px var(--font-mono);
   margin-top: 5px;
 }
@@ -843,7 +850,7 @@
 }
 .trust-section > p {
   font-size: 15px;
-  color: #667053;
+  color: #5f684d;
   line-height: 1.9;
   max-width: 480px;
 }
@@ -861,7 +868,7 @@
   flex-wrap: wrap;
   gap: 30px;
   font: 11px var(--font-mono);
-  color: #6e775e;
+  color: #606852;
   padding-top: 34px;
 }
 .pricing-section {
@@ -889,7 +896,7 @@
 }
 .plan-label {
   font: 11px var(--font-mono);
-  color: #96755b;
+  color: #7e624d;
   margin-bottom: 22px;
 }
 .price-card h3 {
@@ -946,7 +953,7 @@
 .cloud-status {
   display: block;
   font-size: 12px;
-  color: #928170;
+  color: #736558;
   margin-top: 18px;
 }
 .final-cta {
@@ -970,7 +977,7 @@
   transform: rotate(-15deg);
 }
 .marketing .final-cta .eyebrow {
-  color: #f7c4a4;
+  color: #fbe5d7;
   margin: 0;
   grid-column: 1;
 }
@@ -1880,7 +1887,7 @@
 }
 .walkthrough-record > header code {
   font-size: 12px;
-  color: #8a6043;
+  color: #835b3f;
 }
 .walkthrough-timeline {
   display: grid;

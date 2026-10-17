@@ -784,7 +784,7 @@
   align-items: center;
   gap: 8px;
   font-size: 12px;
-  color: #617253;
+  color: #5f6f51;
   margin-bottom: 20px;
   line-height: 1.6;
 }
@@ -984,7 +984,7 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  color: #6b7e57;
+  color: #687a55;
 }
 .ops-profile-summary strong {
   font-size: 34px;
@@ -1108,7 +1108,7 @@
   margin-top: 7px;
   font-size: 13px;
   line-height: 1.7;
-  color: #6b7e5c;
+  color: #5d6d50;
 }
 .ops-activity-banner > a {
   font-size: 12px;
@@ -1147,7 +1147,7 @@
 }
 .ops-agent > header > span {
   font-size: 11px;
-  color: #687b54;
+  color: #60724e;
   background: #eff3e7;
   padding: 5px 8px;
   border-radius: 5px;
@@ -1468,7 +1468,7 @@
 .ops-investigation-brief p {
   font-size: 13px;
   line-height: 1.7;
-  color: #6d7e5f;
+  color: #5f6d53;
   margin-top: 6px;
 }
 .ops-investigation-brief > span {
@@ -1651,7 +1651,18 @@
   overflow-y: auto;
   overflow-x: hidden;
   scrollbar-width: thin;
-  scrollbar-color: #46605b transparent;
+  /* On a screen too short for every page, the list scrolls: let its scrollbar be seen. */
+  scrollbar-color: #7d9a92 transparent;
+}
+@media (min-width: 1024px) {
+  /* Rows a pointer can hit, small enough that every page fits a 900px-tall screen. */
+  .night.console.workspace-shell .side .workspace-desktop-nav a.nav-link {
+    min-height: 36px;
+    padding-block: 7px;
+  }
+  .console .workspace-sidebar {
+    gap: 22px;
+  }
 }
 .workspace-mobile-nav {
   display: none;
@@ -1973,7 +1984,7 @@
   display: flex;
   align-items: center;
   gap: 13px;
-  color: #68786f;
+  color: #63726a;
   font-size: 12px;
   margin: 22px 0;
 }

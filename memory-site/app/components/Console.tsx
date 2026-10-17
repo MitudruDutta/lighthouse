@@ -49,14 +49,21 @@ async function call(path: string, method = "GET", body?: unknown) {
   if (!response.ok) throw new Error(data.detail ?? "Please try again shortly.");
   return data;
 }
-function date(value: number | null) {
-  return value
-    ? new Date(value * 1000).toLocaleDateString(undefined, {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-      })
-    : "Not used yet";
+// The server and the browser must write a time alike, or React refuses the page it
+// hydrates (error 418): one locale, and the time zone of the user's profile.
+const LOCALE = "en-GB";
+function date(value: number | null, zone: string) {
+  if (!value) return "Not used yet";
+  try {
+    return new Date(value * 1000).toLocaleDateString(LOCALE, {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      timeZone: zone,
+    });
+  } catch {
+    return new Date(value * 1000).toISOString().slice(0, 10);
+  }
 }
 const ACTIVITY_NAMES: Record<string, string> = {
   "api.write": "Memory written through API",
@@ -67,7 +74,7 @@ const ACTIVITY_NAMES: Record<string, string> = {
 };
 function activityTime(at: number, zone: string) {
   try {
-    return new Intl.DateTimeFormat(undefined, {
+    return new Intl.DateTimeFormat(LOCALE, {
       month: "short",
       day: "numeric",
       hour: "2-digit",
@@ -153,7 +160,8 @@ function MemoryGraph({
       {nodes.length ? (
         <svg
           viewBox={`0 0 640 ${height}`}
-          role="img"
+          // A group, not an image: each memory in it is a button.
+          role="group"
           aria-label="Project memory relationships"
         >
           <defs>
@@ -566,7 +574,7 @@ export function Console({
                         <span>{String(label)}</span>
                         <Symbol size={16} />
                       </div>
-                      <strong>{Number(count).toLocaleString()}</strong>
+                      <strong>{Number(count).toLocaleString(LOCALE)}</strong>
                       <small>
                         {label === "Projects"
                           ? "In your workspace"
@@ -713,7 +721,7 @@ export function Console({
                       </p>
                       <footer>
                         <code>{item.id.slice(0, 12)}</code>
-                        <span>Created {date(item.created)}</span>
+                        <span>Created {date(item.created, user.timezone)}</span>
                       </footer>
                     </Link>
                   ))}
@@ -747,7 +755,7 @@ export function Console({
                 </button>
               </div>
               {keys.length ? (
-                <div className="table-scroll">
+                <div className="table-scroll" role="region" aria-label="API keys" tabIndex={0}>
                   <table>
                     <thead>
                       <tr>
@@ -780,8 +788,8 @@ export function Console({
                               ))}
                             </div>
                           </td>
-                          <td>{date(key.last_used)}</td>
-                          <td>{date(key.expires)}</td>
+                          <td>{date(key.last_used, user.timezone)}</td>
+                          <td>{date(key.expires, user.timezone)}</td>
                           <td>
                             <span
                               className={`status-pill ${key.revoked ? "revoked" : ""}`}
@@ -884,7 +892,7 @@ export function Console({
                   select={(fact) => void inspect(fact)}
                 />
                 {facts.length ? (
-                  <div className="table-scroll">
+                  <div className="table-scroll" role="region" aria-label="Memories" tabIndex={0}>
                     <table>
                       <thead>
                         <tr>
@@ -947,7 +955,7 @@ export function Console({
                   </div>
                   <p className="memory-fulltext">{selected.text}</p>
                   <h3>Metadata</h3>
-                  <pre>{JSON.stringify(selected.metadata, null, 2)}</pre>
+                  <pre tabIndex={0}>{JSON.stringify(selected.metadata, null, 2)}</pre>
                   <h3>Version history</h3>
                   <p className="muted">
                     Each update preserves the previous state.
@@ -1039,7 +1047,7 @@ export function Console({
                   <h2>Recent operations</h2>
                 </div>
                 {summary?.recent.length ? (
-                  <div className="table-scroll">
+                  <div className="table-scroll" role="region" aria-label="Recent operations" tabIndex={0}>
                     <table>
                       <thead>
                         <tr>
@@ -1057,7 +1065,7 @@ export function Console({
                             <td>
                               <span className="status-pill">{item.status}</span>
                             </td>
-                            <td>{new Date(item.at * 1000).toLocaleString()}</td>
+                            <td>{activityTime(item.at, user.timezone)}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -1098,7 +1106,7 @@ export function Console({
                     value={`curl '${publicApi}/v1/memories' -H 'Authorization: Bearer YOUR_PROJECT_API_KEY' -H 'Content-Type: application/json' -d '{"key":"first-memory","title":"First memory","text":"A fact worth remembering."}'`}
                   />
                 </div>
-                <pre>{`curl '${publicApi}/v1/memories' \\\n  -H 'Authorization: Bearer YOUR_PROJECT_API_KEY' \\\n  -H 'Content-Type: application/json' \\\n  -d '{\n    "key": "first-memory",\n    "title": "First memory",\n    "text": "A fact worth remembering."\n  }'`}</pre>
+                <pre tabIndex={0}>{`curl '${publicApi}/v1/memories' \\\n  -H 'Authorization: Bearer YOUR_PROJECT_API_KEY' \\\n  -H 'Content-Type: application/json' \\\n  -d '{\n    "key": "first-memory",\n    "title": "First memory",\n    "text": "A fact worth remembering."\n  }'`}</pre>
               </div>
               <div className="connect-guides">
                 <a href={`${publicApi}/docs`}>

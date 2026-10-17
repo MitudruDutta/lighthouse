@@ -17,13 +17,13 @@ export function AuthForm({ signup = false }: { signup?: boolean }) {
         <Brand />
         <div>
           <span className="eyebrow">A LITTLE CONTINUITY GOES A LONG WAY.</span>
-          <h1>
+          <h2>
             Your next idea
             <br />
             deserves
             <br />
             <em>a memory.</em>
-          </h1>
+          </h2>
           <p>
             Facts with a history. Decisions with evidence. Context your agents
             can return to.
@@ -52,7 +52,8 @@ export function AuthForm({ signup = false }: { signup?: boolean }) {
           <span className="form-symbol">
             <KeyRound size={23} />
           </span>
-          <h2>{signup ? "Make room for memory." : "Welcome back."}</h2>
+          {/* The page's heading: the story beside it is hidden on a phone. */}
+          <h1>{signup ? "Make room for memory." : "Welcome back."}</h1>
           <p>
             {signup
               ? "Create a private workspace. Your first project starts here."

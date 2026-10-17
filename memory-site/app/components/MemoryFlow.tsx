@@ -182,7 +182,7 @@ export function CodeExample() {
           {copied ? <Check size={14} /> : <Copy size={14} />}
         </button>
       </div>
-      <pre>
+      <pre tabIndex={0}>
         <code>{code}</code>
       </pre>
       <div className="code-caption">

@@ -8,13 +8,6 @@ import { caseHref } from "@/app/lib/operations";
 
 const SESSION = /^[A-Za-z0-9_-]{1,64}$/;
 
-export async function signOut(): Promise<void> {
-  const token = (await cookies()).get(COOKIE)?.value;
-  if (token) await desk("/api/auth/logout", token, {});
-  (await cookies()).delete(COOKIE);
-  redirect("/login");
-}
-
 /** Ask the Desk, in the session of the form or a new one. */
 export async function ask(
   _: string | null,

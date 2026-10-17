@@ -80,7 +80,7 @@ async function Body({ params, searchParams }: PageProps<"/portcalls/[id]">) {
         </Card>
       </div>
       <Card title="Every version" aside={`${call.versions.length}`}>
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto" role="region" aria-label="Every version" tabIndex={0}>
           <table className="grid">
             <thead>
               <tr>
