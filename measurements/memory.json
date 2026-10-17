@@ -1,0 +1,113 @@
+{
+  "measure": "memory",
+  "at": "2026-10-17T13:08:32",
+  "commit": "5a33b68",
+  "dirty": true,
+  "params": {
+    "days": 400,
+    "review_every": 1,
+    "read": true
+  },
+  "result": {
+    "days": [
+      "2025-09-05",
+      "2026-10-09"
+    ],
+    "portwatch": {
+      "read": 400,
+      "state": "complete"
+    },
+    "spells_scored": 5258,
+    "spells_still_open": 15,
+    "passed_within_days": 3,
+    "share_that_passed": 0.978,
+    "replay_seconds": 7037,
+    "review_every_days": 1,
+    "all_spells": {
+      "always_passes": {
+        "right": 5141,
+        "of": 5258,
+        "accuracy": 0.978,
+        "ci95": [
+          0.973,
+          0.981
+        ]
+      },
+      "base_rate": {
+        "right": 5141,
+        "of": 5258,
+        "accuracy": 0.978,
+        "ci95": [
+          0.973,
+          0.981
+        ]
+      },
+      "lesson": {
+        "right": 5141,
+        "of": 5258,
+        "accuracy": 0.978,
+        "ci95": [
+          0.973,
+          0.981
+        ]
+      },
+      "episodes": {
+        "right": 5123,
+        "of": 5258,
+        "accuracy": 0.974,
+        "ci95": [
+          0.97,
+          0.978
+        ]
+      }
+    },
+    "where_lesson_spoke": {
+      "spells": 4108,
+      "lesson": {
+        "right": 4022,
+        "of": 4108,
+        "accuracy": 0.979,
+        "ci95": [
+          0.974,
+          0.983
+        ]
+      },
+      "base_rate": {
+        "right": 4022,
+        "of": 4108,
+        "accuracy": 0.979,
+        "ci95": [
+          0.974,
+          0.983
+        ]
+      },
+      "memory_right_base_wrong": 0,
+      "base_right_memory_wrong": 0,
+      "sign_test_p": 1.0
+    },
+    "where_episodes_spoke": {
+      "spells": 4816,
+      "episodes": {
+        "right": 4699,
+        "of": 4816,
+        "accuracy": 0.976,
+        "ci95": [
+          0.971,
+          0.98
+        ]
+      },
+      "base_rate": {
+        "right": 4717,
+        "of": 4816,
+        "accuracy": 0.979,
+        "ci95": [
+          0.975,
+          0.983
+        ]
+      },
+      "memory_right_base_wrong": 0,
+      "base_right_memory_wrong": 18,
+      "sign_test_p": 0.0
+    }
+  }
+}

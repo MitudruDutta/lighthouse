@@ -22,3 +22,7 @@ research_notes/
 screenshots/
 .lighthouse/
 .env.setup-tmp
+
+# What deploy/aws writes locally: the production settings and the first-boot script hold secrets
+deploy/aws/.env.aws
+deploy/aws/.user-data

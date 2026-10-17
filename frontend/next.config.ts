@@ -2,6 +2,8 @@ import createMDX from "@next/mdx";
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // The image ships the server and the packages it uses, not every package.
+  output: "standalone",
   cacheComponents: true,
   partialPrefetching: true,
   async redirects() {

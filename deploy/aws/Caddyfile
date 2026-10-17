@@ -1,0 +1,28 @@
+# One host for each site. Caddy obtains and renews the certificates, redirects http to
+# https, and sets X-Forwarded-For to the client it saw: the sign-in limits rely on it.
+
+(site) {
+	encode zstd gzip
+	header Strict-Transport-Security "max-age=31536000"
+}
+
+{$APP_HOST} {
+	import site
+	reverse_proxy screen:3000
+}
+
+{$MEMORY_HOST} {
+	import site
+	reverse_proxy memory-screen:3003
+}
+
+{$DOCS_HOST} {
+	import site
+	reverse_proxy docs:3002
+}
+
+# The Memory API, for developers' project keys. The operations API stays inside.
+{$API_HOST} {
+	import site
+	reverse_proxy memory-api:8200
+}

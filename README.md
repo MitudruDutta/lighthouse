@@ -219,7 +219,7 @@ Every claim comes from the running system: `cd backend && uv run python -m app.m
 | Memory survives a restart | `restart`, then `docker compose restart falkordb`, then `restart --check` | The mark written before the restart is read after it. FalkorDB keeps an append-only file and has two minutes to stop: before both, a stop that cut the last snapshot short lost what came after it. |
 | Agents never double-claim | `claims`: 16 agents on their own connections race for 500 tasks | 500 claims won, 0 tasks won twice, 0 tasks with two claims |
 | Tenants are isolated | `tenants`: 200 rows in one tenant's graph, read from another's | 0 nodes, 0 search results, 0 versions seen |
-| Memory helps | `memory`: MEMORY_RESULT_PENDING | MEMORY_RESULT_PENDING |
+| Memory helps | `memory`: 400 days of IMF PortWatch (2025-09-05 to 2026-10-09) replayed day by day through the Port Watcher and the Reviewer, as the poller runs them. When a port turns quiet or busy, each way of guessing says whether it is back to usual within 3 days; the guess is scored when the spell ends. Memory off: always "it passes", or what most spells so far did at any port. Memory on: the Reviewer's lesson about the port, or the port's own past spells. | **Memory did not help on this task.** Of 5,258 spells, 97.8% passed within 3 days, so "it passes" is right 97.8% of the time (95% interval 97.3 to 98.1%). Where a lesson existed (4,108 spells) it said the same as the base rate every time. The port's own past spells did worse: 97.6% against 97.9% on the 4,816 spells where they spoke, wrong in 18 that the base rate got right and right in none it got wrong (sign test p < 0.0001). A quiet or busy port nearly always recovers within 3 days, so a guess with no memory is close to the ceiling: showing that memory helps needs a task where a port's past changes the answer. |
 
 Not claimed in advance: that memory improves arrival forecasts. When it was checked, the feed's final expected arrival time already had a median error of 0 minutes, with most arrivals within one hour.
 
@@ -260,6 +260,18 @@ Google sign-in uses one OAuth **Web application** client for both products. Set 
 Use `scripts/capture_ui.py` to check the running sites and regenerate screenshots in `screenshots/ui-review/`, which is not committed. It needs Playwright: run `uv run --with playwright playwright install chromium` once, then `uv run --with playwright python scripts/capture_ui.py`. Pass `--storage-state` with a saved sign-in to capture the signed-in pages.
 
 Sign-in, registration, and Google sign-in are limited per browser address and, for failed logins, per email: ten failures in 15 minutes pause that account's logins whatever address they come from. The websites pass the browser's address to the APIs with `LIGHTHOUSE_PROXY_TOKEN`, which `./setup.sh` generates; without it every browser shares the website server's limit. Behind a reverse proxy, have it append the client to `X-Forwarded-For`.
+
+## Deploy on AWS
+
+`deploy/aws/` runs the whole stack on one EC2 host: the same Compose file, the images from ECR, and Caddy in front with HTTPS on four host names (`app.`, `memory.`, `docs.`, and `api.` for the Memory API). The operations API and FalkorDB get no public port; FalkorDB gets a password. The host has no SSH: Session Manager and SSM Run Command reach it. Settings and secrets are one SecureString in SSM Parameter Store, `/lighthouse/env`.
+
+```bash
+aws login --profile lighthouse
+AWS=aws PROFILE=lighthouse REGION=ap-south-1 deploy/aws/provision.sh   # first time; safe to run again
+AWS=aws PROFILE=lighthouse REGION=ap-south-1 deploy/aws/update.sh      # every later release
+```
+
+`provision.sh` creates the ECR repositories, an Elastic IP, the settings (fresh secrets, the model and Google settings copied from the local `.env`, no token that signs in by itself), the images, a role that can read only its own settings and pull images, a security group with only ports 80 and 443, and a `t3.small` in standard credit mode (no surprise CPU charges) with IMDSv2 required, an encrypted 30 GB disk, and 2 GB of swap. Without a domain (`DOMAIN=example.com`), the host names are `sslip.io` names of the Elastic IP. For Google sign-in, add the two `/api/auth/google/callback` URIs it prints to the OAuth client. Run it from WSL on Windows, with `AWS` set to the Windows `aws.exe` if the CLI is installed there.
 
 ## Local setup
 
