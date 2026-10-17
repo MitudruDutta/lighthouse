@@ -4,11 +4,11 @@ import hashlib
 import hmac
 import json
 import os
-from pathlib import Path
 import secrets
 import sqlite3
 import time
 from contextlib import contextmanager
+from pathlib import Path
 
 USER_COLUMNS = "u.*, EXISTS(SELECT 1 FROM oauth_identities oi WHERE oi.provider='google' AND oi.user_id=u.id) AS google_connected"
 
@@ -24,6 +24,8 @@ CREATE INDEX IF NOT EXISTS usage_project ON usage(project_id,at);
 CREATE TABLE IF NOT EXISTS key_limits(key_id TEXT PRIMARY KEY REFERENCES api_keys(id),window INTEGER NOT NULL,count INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS attempts(ip TEXT NOT NULL,at INTEGER NOT NULL);
 CREATE INDEX IF NOT EXISTS attempts_ip ON attempts(ip,at);
+CREATE TABLE IF NOT EXISTS login_failures(account TEXT NOT NULL,at INTEGER NOT NULL);
+CREATE INDEX IF NOT EXISTS login_failures_account ON login_failures(account,at);
 """
 
 
@@ -81,7 +83,7 @@ def new_session(db, user: str) -> str:
 def public_user(row) -> dict:
     return {key: row[key] for key in ("id", "email", "name", "timezone", "created")} | {
         "google_connected": bool(row["google_connected"])
-        if "google_connected" in row.keys()
+        if "google_connected" in row.keys()  # noqa: SIM118 - in on sqlite3.Row reads values
         else False
     }
 

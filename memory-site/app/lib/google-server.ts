@@ -1,6 +1,7 @@
 import "server-only";
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
+import { clientHeaders } from "./server";
 
 export function googleFlow(
   api: string,
@@ -42,7 +43,10 @@ export function googleFlow(
     try {
       const result = await fetch(api + "/start", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...clientHeaders(request),
+        },
         body: JSON.stringify({
           redirect_uri: callbackUri,
           state,
@@ -94,6 +98,7 @@ export function googleFlow(
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          ...clientHeaders(request),
           ...(flow.link && flow.session
             ? { Authorization: `Bearer ${flow.session}` }
             : {}),

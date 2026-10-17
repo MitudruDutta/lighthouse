@@ -112,7 +112,7 @@ def google_identity(form, client_id, client_secret):
         ):
             raise ValueError("Identity not verified")
         return claims
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 - every failure is a refusal
         # Provider responses can contain codes and tokens: log only the failure type.
         log.warning("Google identity verification failed: %s", type(exc).__name__)
         reject(401, "Google sign-in could not be completed. Please start again.")

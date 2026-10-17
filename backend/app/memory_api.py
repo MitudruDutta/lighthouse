@@ -1,7 +1,9 @@
 """Memory product API: account sessions and scoped project keys are distinct credentials."""
 
+import hmac
 import json
 import logging
+import os
 import re
 import sqlite3
 import time
@@ -14,8 +16,9 @@ from pydantic import BaseModel, Field
 
 from app.db import get_db
 from app.memory_control import (
-    check_password,
     DUMMY_PASSWORD,
+    USER_COLUMNS,
+    check_password,
     database,
     digest,
     identifier,
@@ -23,7 +26,6 @@ from app.memory_control import (
     new_session,
     password_hash,
     public_user,
-    USER_COLUMNS,
 )
 
 router = APIRouter()
@@ -78,8 +80,22 @@ def graph_for(project_id: str):
     return graph
 
 
+LOGIN_FAILURES, LOGIN_WINDOW = 10, 900
+
+
+def client_address(request: Request) -> str:
+    # Browsers sign in through the Next.js servers, so every such request comes from them.
+    # They pass on the browser's address, believed only with the token they share with us.
+    secret = os.environ.get("LIGHTHOUSE_PROXY_TOKEN", "")
+    forwarded = request.headers.get("x-lighthouse-client", "")
+    proof = request.headers.get("x-lighthouse-proxy", "")
+    if secret and forwarded and hmac.compare_digest(proof.encode(), secret.encode()):
+        return forwarded[:100]
+    return request.client.host if request.client else "unknown"
+
+
 def rate_limit(request: Request):
-    ip = digest(request.client.host if request.client else "unknown")
+    ip = digest(client_address(request))
     now = int(time.time())
     with database() as db:
         db.execute("BEGIN IMMEDIATE")
@@ -128,6 +144,16 @@ def register(form: Credentials) -> dict:
 @router.post("/auth/login", dependencies=[Depends(rate_limit)])
 def login(form: Credentials) -> dict:
     email = email_address(form.email)
+    # Counted per email whether or not the account exists, so the limit reveals nothing,
+    # and whatever address the attempts come from.
+    account, now = digest(email), int(time.time())
+    with database() as db:
+        failures = db.execute(
+            "SELECT count(*) FROM login_failures WHERE account=? AND at>?",
+            (account, now - LOGIN_WINDOW),
+        ).fetchone()[0]
+    if failures >= LOGIN_FAILURES:
+        reject(429, "Too many attempts. Please try again in a few minutes.")
     with database() as db:
         user = db.execute(
             f"SELECT {USER_COLUMNS} FROM users u WHERE u.email=?", (email,)
@@ -135,10 +161,14 @@ def login(form: Credentials) -> dict:
         # Equal work for unknown accounts limits timing-based account discovery.
         stored = user["password"] if user else DUMMY_PASSWORD
         valid = check_password(form.password, stored)
-        if not user or not valid:
-            reject(401, "Email or password is incorrect.")
-        token = new_session(db, user["id"])
-        return {"token": token, "user": public_user(user)}
+        if user and valid:
+            db.execute("DELETE FROM login_failures WHERE account=?", (account,))
+            token = new_session(db, user["id"])
+            return {"token": token, "user": public_user(user)}
+        # Recorded before the refusal: a refusal inside this block would roll it back.
+        db.execute("DELETE FROM login_failures WHERE at<=?", (now - LOGIN_WINDOW,))
+        db.execute("INSERT INTO login_failures VALUES (?,?)", (account, now))
+    reject(401, "Email or password is incorrect.")
 
 
 @router.post("/auth/logout")

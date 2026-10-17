@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { API, COOKIE, sameOrigin } from "@/app/lib/server";
+import { API, COOKIE, clientHeaders, sameOrigin } from "@/app/lib/server";
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ action: string }> },
@@ -24,6 +24,7 @@ export async function POST(
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        ...clientHeaders(request),
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
       body: body ? JSON.stringify(body) : undefined,

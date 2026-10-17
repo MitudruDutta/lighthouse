@@ -264,7 +264,9 @@ The operations workspace runs at **http://localhost:3000**. Sign in with your Li
 
 Google sign-in uses one OAuth **Web application** client for both products. Set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` in `.env`; register `http://localhost:3000/api/auth/google/callback` and `http://localhost:3003/api/auth/google/callback` as authorized redirect URIs. JavaScript origins are not required for this server-side flow. Existing password accounts can connect their matching Google identity from **Profile** (operations) or **Settings** (Memory). OAuth checks state, PKCE, nonce, issuer, audience, expiry, and verified email; identities link only after authenticating the existing account. When domains change, update `LIGHTHOUSE_APP_URL`, `MEMORY_SITE_URL`, and Google’s redirect URI list together.
 
-Use `scripts/capture_ui.py` to regenerate screenshots against the running sites. See `screenshots/README.md`.
+Use `scripts/capture_ui.py` to check the running sites and regenerate screenshots in `screenshots/ui-review/`, which is not committed. It needs Playwright: run `uv run --with playwright playwright install chromium` once, then `uv run --with playwright python scripts/capture_ui.py`. Pass `--storage-state` with a saved sign-in to capture the signed-in pages.
+
+Sign-in, registration, and Google sign-in are limited per browser address and, for failed logins, per email: ten failures in 15 minutes pause that account's logins whatever address they come from. The websites pass the browser's address to the APIs with `LIGHTHOUSE_PROXY_TOKEN`, which `./setup.sh` generates; without it every browser shares the website server's limit. Behind a reverse proxy, have it append the client to `X-Forwarded-For`.
 
 ## Local setup
 

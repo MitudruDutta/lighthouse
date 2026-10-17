@@ -1,7 +1,7 @@
 """Tenant-scoped case decisions and personal watchlists over shared source evidence."""
 
-from functools import cache
 import re
+from functools import cache
 from typing import Annotated, Literal
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 

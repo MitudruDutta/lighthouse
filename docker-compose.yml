@@ -76,6 +76,8 @@ services:
     environment:
       LIGHTHOUSE_API: http://api:8100
       LIGHTHOUSE_APP_URL: ${LIGHTHOUSE_APP_URL:-http://localhost:3000}
+      # Proves to the API that the browser address passed on with a sign-in comes from here.
+      LIGHTHOUSE_PROXY_TOKEN: ${LIGHTHOUSE_PROXY_TOKEN:-}
     depends_on:
       api:
         condition: service_healthy
@@ -120,6 +122,7 @@ services:
       MEMORY_API: http://memory-api:8200
       MEMORY_SITE_URL: ${MEMORY_SITE_URL:-http://localhost:3003}
       MEMORY_PUBLIC_API: ${MEMORY_PUBLIC_API:-http://localhost:8200}
+      LIGHTHOUSE_PROXY_TOKEN: ${LIGHTHOUSE_PROXY_TOKEN:-}
     ports:
       - "127.0.0.1:${MEMORY_SITE_PORT:-3003}:3003"
     depends_on:

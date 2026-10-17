@@ -1,13 +1,15 @@
 """Standalone Memory service. No routes or data from the operations application."""
 
 import logging
+
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+
+from app import google_auth
 from app.db import get_db
 from app.memory_api import router
 from app.memory_control import database
-from app import google_auth
 
 
 class BodyLimit:

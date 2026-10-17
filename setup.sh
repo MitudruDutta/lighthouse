@@ -93,6 +93,9 @@ fi
 if [ -z "$(setting LIGHTHOUSE_OPERATOR_TOKEN)" ]; then
   set_setting LIGHTHOUSE_OPERATOR_TOKEN "$(new_token)"
 fi
+if [ -z "$(setting LIGHTHOUSE_PROXY_TOKEN)" ]; then
+  set_setting LIGHTHOUSE_PROXY_TOKEN "$(new_token)"
+fi
 note 'Local sign-in and private operator credentials are configured.'
 model_key_name=LIGHTHOUSE_MODEL_KEY
 case "$(setting LIGHTHOUSE_MODEL_PROVIDER)" in

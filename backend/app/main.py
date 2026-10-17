@@ -6,7 +6,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app import account_api, desk_api, google_auth, operator_api, operations
+from app import account_api, desk_api, google_auth, operations, operator_api
 from app.api import router
 from app.db import get_db
 

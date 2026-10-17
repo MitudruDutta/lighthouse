@@ -1,0 +1,113 @@
+# Every push and pull request: the tests of both Python projects against a real FalkorDB,
+# lint, types, tests and a production build of each website, and the Docker images.
+# The mutation check takes about an hour, so it runs only when started by hand.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      mutation:
+        description: Run the mutation check (about an hour)
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  UV_PYTHON: "3.12"
+
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      falkordb:
+        # The image of docker-compose.yml, pinned by the same digest.
+        image: falkordb/falkordb@sha256:107455e862a824e45e8e9f5a7fbfdf5e00a08b14e13eae2577c72fd9e3f59ba6
+        ports: ["26379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 5s
+          --health-retries 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v6
+      - name: Memory library
+        working-directory: lighthouse-memory
+        run: |
+          uv sync --locked
+          uv run ruff check .
+          uv run pytest -q
+      - name: Port desk
+        working-directory: backend
+        run: |
+          uv sync --locked
+          uv run ruff check .
+          uv run pytest -q
+      - name: Setup script and documentation checks
+        run: python3 -m unittest discover -s tests -v
+
+  web:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [frontend, memory-site, docs-site]
+    defaults:
+      run:
+        working-directory: ${{ matrix.app }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.11
+      - run: bun install --frozen-lockfile
+      # The frontend's tests also cover the Memory website's copy of the shared server code.
+      - if: matrix.app == 'frontend'
+        run: bun install --frozen-lockfile
+        working-directory: memory-site
+      - run: bun run lint
+      # PageProps and LayoutProps are types that Next.js generates from the routes.
+      - run: node_modules/.bin/next typegen && node_modules/.bin/tsc --noEmit
+      - if: matrix.app == 'frontend'
+        run: bun test
+      - run: bun run build
+      # The build writes the search index again: the committed one must be current.
+      - if: matrix.app == 'docs-site'
+        run: git diff --exit-code -- app/search-index.json
+
+  images:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - run: docker compose config --quiet
+      - run: docker compose build --progress plain
+
+  mutation:
+    if: github.event_name == 'workflow_dispatch' && inputs.mutation
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    services:
+      falkordb:
+        image: falkordb/falkordb@sha256:107455e862a824e45e8e9f5a7fbfdf5e00a08b14e13eae2577c72fd9e3f59ba6
+        ports: ["26379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 5s
+          --health-retries 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --locked --project backend
+      - run: uv run --project backend python mutation/mutate.py mutation/.work

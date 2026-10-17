@@ -6,8 +6,8 @@ from fastapi.testclient import TestClient
 
 from app import google_auth
 from app.main import app
-from app.memory_main import app as memory_app
 from app.memory_control import database
+from app.memory_main import app as memory_app
 
 CALLBACK = "http://localhost:3000/api/auth/google/callback"
 FORM = {

@@ -1,10 +1,10 @@
 import pytest
 from fastapi.testclient import TestClient
 
+from app import desk_api, operations
 from app.api import get_graph
 from app.main import app
 from app.memory_main import app as memory_app
-from app import desk_api, operations
 
 
 @pytest.fixture

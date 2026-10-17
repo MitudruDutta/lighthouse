@@ -3,8 +3,10 @@
 import json
 import time
 import uuid
+
 import pytest
 from fastapi.testclient import TestClient
+
 from app import memory_api as api
 from app.memory_control import database, digest
 from app.memory_main import app
@@ -267,3 +269,52 @@ def test_api_key_request_limits_and_body_bound(client):
     assert client.get("/v1/memories", headers=headers).status_code == 200
     assert client.post("/v1/memories", headers=headers, content=b"x" * 70000).status_code == 413
     assert client.get("/console/overview", headers=owner).status_code == 200
+
+
+def test_failed_logins_are_limited_per_account(client):
+    email = uuid.uuid4().hex + "@example.test"
+    right = {"email": email, "password": "test-password-123!"}
+    wrong = {**right, "password": "wrong-password-123!"}
+    assert client.post("/auth/register", json={**right, "name": "Owner"}).status_code == 200
+    other, _ = account(client, "Other")
+    for _ in range(api.LOGIN_FAILURES):
+        assert client.post("/auth/login", json=wrong).status_code == 401
+    assert client.post("/auth/login", json=wrong).status_code == 429
+    # Locked even with the right password, and for this account only.
+    assert client.post("/auth/login", json=right).status_code == 429
+    assert client.get("/console/overview", headers=other).status_code == 200
+    # An unknown email is limited the same way, so the limit reveals no account.
+    unknown = {**wrong, "email": uuid.uuid4().hex + "@example.test"}
+    statuses = [client.post("/auth/login", json=unknown).status_code for _ in range(11)]
+    assert statuses == [401] * 10 + [429]
+    with database() as control:
+        control.execute("UPDATE login_failures SET at=at-?", (api.LOGIN_WINDOW,))
+    assert client.post("/auth/login", json=right).status_code == 200
+    with database() as control:
+        assert control.execute(
+            "SELECT count(*) FROM login_failures WHERE account=?", (digest(email),)
+        ).fetchone()[0] == 0
+
+
+def test_sign_in_limit_follows_the_browser_only_with_the_proxy_token(client, monkeypatch):
+    monkeypatch.setenv("LIGHTHOUSE_PROXY_TOKEN", "proxy-secret")
+    now = int(time.time())
+    with database() as control:
+        for address in ("203.0.113.9", "testclient"):
+            control.executemany(
+                "INSERT INTO attempts VALUES (?,?)", [(digest(address), now)] * 30
+            )
+    form = {"email": uuid.uuid4().hex + "@example.test", "password": "test-password-123!"}
+
+    def login(address, token):
+        headers = {"X-Lighthouse-Client": address, "X-Lighthouse-Proxy": token}
+        return client.post("/auth/login", json=form, headers=headers).status_code
+
+    # Browsers behind the website server no longer share its limit.
+    assert login("203.0.113.9", "proxy-secret") == 429
+    assert login("198.51.100.7", "proxy-secret") == 401
+    # Without the token, a claimed address is ignored and the caller's own address counts.
+    assert login("198.51.100.7", "wrong-secret") == 429
+    assert login("198.51.100.7", "pröxy".encode()) == 429
+    monkeypatch.delenv("LIGHTHOUSE_PROXY_TOKEN")
+    assert login("198.51.100.7", "") == 429

@@ -1,0 +1,8 @@
+# One line ending everywhere. The scripts and images run on Linux, so a Windows checkout
+# must not turn setup.sh into "bash\r" (core.autocrlf=true would, without this file).
+* text=auto eol=lf
+
+*.ico binary
+*.png binary
+*.jpg binary
+*.woff2 binary

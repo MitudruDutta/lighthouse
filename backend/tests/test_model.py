@@ -304,7 +304,9 @@ def test_named_default_ignores_legacy_provider_key_and_endpoint(transport, monke
 
 def test_provider_context_survives_the_real_desk_tool_loop(transport):
     from types import SimpleNamespace
+
     import anyio
+
     from app.desk import converse
 
     private = {

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { AUTH_API, sameOrigin } from "@/app/lib/auth-server";
+import { AUTH_API, clientHeaders, sameOrigin } from "@/app/lib/auth-server";
 import { DESK_COOKIE } from "@/app/lib/api";
 export async function POST(
   request: NextRequest,
@@ -26,6 +26,7 @@ export async function POST(
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        ...clientHeaders(request),
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
       body: body ? JSON.stringify(body) : undefined,

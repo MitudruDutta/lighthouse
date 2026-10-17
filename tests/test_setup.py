@@ -66,8 +66,11 @@ class SetupTests(unittest.TestCase):
                       if line and not line.startswith('#'))
         token = values['LIGHTHOUSE_TOKEN'].strip("'")
         operator = values['LIGHTHOUSE_OPERATOR_TOKEN'].strip("'")
+        proxy = values['LIGHTHOUSE_PROXY_TOKEN'].strip("'")
         self.assertEqual(len(token), 48)
-        self.assertNotEqual(token, operator)
+        self.assertEqual(len(proxy), 48)
+        self.assertEqual(len({token, operator, proxy}), 3)
+        self.assertNotIn(proxy, result.stdout)
         self.assertIn(token + '=local/you', values['LIGHTHOUSE_DESK_USERS'])
         self.assertNotIn(token, result.stdout)
         self.assertEqual((self.root / '.env').stat().st_mode & 0o777, 0o600)
@@ -75,7 +78,7 @@ class SetupTests(unittest.TestCase):
         self.assertIn('http://docs:3002/', self.calls.read_text())
 
     def test_repeat_run_preserves_settings_and_does_not_execute_env(self):
-        initial = "LIGHTHOUSE_TOKEN='existing-token'\nLIGHTHOUSE_DESK_USERS=existing-token=acme/me\nLIGHTHOUSE_OPERATOR_TOKEN=existing-operator\nLIGHTHOUSE_MODEL_KEY=private-key\nLIGHTHOUSE_MODEL=custom/model\nUNTRUSTED=$(touch injected)\n"
+        initial = "LIGHTHOUSE_TOKEN='existing-token'\nLIGHTHOUSE_DESK_USERS=existing-token=acme/me\nLIGHTHOUSE_OPERATOR_TOKEN=existing-operator\nLIGHTHOUSE_PROXY_TOKEN=existing-proxy\nLIGHTHOUSE_MODEL_KEY=private-key\nLIGHTHOUSE_MODEL=custom/model\nUNTRUSTED=$(touch injected)\n"
         (self.root / '.env').write_text(initial)
         result = self.run_setup('--yes', '--no-build')
         self.assertEqual(result.returncode, 0, result.stderr)

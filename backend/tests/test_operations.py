@@ -2,7 +2,7 @@ import uuid
 
 import pytest
 from fastapi.testclient import TestClient
-from lighthouse import ensure_schema, open_episode, record, close_episode
+from lighthouse import close_episode, ensure_schema, open_episode, record
 
 from app import operations
 from app.api import get_graph
