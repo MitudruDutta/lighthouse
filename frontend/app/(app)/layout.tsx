@@ -1,7 +1,8 @@
-import { Search, Waves } from "lucide-react";
+import { Waves } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
 
+import { TopSearch } from "@/app/components/TopSearch";
 import WorkspaceShell from "@/app/components/WorkspaceShell";
 import { Nav, NavList } from "@/app/components/Nav";
 import { Refresh, WorkspaceName } from "@/app/components/WorkspaceTools";
@@ -31,29 +32,7 @@ export default function AppLayout({ children }: LayoutProps<"/">) {
             <span className="px-1 text-faint">/</span>
             <WorkspaceName />
           </span>
-          <form
-            action="/search"
-            role="search"
-            className="flex min-w-0 flex-1 gap-2 xl:ml-auto xl:max-w-md"
-          >
-            <label className="workspace-search min-w-0 flex-1">
-              <Search size={15} aria-hidden />
-              <input
-                name="q"
-                placeholder="Search by name…"
-                aria-label="Search ships, ports or berths"
-              />
-            </label>
-            <select
-              name="kind"
-              aria-label="Search category"
-              className="!w-23 !px-2 !text-xs"
-            >
-              <option value="Vessel">Ships</option>
-              <option value="Port">Ports</option>
-              <option value="Berth">Berths</option>
-            </select>
-          </form>
+          <TopSearch />
           <Refresh />
           <Suspense fallback={null}>
             <Live />

@@ -8,7 +8,7 @@ import { Loading } from "@/app/components/ui";
 import { type ConnectionStep, type Network, api } from "@/app/lib/api";
 import { ENTITY_KINDS } from "@/app/lib/investigation";
 
-export const metadata: Metadata = { title: "Investigate" };
+export const metadata: Metadata = { title: "Evidence graph" };
 const FOCUS = ["Episode", ...ENTITY_KINDS, "Lesson", "Playbook", "Entry"];
 
 export default function Investigate(props: PageProps<"/investigate">) {

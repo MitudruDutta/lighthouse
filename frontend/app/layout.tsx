@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Bricolage_Grotesque, Geist, Geist_Mono, IBM_Plex_Mono, IBM_Plex_Sans, Spectral } from "next/font/google";
 import "./globals.css";
+import { THEME_SCRIPT } from "./lib/theme";
 
 const plex = IBM_Plex_Sans({ variable: "--font-plex", subsets: ["latin"], weight: ["400", "500", "600"] });
 const plexMono = IBM_Plex_Mono({ variable: "--font-plex-mono", subsets: ["latin"], weight: ["400"] });
@@ -24,7 +25,11 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={`${plex.variable} ${plexMono.variable} ${spectral.variable} ${geist.variable} ${geistMono.variable} ${bricolage.variable} h-full antialiased`}>
+    // The theme script sets data-theme on <html> before React hydrates it.
+    <html lang="en" suppressHydrationWarning className={`${plex.variable} ${plexMono.variable} ${spectral.variable} ${geist.variable} ${geistMono.variable} ${bricolage.variable} h-full antialiased`}>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
+      </head>
       <body className="min-h-full">{children}</body>
     </html>
   );

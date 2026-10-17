@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { excerpt, plain, said } from "../app/components/words";
+import { blocks, excerpt, known, plain, said } from "../app/components/words";
 
 test("plain: what a model wrote in Markdown reads as words", () => {
   const text =
@@ -25,4 +25,24 @@ test("an assessment's first sentence is shown without Markdown", () => {
     said({ type: "assessment", text: "A berth overload at `FIINK/IS/5` (**high**). Then more." }),
     "A berth overload at FIINK/IS/5 (high).",
   );
+});
+
+test("blocks: lists, headings, and paragraphs of a model's answer", () => {
+  const text =
+    "The berths that expect more ships:\n\n*   FIHKO/WEST/RR3 (Kotka)\n*   FIINK/IS/5\n\n## Next\n1. Check the **feed**\n2) Ask again\nA line\nand its next line.\n```\ncode * here\n```";
+  assert.deepEqual(blocks(text), [
+    { kind: "p", text: "The berths that expect more ships:" },
+    { kind: "ul", items: ["FIHKO/WEST/RR3 (Kotka)", "FIINK/IS/5"] },
+    { kind: "h", text: "Next" },
+    { kind: "ol", items: ["Check the **feed**", "Ask again"] },
+    { kind: "p", text: "A line\nand its next line." },
+    { kind: "code", text: "code * here" },
+  ]);
+});
+
+test("known: the feed's word for an unknown name is not a name", () => {
+  assert.equal(known("Ei tiedossa"), undefined);
+  assert.equal(known(" ei tiedossa "), undefined);
+  assert.equal(known(null), undefined);
+  assert.equal(known("Länsisatama"), "Länsisatama");
 });

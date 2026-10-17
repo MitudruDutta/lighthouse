@@ -91,7 +91,7 @@ export default function CaseBoard({
               : `Good to see you, ${queue.profile.name}`}
           </p>
           <h1>
-            {investigations ? "Investigations" : "Make the next move count."}
+            {investigations ? "Case files" : "Make the next move count."}
           </h1>
           <p>
             {investigations

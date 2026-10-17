@@ -4,7 +4,7 @@ import { Suspense } from "react";
 import { Card, Loading, When } from "@/app/components/ui";
 import { PortTable } from "@/app/components/PortTable";
 import { WorldMap } from "@/app/components/WorldMap";
-import { type PortRow, type World, api } from "@/app/lib/api";
+import { type Live, type PortRow, type World, api, maybe } from "@/app/lib/api";
 
 const QUICK = [
   ["IND", "India"],
@@ -18,6 +18,8 @@ const QUICK = [
   ["NLD", "Netherlands"],
   ["FIN", "Finland"],
 ];
+
+export const metadata = { title: "World ports" };
 
 export default function Ports(props: PageProps<"/ports">) {
   return (
@@ -33,10 +35,14 @@ export default function Ports(props: PageProps<"/ports">) {
 async function Body({ searchParams }: PageProps<"/ports">) {
   const asked = (await searchParams).country;
   const country = typeof asked === "string" && /^[A-Z]{3}$/.test(asked) ? asked : undefined;
-  const [world, ports] = await Promise.all([
+  const [world, ports, live] = await Promise.all([
     api<World>("/api/world"),
     api<PortRow[]>("/api/ports", { country, limit: 200 }),
+    maybe<Live>("/api/live"),
   ]);
+  const busiestNow = Object.entries(live?.ports ?? {})
+    .filter(([, port]) => port.now > 0)
+    .slice(0, 8);
   const countries = new Map<string, { name: string; ports: number }>();
   for (const [, , iso3, name] of world.ports) {
     if (!iso3) continue;
@@ -51,6 +57,23 @@ async function Body({ searchParams }: PageProps<"/ports">) {
         <summary>Explore the global activity map <span>Observations through <When at={world.newest_day} day /></span></summary>
         <WorldMap world={world} />
       </details>
+      {busiestNow.length ? (
+        <Card title="Cargo ships and tankers in port now" aside={<>Live AIS · <When at={live?.at} /></>}>
+          <ul className="live-ports">
+            {busiestNow.map(([key, port]) => (
+              <li key={key}>
+                <Link href={`/ports/${encodeURIComponent(key)}`} className="link">
+                  {port.name}
+                </Link>
+                <strong>{port.now}</strong>
+                <span>
+                  ships now · {port.today} today
+                </span>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      ) : null}
       <Card>
         <form action="/ports" className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 xl:grid-cols-[minmax(0,290px)_auto_minmax(0,1fr)]">
           <select name="country" defaultValue={country ?? ""} aria-label="Country" className="min-w-0 w-full">

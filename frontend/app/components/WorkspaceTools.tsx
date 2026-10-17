@@ -5,8 +5,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { Suspense, useEffect, useTransition } from "react";
 
 const NAMES: Record<string, string> = {
-  dashboard: "Needs attention", ports: "Global ports", berths: "Berth board", episodes: "Source history",
-  learned: "Lessons & playbooks", desk: "Investigations", search: "Search", sources: "Data sources",
+  dashboard: "Needs attention", ports: "World ports", berths: "Berth board", episodes: "Event history",
+  learned: "Lessons & playbooks", desk: "Case files", sources: "Data sources",
   vessels: "Vessel details", portcalls: "Port call details",
   agents: "Agent activity", investigate: "Evidence graph", cases: "Case investigation", profile: "Profile",
 };

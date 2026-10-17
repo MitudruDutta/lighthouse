@@ -10,6 +10,7 @@ import {
   PanelLeftOpen,
 } from "lucide-react";
 import { Logo } from "./Logo";
+import { ThemeMenu } from "./ThemeSwitch";
 import { WorkspaceName } from "./WorkspaceTools";
 
 const KEY = "lighthouse.sidebar.collapsed";
@@ -74,6 +75,18 @@ export default function WorkspaceShell({
               <small>Maritime intelligence</small>
             </span>
           </Link>
+          <div className="workspace-tools">
+            <button
+              type="button"
+              className="workspace-tool workspace-fold"
+              onClick={toggle}
+              aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+              title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+              aria-expanded={!collapsed}
+            >
+              {collapsed ? <PanelLeftOpen size={17} /> : <PanelLeftClose size={17} />}
+            </button>
+          </div>
         </div>
         <div className="workspace-desktop-nav">{navigation}</div>
         <details className="workspace-mobile-nav group">
@@ -83,6 +96,7 @@ export default function WorkspaceShell({
           </summary>
           <div>
             {navigation}
+            <ThemeMenu className="sidebar-signout" label />
             <button className="sidebar-signout" onClick={signOut}>
               <LogOut size={17} />
               <span>Sign out</span>
@@ -90,19 +104,7 @@ export default function WorkspaceShell({
           </div>
         </details>
         <div className="workspace-sidebar-bottom">
-          <button
-            className="sidebar-collapse"
-            onClick={toggle}
-            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-            aria-expanded={!collapsed}
-          >
-            {collapsed ? (
-              <PanelLeftOpen size={18} />
-            ) : (
-              <PanelLeftClose size={18} />
-            )}
-            <span>{collapsed ? "Expand" : "Collapse sidebar"}</span>
-          </button>
+          <ThemeMenu className="sidebar-signout" label up />
           <button
             className="sidebar-signout"
             aria-label="Sign out"

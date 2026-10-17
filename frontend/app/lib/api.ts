@@ -49,7 +49,13 @@ export type Status = {
   last_poll: Poll | null;
   last_world_poll: WorldPoll | null;
   last_desk: DeskLook | null;
-  availability: { feed: boolean; portwatch: boolean; desk: boolean };
+  last_ais?: { at: string; ports: number; ships_now: number } | null;
+  availability: { feed: boolean; portwatch: boolean; desk: boolean; ais?: boolean };
+};
+/** Ships stopped at the busiest ports, from live AIS positions. */
+export type Live = {
+  at: string | null;
+  ports: Record<string, { name: string; now: number; today: number; day: string }>;
 };
 export type DeskLook = { at: string; did: Record<string, number>; waiting: number };
 export type Poll = {

@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { type Checked, type Entry, type Ref, segments } from "../lib/api";
-import { describeTool } from "./words";
+import { type Block, blocks, describeTool } from "./words";
 
 /** A time as the API gives it (UTC), in a short readable form. */
 export function When({ at, day, timezone }: { at?: string | null; day?: boolean; timezone?: string }) {
@@ -125,20 +125,66 @@ export function headline(id: string, first?: Entry | null): string {
 }
 
 /** Text that a model wrote: its lines as written, **bold** as bold, `code` as code. */
+function Inline({ text }: { text: string }) {
+  return text.split(/(\*\*[^*\n]+\*\*|`[^`\n]+`)/g).map((part, n) =>
+    part.startsWith("**") && part.endsWith("**") && part.length > 4 ? (
+      <b key={n}>{part.slice(2, -2)}</b>
+    ) : part.startsWith("`") && part.endsWith("`") && part.length > 2 ? (
+      <code key={n} className="font-mono text-[13px]">
+        {part.slice(1, -1)}
+      </code>
+    ) : (
+      part
+    ),
+  );
+}
+
+function Shown({ block }: { block: Block }) {
+  switch (block.kind) {
+    case "ul":
+      return (
+        <ul>
+          {block.items.map((item, i) => (
+            <li key={i}>
+              <Inline text={item} />
+            </li>
+          ))}
+        </ul>
+      );
+    case "ol":
+      return (
+        <ol>
+          {block.items.map((item, i) => (
+            <li key={i}>
+              <Inline text={item} />
+            </li>
+          ))}
+        </ol>
+      );
+    case "code":
+      return <pre>{block.text}</pre>;
+    case "h":
+      return (
+        <p className="prose-heading">
+          <Inline text={block.text} />
+        </p>
+      );
+    default:
+      return (
+        <p className="whitespace-pre-wrap">
+          <Inline text={block.text} />
+        </p>
+      );
+  }
+}
+
+/** What a model wrote, with its lists, headings, emphasis, and code shown as such. */
 export function Prose({ text }: { text: string }) {
   return (
-    <div className="whitespace-pre-wrap break-words text-sm leading-relaxed">
-      {text.split(/(\*\*[^*\n]+\*\*|`[^`\n]+`)/g).map((part, n) =>
-        part.startsWith("**") && part.endsWith("**") && part.length > 4 ? (
-          <b key={n}>{part.slice(2, -2)}</b>
-        ) : part.startsWith("`") && part.endsWith("`") && part.length > 2 ? (
-          <code key={n} className="font-mono text-[13px]">
-            {part.slice(1, -1)}
-          </code>
-        ) : (
-          part
-        ),
-      )}
+    <div className="prose-answer break-words text-sm leading-relaxed">
+      {blocks(text).map((block, n) => (
+        <Shown key={n} block={block} />
+      ))}
     </div>
   );
 }

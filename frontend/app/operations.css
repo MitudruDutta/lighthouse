@@ -1672,23 +1672,6 @@
   padding-top: 15px;
   border-top: 1px solid #ffffff15;
 }
-.console .sidebar-collapse {
-  display: flex;
-  align-items: center;
-  gap: 11px;
-  padding: 11px;
-  width: 100%;
-  background: transparent;
-  color: #b4c8be;
-  border-radius: 7px;
-  text-align: left;
-  font-size: 12px;
-  font-weight: 400;
-}
-.console .sidebar-collapse:hover {
-  color: #f1f3e9;
-  background: #ffffff0c;
-}
 .workspace-sidebar-bottom > p {
   padding: 12px 10px 0;
   color: #8da89a;
@@ -1709,7 +1692,6 @@
 .workspace-shell[data-collapsed="true"] .nav-label,
 .workspace-shell[data-collapsed="true"] .nav-count,
 .workspace-shell[data-collapsed="true"] .nav-group-title,
-.workspace-shell[data-collapsed="true"] .sidebar-collapse > span,
 .workspace-shell[data-collapsed="true"] .workspace-sidebar-bottom > p {
   display: none;
 }
@@ -1729,9 +1711,6 @@
 .workspace-shell[data-collapsed="true"] .side a.nav-link {
   justify-content: center;
   padding: 12px;
-}
-.workspace-shell[data-collapsed="true"] .sidebar-collapse {
-  justify-content: center;
 }
 @media (max-width: 1023px) {
   .workspace-shell,
@@ -2014,3 +1993,712 @@
 .ops-account-summary { display:grid;gap:7px;padding:17px 0 22px;margin-bottom:22px;border-bottom:1px solid var(--edge);font-size:14px;overflow-wrap:anywhere; }
 .ops-account-summary strong { font-size:20px;font-weight:500; }
 .ops-account-summary .google-connected { margin-top:6px; }
+
+/* ---- Dark: the workspace at night. data-theme is set on <html> before the first paint
+   (see lib/theme.ts). The command panel, the sidebar, and the sign-in story are dark in
+   both themes and keep their own colours. ---- */
+:root[data-theme="dark"] .console {
+  --sea: #0c1918;
+  --night: #0c1918;
+  --night-2: #10201f;
+  --card: #132624;
+  --card-2: #132624;
+  --card-3: #1c3431;
+  --panel: #132624;
+  --edge: #263f3b;
+  --edge-2: #36554f;
+  --ink: #e7eee5;
+  --ink-2: #b3c3ba;
+  --ink-3: #93a69c;
+  --rule-soft: #1a2f2c;
+  --beam: #cddc7e;
+  --beam-soft: #263419;
+  --sky: #6db5ad;
+  --sky-text: #8ed0c6;
+  --mint: #82d2a1;
+  --violet: #b99be2;
+  --coral: #e98c6b;
+  --chart-sea: #0f211f;
+  --chart-grid: #22403a;
+  --light: #e6bb62;
+  --light-bg: #3a2d12;
+  --good-bg: #16301f;
+  --warn-bg: #3b2415;
+  --info-bg: #13302b;
+  --learn-bg: #2a2140;
+  --button: #ddf598;
+  --button-ink: #10241f;
+  --glass: #132624ed;
+  --dark-tint: #192e2b;
+  --dark-chip: #213a36;
+  --dark-line: #2e4a45;
+  --dark-green: #aecd93;
+  color-scheme: dark;
+}
+:root[data-theme="dark"] .console .card { box-shadow: none; }
+:root[data-theme="dark"] .console .map-land { fill: #1f3a35; stroke: #2e5049; }
+:root[data-theme="dark"] .console table.grid th { background: #10201f; }
+:root[data-theme="dark"] .console table.grid tbody tr:hover { background: #172d2a; }
+:root[data-theme="dark"] .console .workspace-header { background: #0c1918ed; }
+:root[data-theme="dark"] .console .metric-card:first-child { background: #1a2f1f; border-color: #2e4a35; }
+:root[data-theme="dark"] .console .ops-primary { background: #ddf598; color: #143c35; border-color: #ddf598; }
+:root[data-theme="dark"] .console .ops-primary:hover { background: #c9e57f; }
+:root[data-theme="dark"] .console .ops-outline:hover { background: var(--dark-tint); }
+:root[data-theme="dark"] .console .ops-outline > span { background: var(--dark-chip); }
+:root[data-theme="dark"] .console .ops-data-strip b,
+:root[data-theme="dark"] .console .ops-status.needs_review { background: #3a2d12; color: #f0c76e; }
+:root[data-theme="dark"] .console .ops-tabs > button[aria-pressed="true"] { background: var(--dark-chip); color: var(--ink); border-color: var(--dark-line); }
+:root[data-theme="dark"] .console .ops-filter-inputs > label,
+:root[data-theme="dark"] .console .ops-decision-form textarea,
+:root[data-theme="dark"] .console .ops-profile-form input,
+:root[data-theme="dark"] .console .ops-profile-form select { background: #0f211f; border-color: var(--dark-line); color: var(--ink); }
+:root[data-theme="dark"] .console .ops-case-card,
+:root[data-theme="dark"] .console .ops-panel,
+:root[data-theme="dark"] .console .ops-agent { background: var(--card); border-color: var(--dark-line); }
+:root[data-theme="dark"] .console .ops-case-card:hover { border-color: #4f6f5c; box-shadow: none; }
+:root[data-theme="dark"] .console .ops-status { background: #222c29; color: #b3c3ba; }
+:root[data-theme="dark"] .console .ops-status.investigating { background: #163430; color: #8ed0c6; }
+:root[data-theme="dark"] .console .ops-status.resolved { background: #23331a; color: #b8d98a; }
+:root[data-theme="dark"] .console .ops-status.source_cleared { background: #222b28; color: #a3ada6; }
+:root[data-theme="dark"] .console .ops-aged { color: #e6bb62; }
+:root[data-theme="dark"] .console .ops-next-step,
+:root[data-theme="dark"] .console .ops-case-progress,
+:root[data-theme="dark"] .console .ops-evidence-summary,
+:root[data-theme="dark"] .console .ops-evidence-links > a,
+:root[data-theme="dark"] .console .ops-plan,
+:root[data-theme="dark"] .console .ops-conversation > .user,
+:root[data-theme="dark"] .console .ops-activity-explainer,
+:root[data-theme="dark"] .console .ops-prior-outcomes article { background: var(--dark-tint); border-color: var(--dark-line); }
+:root[data-theme="dark"] .console .ops-decision,
+:root[data-theme="dark"] .console .ops-investigation-brief,
+:root[data-theme="dark"] .console .ops-activity-banner { background: #1a2f22; border-color: #2e4a35; color: var(--dark-green); }
+:root[data-theme="dark"] .console .ops-inline-notice { background: #2e2a1a; color: #d9c98c; }
+:root[data-theme="dark"] .console .ops-owner i,
+:root[data-theme="dark"] .console .ops-timeline > li > i,
+:root[data-theme="dark"] .console .ops-watch-chips > span,
+:root[data-theme="dark"] .console .ops-watch-results > button > i,
+:root[data-theme="dark"] .console .ops-agent > header > i,
+:root[data-theme="dark"] .console .ops-agent > header > span { background: var(--dark-chip); border-color: var(--dark-line); color: var(--dark-green); }
+:root[data-theme="dark"] .console .ops-timeline > li > i.human,
+:root[data-theme="dark"] .console .ops-case-progress > .done i { background: #2b4223; border-color: #2b4223; color: #c3e19c; }
+:root[data-theme="dark"] .console .ops-case-progress i { border-color: var(--dark-line); }
+:root[data-theme="dark"] .console .ops-next-step small,
+:root[data-theme="dark"] .console .ops-case-bottom > span:last-child,
+:root[data-theme="dark"] .console .ops-case-progress > .done,
+:root[data-theme="dark"] .console .ops-owner-summary,
+:root[data-theme="dark"] .console .ops-decision-form > label,
+:root[data-theme="dark"] .console .ops-plan > span,
+:root[data-theme="dark"] .console .ops-profile-summary,
+:root[data-theme="dark"] .console .ops-watch-chips button,
+:root[data-theme="dark"] .console .ops-follow-label,
+:root[data-theme="dark"] .console .ops-activity-banner p,
+:root[data-theme="dark"] .console .ops-investigation-brief p { color: var(--dark-green); }
+:root[data-theme="dark"] .console .ops-form-error { color: #f08a76; }
+:root[data-theme="dark"] .console .ops-form-success { color: #9fd39a; }
+
+/* The sidebar's head: the brand and the fold button, which goes under the logo when folded.
+   The theme menu sits at the foot, above signing out, and opens upwards there. */
+.workspace-brand {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.workspace-tools {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.console .workspace-tool {
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: #b4c8be;
+  padding: 0;
+}
+.console .workspace-tool:hover,
+.console .workspace-tool[aria-expanded="true"] {
+  background: #ffffff12;
+  color: #f1f3e9;
+}
+.theme-menu {
+  position: relative;
+}
+.theme-menu-list {
+  position: absolute;
+  z-index: 60;
+  top: calc(100% + 6px);
+  left: 0;
+  min-width: 150px;
+  display: grid;
+  gap: 2px;
+  padding: 5px;
+  border: 1px solid #2e4847;
+  border-radius: 10px;
+  background: #183735;
+  box-shadow: 0 16px 40px #04120f66;
+}
+.theme-menu-list > button {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  border: 0;
+  border-radius: 7px;
+  background: none;
+  padding: 8px 9px;
+  color: #dbe5dd;
+  font-size: 13px;
+  text-align: left;
+}
+.theme-menu-list > button:hover {
+  background: #ffffff10;
+}
+.theme-menu-list > button > span {
+  flex: 1;
+}
+.theme-menu-list > button > svg:last-child {
+  color: #ddf78a;
+}
+.theme-menu-list[data-up] {
+  top: auto;
+  bottom: calc(100% + 6px);
+}
+.workspace-shell[data-collapsed="true"] .theme-menu > .sidebar-signout > span {
+  display: none;
+}
+.workspace-shell[data-collapsed="true"] .workspace-brand {
+  flex-direction: column;
+  gap: 14px;
+}
+.workspace-shell[data-collapsed="true"] .workspace-tools {
+  flex-direction: column;
+}
+@media (max-width: 1023px) {
+  .workspace-fold {
+    display: none !important;
+  }
+}
+/* The head row holds the brand and two tools in the sidebar's width. */
+.workspace-brand > a {
+  min-width: 0;
+  gap: 9px;
+  padding: 0 2px;
+}
+.workspace-brand > a > svg {
+  width: 28px;
+  height: 28px;
+}
+.workspace-brand .workspace-brand-text strong {
+  font-size: 18px;
+}
+.workspace-brand .workspace-brand-text {
+  min-width: 0;
+}
+/* "Maritime intelligence" takes two short lines, as it did before the fold button was here. */
+.workspace-brand .workspace-brand-text small {
+  max-width: 96px;
+}
+.console .workspace-tool {
+  width: 28px;
+  height: 28px;
+}
+:root[data-theme="dark"] .console .entity-panel { background: var(--night-2); }
+:root[data-theme="dark"] .console .trace-endpoint { background: var(--dark-tint); }
+:root[data-theme="dark"] .console .trace-results { background: var(--night-2); }
+
+/* ---- Ask the desk ---- */
+.desk-chat {
+  display: grid;
+  gap: 22px;
+}
+.desk-chat-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+}
+.console .desk-chat-head h1 {
+  font-family: var(--font-plex), sans-serif;
+  font-size: clamp(30px, 3vw, 44px);
+  letter-spacing: -0.05em;
+  font-weight: 500;
+  margin: 8px 0 8px;
+}
+.desk-chat-head p:not(.ops-kicker) {
+  max-width: 62ch;
+  color: var(--ink-2);
+  font-size: 15px;
+  line-height: 1.6;
+}
+.desk-chat-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+.desk-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px;
+  border: 1px solid var(--edge);
+  border-radius: 20px;
+  background: var(--panel);
+  font-size: 12px;
+  color: var(--ink-2);
+}
+.desk-status i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--coral);
+}
+.desk-status[data-ready] i {
+  background: var(--mint);
+  box-shadow: 0 0 0 4px var(--good-bg);
+}
+.desk-chat-body {
+  display: grid;
+  grid-template-columns: 250px minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+.desk-sessions {
+  position: sticky;
+  top: 86px;
+  max-height: calc(100dvh - 120px);
+  overflow-y: auto;
+  padding: 16px;
+  border: 1px solid var(--edge);
+  border-radius: 14px;
+  background: var(--panel);
+}
+.desk-sessions h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 12px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.desk-sessions ul {
+  display: grid;
+  gap: 2px;
+}
+.desk-sessions a {
+  display: grid;
+  gap: 1px;
+  padding: 9px 10px;
+  border-radius: 9px;
+  font-size: 13px;
+  color: var(--ink);
+}
+.desk-sessions a:hover {
+  background: var(--rule-soft);
+}
+.desk-sessions a[aria-current="page"] {
+  background: var(--beam-soft);
+  font-weight: 600;
+}
+.desk-sessions small {
+  font-size: 11px;
+  color: var(--ink-3);
+  font-weight: 400;
+}
+.desk-sessions > p {
+  font-size: 12px;
+  color: var(--ink-3);
+  line-height: 1.6;
+}
+.desk-thread {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-height: 560px;
+  padding: 22px;
+  border: 1px solid var(--edge);
+  border-radius: 14px;
+  background: var(--panel);
+}
+.desk-welcome {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  padding: 36px 20px 10px;
+  text-align: center;
+}
+.desk-welcome h2 {
+  margin: 4px 0 0;
+  font-size: 24px;
+  font-weight: 500;
+  letter-spacing: -0.03em;
+}
+.desk-welcome p {
+  max-width: 54ch;
+  color: var(--ink-2);
+  font-size: 14px;
+  line-height: 1.6;
+}
+.desk-mark {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  background: linear-gradient(145deg, #ddf598, #9dc06d);
+  color: #173c35;
+}
+.desk-mark-small {
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  flex-shrink: 0;
+}
+.desk-messages {
+  display: grid;
+  gap: 18px;
+}
+.desk-messages > li[data-role="user"] {
+  display: flex;
+  justify-content: flex-end;
+}
+.desk-bubble {
+  min-width: 0;
+  padding: 13px 16px;
+  border: 1px solid var(--edge);
+  border-radius: 14px;
+  background: var(--night-2);
+  font-size: 14px;
+  line-height: 1.65;
+}
+.desk-bubble-user {
+  max-width: 80%;
+  border-color: transparent;
+  border-bottom-right-radius: 4px;
+  background: var(--button);
+  color: var(--button-ink);
+  white-space: pre-wrap;
+}
+.desk-answer {
+  display: flex;
+  gap: 12px;
+  max-width: 92%;
+}
+.desk-answer .desk-bubble {
+  border-top-left-radius: 4px;
+}
+.desk-read {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--edge);
+  font-size: 12px;
+}
+.desk-read > span {
+  color: var(--ink-3);
+}
+.desk-ask {
+  display: grid;
+  gap: 12px;
+  margin-top: auto;
+}
+.desk-suggest {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.console .desk-suggest > button {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 13px 14px;
+  border: 1px solid var(--edge);
+  border-radius: 12px;
+  background: var(--night-2);
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.45;
+  text-align: left;
+}
+.console .desk-suggest > button:hover {
+  border-color: var(--edge-2);
+  background: var(--rule-soft);
+}
+.desk-suggest > button > svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+  color: var(--sky);
+}
+.desk-composer {
+  border: 1px solid var(--edge-2);
+  border-radius: 14px;
+  background: var(--night-2);
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.desk-composer:focus-within {
+  border-color: var(--sky);
+  box-shadow: 0 0 0 3px var(--info-bg);
+}
+.console .desk-composer textarea {
+  display: block;
+  width: 100%;
+  min-height: 56px;
+  max-height: 240px;
+  resize: vertical;
+  border: 0;
+  outline: none;
+  background: transparent;
+  padding: 14px 16px 6px;
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1.55;
+}
+.desk-composer[data-disabled] {
+  opacity: 0.65;
+}
+.desk-composer-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 8px 8px 12px;
+}
+.console .desk-model select {
+  max-width: 260px;
+  padding: 6px 28px 6px 10px;
+  border: 1px solid var(--edge);
+  border-radius: 8px;
+  background-color: var(--panel);
+  color: var(--ink-2);
+  font-size: 12px;
+}
+.desk-count {
+  flex: 1;
+  min-width: 0;
+  font-size: 11px;
+  color: var(--ink-3);
+  text-align: right;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.console .desk-send {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+  border: 0;
+  border-radius: 10px;
+  background: var(--button);
+  color: var(--button-ink);
+  padding: 0;
+}
+.console .desk-send:disabled {
+  opacity: 0.4;
+}
+.desk-note,
+.desk-error {
+  font-size: 12.5px;
+  color: var(--ink-3);
+}
+.desk-error {
+  color: var(--coral);
+}
+.desk-waiting {
+  display: grid;
+  gap: 12px;
+}
+.desk-waiting .desk-bubble-user {
+  justify-self: end;
+}
+.desk-thinking {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.desk-thinking span {
+  display: inline-flex;
+  gap: 4px;
+}
+.desk-thinking i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--sky);
+  animation: desk-dot 1.2s infinite ease-in-out;
+}
+.desk-thinking i:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.desk-thinking i:nth-child(3) {
+  animation-delay: 0.3s;
+}
+@keyframes desk-dot {
+  0%,
+  80%,
+  100% {
+    opacity: 0.25;
+    transform: translateY(0);
+  }
+  40% {
+    opacity: 1;
+    transform: translateY(-3px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .desk-thinking i {
+    animation: none;
+  }
+}
+@media (max-width: 900px) {
+  .desk-chat-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .desk-chat-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .desk-sessions {
+    position: static;
+    max-height: 220px;
+  }
+  .desk-suggest {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .desk-answer,
+  .desk-bubble-user {
+    max-width: 100%;
+  }
+  .desk-count {
+    display: none;
+  }
+}
+
+/* What a model wrote: lists and headings as a reader expects them. */
+.prose-answer {
+  display: grid;
+  gap: 8px;
+}
+.prose-answer ul,
+.prose-answer ol {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding-left: 20px;
+}
+.prose-answer ul {
+  list-style: disc;
+}
+.prose-answer ol {
+  list-style: decimal;
+}
+.prose-answer li::marker {
+  color: var(--ink-3);
+}
+.prose-answer .prose-heading {
+  margin-top: 4px;
+  font-weight: 600;
+}
+.prose-answer pre {
+  margin: 0;
+  padding: 10px 12px;
+  overflow-x: auto;
+  border-radius: 8px;
+  background: var(--rule-soft);
+  font-size: 12.5px;
+}
+
+/* ---- The search box of the workspace, with results under it as you type ---- */
+.top-search {
+  position: relative;
+  display: flex;
+  gap: 8px;
+}
+.top-search-results {
+  position: absolute;
+  z-index: 40;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  display: grid;
+  max-height: 420px;
+  overflow-y: auto;
+  padding: 6px;
+  border: 1px solid var(--edge);
+  border-radius: 12px;
+  background: var(--panel);
+  box-shadow: 0 18px 44px #10261e26;
+}
+.top-search-results > a {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 10px;
+  border-radius: 8px;
+  color: var(--ink);
+}
+.top-search-results > a:hover,
+.top-search-results > a[aria-selected="true"] {
+  background: var(--rule-soft);
+}
+.top-search-results > a > span {
+  display: grid;
+  min-width: 0;
+}
+.top-search-results strong {
+  font-size: 13px;
+  font-weight: 600;
+}
+.top-search-results small {
+  font-size: 11px;
+  color: var(--ink-3);
+}
+.top-search-results em {
+  flex-shrink: 0;
+  font-style: normal;
+  font-size: 11px;
+  color: var(--ink-3);
+}
+.top-search-results > p {
+  padding: 12px 10px;
+  font-size: 13px;
+  color: var(--ink-3);
+}
+
+/* Ships in port now at the busiest ports, from live AIS positions. */
+.live-ports {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 10px;
+}
+.live-ports li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 2px 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--edge);
+  border-radius: 10px;
+}
+.live-ports strong {
+  font-size: 22px;
+  font-weight: 500;
+  letter-spacing: -0.03em;
+}
+.live-ports span {
+  grid-column: 1 / -1;
+  font-size: 11px;
+  color: var(--ink-3);
+}

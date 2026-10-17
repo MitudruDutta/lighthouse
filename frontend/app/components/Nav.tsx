@@ -11,7 +11,6 @@ import {
   LayoutDashboard,
   type LucideIcon,
   MessagesSquare,
-  Search,
   Ship,
   UserRound,
 } from "lucide-react";
@@ -25,19 +24,18 @@ const GROUPS: [string, [string, string, LucideIcon][]][] = [
     "Operations",
     [
       ["/dashboard", "Needs attention", LayoutDashboard],
-      ["/ports", "Global ports", Globe2],
+      ["/ports", "World ports", Globe2],
       ["/berths", "Berth board", Ship],
-      ["/search", "Search memory", Search],
     ],
   ],
   [
     "Intelligence",
     [
       ["/agents", "Agent activity", Bot],
-      ["/investigate", "Investigate", Network],
-      ["/desk", "Investigations", Inbox],
+      ["/investigate", "Evidence graph", Network],
+      ["/desk", "Case files", Inbox],
       ["/desk/chat", "Ask the desk", MessagesSquare],
-      ["/episodes", "Source history", History],
+      ["/episodes", "Event history", History],
       ["/learned", "Lessons & playbooks", BookOpenCheck],
     ],
   ],

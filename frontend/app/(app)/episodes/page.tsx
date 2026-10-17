@@ -11,12 +11,14 @@ const SITUATIONS: [string, string][] = [
   ["berth-overload", "Berth overloads"],
 ];
 
+export const metadata = { title: "Event history" };
+
 export default function Episodes(props: PageProps<"/episodes">) {
   return (
     <div className="grid gap-5">
       <div>
         <p className="eyebrow mb-3">Intelligence / Event history</p>
-        <h1 className="display">Source history<span className="text-[var(--sky)]">.</span></h1>
+        <h1 className="display">Event history<span className="text-[var(--sky)]">.</span></h1>
         <p className="mt-1 text-sm text-muted">
           Source observations and their history. Open a case to review evidence, ownership, and your team’s decisions.
         </p>
@@ -60,7 +62,7 @@ async function List({ searchParams }: PageProps<"/episodes">) {
       ) : (
         <div>
           <p className="mb-3 text-[11px] text-faint xl:hidden">Scroll sideways for evidence, agent and outcome →</p>
-          <div className="overflow-x-auto" role="region" aria-label="Source history" tabIndex={0}>
+          <div className="overflow-x-auto" role="region" aria-label="Event history" tabIndex={0}>
           <table className="grid episodes-table">
             <thead>
               <tr>

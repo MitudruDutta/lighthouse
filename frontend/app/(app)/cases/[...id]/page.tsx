@@ -110,7 +110,7 @@ async function Body({ params }: PageProps<"/cases/[...id]">) {
     <div className="ops-case-page">
       <Link href="/desk" className="ops-back">
         <ArrowLeft size={16} />
-        Investigations
+        Case files
       </Link>
       <header className="ops-case-heading">
         <div>

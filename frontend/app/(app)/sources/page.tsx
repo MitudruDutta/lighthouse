@@ -1,4 +1,4 @@
-import { CheckCircle2, CloudDownload, Database, Globe2, ShieldCheck, Ship, TriangleAlert } from "lucide-react";
+import { CheckCircle2, CloudDownload, Database, Globe2, Radio, ShieldCheck, Ship, TriangleAlert } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
@@ -83,6 +83,24 @@ async function Health() {
         <div className="mt-5 flex justify-between gap-3 text-xs"><Link href="/ports" className="link">Explore global ports →</Link><a href="https://portwatch.imf.org/" className="link" target="_blank" rel="noreferrer">Source website ↗</a></div>
       </Card>
     </div>
+    <LiveSource status={status} now={now} />
     <div className="grid gap-4 sm:grid-cols-3">{[[Database, "Versioned memory", "A change adds history. The graph keeps what was true before."], [CloudDownload, "Automatic updates", "Scheduled feeds add new observations without replacing prior evidence."], [ShieldCheck, "Visible provenance", "Fintraffic: CC BY 4.0. IMF PortWatch: commercial reuse requires IMF permission."]].map(([Icon, title, description]) => { const Symbol = Icon as typeof Database; return <div key={String(title)} className="flex items-start gap-3 p-2"><Symbol size={18} className="mt-0.5 shrink-0 text-[var(--sky)]" aria-hidden /><div><h3 className="text-xs font-semibold">{String(title)}</h3><p className="mt-1 text-xs leading-relaxed text-faint">{String(description)}</p></div></div>; })}</div>
   </>;
+}
+
+/** Live ship positions: off until an administrator adds a key, then within minutes. */
+function LiveSource({ status, now }: { status: Status; now: number }) {
+  const live = status.last_ais;
+  const fresh = !!live && isFresh(live.at, status.now, 35) && !!status.availability.ais;
+  return (
+    <Card>
+      <header className="flex items-start justify-between gap-3"><div className="flex items-center gap-3"><span className="rounded-lg bg-[var(--good-bg)] p-2.5 text-[var(--mint)]"><Radio size={20} aria-hidden /></span><div><h2 className="text-base font-semibold">Live ship positions</h2><p className="mt-0.5 text-xs text-faint">AIS · aisstream.io</p></div></div><Badge tone={fresh ? "closed" : "busy"}>{!live ? "Off" : fresh ? "Live" : "Updates delayed"}</Badge></header>
+      {live ? (
+        <dl className="mt-6 grid grid-cols-2 gap-x-4 gap-y-5 text-xs sm:grid-cols-4"><div><dt className="text-faint">Last update</dt><dd className="mt-1 font-medium">{ago(live.at, now)}</dd></div><div><dt className="text-faint">Usual cadence</dt><dd className="mt-1 font-medium">Every 15 minutes</dd></div><div><dt className="text-faint">Ports watched</dt><dd className="mt-1 font-medium">{live.ports}</dd></div><div><dt className="text-faint">Cargo ships & tankers in port</dt><dd className="mt-1 font-medium">{live.ships_now}</dd></div></dl>
+      ) : (
+        <p className="mt-4 text-xs leading-relaxed text-muted">Off until an administrator adds an aisstream.io key. Then the busiest ports show the cargo ships and tankers in port within minutes, beside PortWatch&apos;s daily counts, which are published about a week later.</p>
+      )}
+      <div className="mt-5 flex justify-between gap-3 text-xs"><Link href="/ports" className="link">See ports in port now →</Link><a href="https://aisstream.io/" className="link" target="_blank" rel="noreferrer">Source website ↗</a></div>
+    </Card>
+  );
 }

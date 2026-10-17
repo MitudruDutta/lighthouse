@@ -23,6 +23,41 @@ export function plain(text: string): string {
     .trim();
 }
 
+export type Block =
+  | { kind: "p" | "h"; text: string }
+  | { kind: "ul" | "ol"; items: string[] }
+  | { kind: "code"; text: string };
+
+/** What a model wrote in Markdown, as blocks to show: paragraphs, headings, bulleted and
+ * numbered lists, and fenced code. Inline marks stay in the text for the line to render. */
+export function blocks(text: string): Block[] {
+  const found: Block[] = [];
+  const lines = text.replace(/\r\n?/g, "\n").split("\n");
+  for (let n = 0; n < lines.length; n++) {
+    const line = lines[n];
+    if (/^\s*```/.test(line)) {
+      const code: string[] = [];
+      while (++n < lines.length && !/^\s*```/.test(lines[n])) code.push(lines[n]);
+      found.push({ kind: "code", text: code.join("\n") });
+      continue;
+    }
+    const bullet = line.match(/^\s{0,3}[*+\-•]\s+(.*)$/);
+    const number = line.match(/^\s{0,3}\d+[.)]\s+(.*)$/);
+    const heading = line.match(/^\s{0,3}#{1,6}\s+(.*)$/);
+    const last = found.at(-1);
+    if (bullet || number) {
+      const kind = bullet ? "ul" : "ol";
+      const item = (bullet ?? number)![1];
+      if (last && last.kind === kind) last.items.push(item);
+      else found.push({ kind, items: [item] });
+    } else if (heading) found.push({ kind: "h", text: heading[1] });
+    else if (!line.trim()) continue;
+    else if (last && last.kind === "p" && lines[n - 1]?.trim()) last.text += "\n" + line;
+    else found.push({ kind: "p", text: line });
+  }
+  return found;
+}
+
 /** At most `most` characters, cut between words, with an ellipsis when it was cut. */
 export function excerpt(text: string, most: number): string {
   if (text.length <= most) return text;
@@ -30,6 +65,14 @@ export function excerpt(text: string, most: number): string {
   const space = cut.lastIndexOf(" ");
   const kept = space > most * 0.6 ? cut.slice(0, space) : cut;
   return `${kept.replace(/[\s,;:.–-]+$/, "")}…`;
+}
+
+// What the arrivals feed writes for a name it does not know: "not known", in Finnish.
+const UNNAMED = new Set(["ei tiedossa", "unknown"]);
+
+/** A name from the feed, or undefined when the feed only says it does not know one. */
+export function known(name: string | null | undefined): string | undefined {
+  return name && !UNNAMED.has(name.trim().toLowerCase()) ? name : undefined;
 }
 
 export function agentName(by: string | undefined): string {

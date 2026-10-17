@@ -6,8 +6,8 @@ import { Card, Loading } from "@/app/components/ui";
 import { maybe, type Status } from "@/app/lib/api";
 import { type Queue } from "@/app/lib/operations";
 import { operations } from "@/app/lib/operations-server";
-export const metadata: Metadata = { title: "Investigations" };
-export default function Investigations() {
+export const metadata: Metadata = { title: "Case files" };
+export default function CaseFiles() {
   return (
     <Suspense fallback={<Loading what="investigations" />}>
       <Body />
