@@ -13,8 +13,6 @@ This repository holds two products:
 | **Lighthouse Memory** | A temporal memory library for AI agents (`pip install lighthouse-graph`), a hosted Memory API with an MCP server, a developer console, and documentation | `lighthouse-memory/`, `backend/app/memory_*`, `memory-site/`, `docs-site/`, `plugins/` |
 | **Lighthouse Maritime Intelligence** | An operations console for ports and vessels. Agents watch live public shipping data, open cases with evidence, and learn from what happens. Built on Lighthouse Memory | `backend/`, `frontend/` |
 
-Built for Graph Hacks (WeMakeDevs × FalkorDB), Track 01 (Agents That Act on Connected Data) and Track 02 (Agent Memory and Coordination).
-
 ## Live
 
 | Site | Address |
@@ -36,7 +34,6 @@ Create an account on either site; the same account works on both.
 - [Agents](#agents)
 - [Data sources](#data-sources)
 - [Measured results](#measured-results)
-- [How it meets the hackathon tracks](#how-it-meets-the-hackathon-tracks)
 - [Security](#security)
 - [Deployment](#deployment)
 - [Development](#development)
@@ -338,20 +335,6 @@ Every number comes from the running system and can be reproduced: `cd backend &&
 | Graph algorithms are fast | On 100,000 entities and 550,000 relations: 77 ms for connected groups, 64 ms for PageRank, 0.5 ms for a four-step connection; repeated questions 0.2 to 0.3 ms |
 
 One result went against us, and is published as measured: replaying 400 days of PortWatch data, lessons did not improve the forecast of whether an unusual port day returns to normal within three days (97.8% with and without memory), because almost every spell does.
-
-## How it meets the hackathon tracks
-
-| Track focus | In Lighthouse |
-| --- | --- |
-| Episodic, semantic, and procedural memory | `Episode`, `Lesson`, `Playbook`, and `promote()` between them |
-| Persistent conversation history | `Session` and `Message` chains per tenant, mentioning the vessels and ports they discuss |
-| Shared state and handoffs | Atomic `Task` claims with leases and dependencies; `Handoff` pointing at evidence |
-| Separate memory per user or tenant | One FalkorDB graph per tenant, plus the shared world graph |
-| Multi-hop reasoning | `connection()` (shortest path), `similar()`, `pointing_at()`, `related()` at any point in time |
-| Graph algorithms as agent tools | PageRank (`algo.pageRank`), connected incidents (`algo.WCC`), shortest paths, exposed as MCP tools |
-| Tool selection through MCP | 20 typed tools used by the model-driven Desk |
-| Actions based on the graph | The Watcher and Port Watcher open cases, follow playbooks, raise tasks, and hand off |
-| Explainable results | Every entry cites its evidence as it was at the time; every connection step states its relation and validity |
 
 ## Security
 
