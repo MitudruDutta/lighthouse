@@ -29,3 +29,7 @@ deploy/aws/.user-data
 
 # Local agent instructions
 CLAUDE.md
+
+# Vercel project links
+.vercel
+.env.local
