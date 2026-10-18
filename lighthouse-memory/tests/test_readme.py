@@ -43,7 +43,7 @@ def test_readme_example_runs_and_gives_the_printed_results(db):
         talk = lighthouse.messages(graph, "ann", "main")
         assert [(m["seq"], m["role"], m["by"]) for m in talk] == [
             (1, "user", "ann"),
-            (2, "helper", "desk"),
+            (2, "helper", "assistant"),
         ]
         assert [m["text"] for m in talk] == ["why is d1 hot?", "the fan stopped"]
         assert lighthouse.said_about(graph, "ann", (device, "d1"))[0]["text"] == "the fan stopped"
