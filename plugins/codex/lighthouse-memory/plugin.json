@@ -1,0 +1,14 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "lighthouse-memory",
+  "version": "0.1.0",
+  "description": "A project's Lighthouse Memory in Codex: memories with every version kept, episodes with evidence, tasks, and handoffs between agents.",
+  "author": {
+    "name": "Mitudru Dutta",
+    "url": "https://github.com/MitudruDutta"
+  },
+  "homepage": "https://github.com/MitudruDutta/lighthouse",
+  "repository": "https://github.com/MitudruDutta/lighthouse",
+  "license": "Apache-2.0",
+  "keywords": ["memory", "mcp", "falkordb", "agents", "knowledge-graph"]
+}

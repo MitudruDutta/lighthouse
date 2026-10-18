@@ -137,7 +137,7 @@ pip install lighthouse-graph
 docker run -p 6379:6379 -it --rm falkordb/falkordb:6.0.2
 ```
 
-See [`lighthouse-memory/README.md`](lighthouse-memory/README.md) for the quick start and API, or connect an agent to the hosted service: create a project and an API key in the Memory console, then add the MCP server to Claude Code with the command shown on the console's **Agents & MCP** page, or install the Claude Code plugin in [`plugins/lighthouse-memory`](plugins/lighthouse-memory).
+See [`lighthouse-memory/README.md`](lighthouse-memory/README.md) for the quick start and API, or connect an agent to the hosted service: create a project and an API key in the Memory console, then install the plugin for your agent from [`plugins/`](plugins): Claude Code, Cursor, or Codex. The console's **Agents & MCP** page shows the steps with your key filled in.
 
 ## Graph data model
 
@@ -339,7 +339,7 @@ cd ../frontend && bun install && bun run dev         # the console on http://loc
 | `frontend/` | Maritime Intelligence console (Next.js) |
 | `memory-site/` | Lighthouse Memory website and developer console (Next.js) |
 | `docs-site/` | Lighthouse Memory documentation (Next.js) |
-| `plugins/` | The Claude Code plugin for Lighthouse Memory |
+| `plugins/` | Lighthouse Memory plugins for Claude Code, Cursor, and Codex |
 | `deploy/` | AWS deployment scripts |
 | `mutation/` | Mutation testing for both suites |
 | `measurements/` | Results of the measures above |

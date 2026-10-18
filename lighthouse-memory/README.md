@@ -343,7 +343,7 @@ The library connects directly to FalkorDB and needs no API key. For agents that 
 
 - **HTTP API** with project API keys and scopes: memories, history, connection paths, episodes, tasks, and handoffs.
 - **MCP server** at `/mcp` on the same service, with a project key as the bearer token.
-- **Claude Code plugin** in `plugins/lighthouse-memory`, which connects Claude Code to the MCP server and adds a skill for using it.
+- **Plugins for Claude Code, Cursor, and Codex** in the repository's `plugins/` folder. Each connects the agent to the MCP server and adds a skill for using it.
 
 ## Guarantees
 

@@ -1,7 +1,7 @@
 "use client";
 import { Bot, KeyRound, Plug, ShieldCheck, Terminal } from "lucide-react";
 import { useState } from "react";
-import { CLIENTS, PLACEHOLDER, TOOLS, rest } from "../../lib/agents";
+import { CLIENTS, PLACEHOLDER, PLUGINS, TOOLS, rest } from "../../lib/agents";
 import type { State } from "./views";
 import { Code, CopyButton, Tabs } from "./ui";
 
@@ -18,8 +18,10 @@ export function AgentsView({
   secret: { name: string; secret: string } | null;
 }) {
   const [client, setClient] = useState(CLIENTS[0].id);
+  const [plugin, setPlugin] = useState(PLUGINS[0].id);
   const [language, setLanguage] = useState<Api>("curl");
   const chosen = CLIENTS.find((item) => item.id === client) ?? CLIENTS[0];
+  const bundle = PLUGINS.find((item) => item.id === plugin) ?? PLUGINS[0];
   const key = secret?.secret ?? PLACEHOLDER;
   const samples = rest(api, key);
   return (
@@ -97,23 +99,23 @@ export function AgentsView({
             <header className="cx-panel-head">
               <div>
                 <h2>
-                  <Terminal size={15} /> Claude Code plugin
+                  <Terminal size={15} /> Plugins
                 </h2>
                 <p>
-                  The MCP server and a skill that teaches Claude when to remember, recall, and
-                  record episodes.
+                  The MCP server and a skill that teaches your agent when to remember, recall,
+                  and record episodes.
                 </p>
               </div>
             </header>
-            <Code
-              title="In Claude Code"
-              code="/plugin install lighthouse-memory --marketplace MitudruDutta/lighthouse"
-              note="Before Claude Code 2.1.275: /plugin marketplace add MitudruDutta/lighthouse, then /plugin install lighthouse-memory@lighthouse."
+            <Tabs
+              label="Plugin"
+              items={PLUGINS.map((item) => [item.id, item.name])}
+              value={plugin}
+              onChange={setPlugin}
             />
-            <Code
-              title="Before starting Claude Code"
-              code={`export LIGHTHOUSE_MEMORY_URL=${api}\nexport LIGHTHOUSE_API_KEY=${key}`}
-            />
+            {bundle.steps.map((step) => (
+              <Code key={step.title} title={step.title} code={step.code(api, key)} note={step.note} />
+            ))}
           </section>
           <section className="cx-panel">
             <header className="cx-panel-head">

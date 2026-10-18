@@ -9,7 +9,7 @@
   "plugins": [
     {
       "name": "lighthouse-memory",
-      "source": "./plugins/lighthouse-memory",
+      "source": "./plugins/claude/lighthouse-memory",
       "description": "Gives Claude Code a project's Lighthouse Memory over MCP, and a skill for when to remember, recall, and record episodes.",
       "category": "productivity"
     }

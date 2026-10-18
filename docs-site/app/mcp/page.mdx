@@ -40,6 +40,27 @@ claude mcp add --transport http lighthouse-memory https://memory.example.com/mcp
   --header "Authorization: Bearer YOUR_PROJECT_API_KEY"
 ```
 
+**Cursor** (`~/.cursor/mcp.json` or `.cursor/mcp.json`):
+
+```json
+{
+  "mcpServers": {
+    "lighthouse-memory": {
+      "url": "https://memory.example.com/mcp",
+      "headers": { "Authorization": "Bearer YOUR_PROJECT_API_KEY" }
+    }
+  }
+}
+```
+
+**Codex** (`~/.codex/config.toml`) reads the key from the environment variable it names:
+
+```toml
+[mcp_servers.lighthouse-memory]
+url = "https://memory.example.com/mcp"
+bearer_token_env_var = "LIGHTHOUSE_API_KEY"
+```
+
 **Claude Desktop** connects to a server that needs a header through `mcp-remote`, which needs Node.js. In `claude_desktop_config.json`:
 
 ```json
@@ -81,9 +102,13 @@ async def main():
 asyncio.run(main())
 ```
 
-## The Claude Code plugin
+## Plugins
 
-The plugin adds the MCP server and a skill that tells Claude when to remember, when to recall first, and how to record work as episodes with evidence. In Claude Code:
+A plugin adds the MCP server and a skill that tells the agent when to remember, when to recall first, and how to record work as episodes with evidence. There is one for each of Claude Code, Cursor, and Codex, in the repository's `plugins/` folder.
+
+### Claude Code
+
+In Claude Code:
 
 ```text
 /plugin install lighthouse-memory --marketplace MitudruDutta/lighthouse
@@ -96,7 +121,33 @@ export LIGHTHOUSE_MEMORY_URL=https://memory.example.com
 export LIGHTHOUSE_API_KEY=YOUR_PROJECT_API_KEY
 ```
 
-The plugin lives in the repository's `plugins/lighthouse-memory/`; the marketplace that lists it is `.claude-plugin/marketplace.json`.
+The plugin lives in `plugins/claude/lighthouse-memory/`; the marketplace that lists it is `.claude-plugin/marketplace.json`.
+
+### Cursor
+
+Copy the plugin into Cursor's local plugins folder, then run **Developer: Reload Window**:
+
+```bash
+git clone https://github.com/MitudruDutta/lighthouse.git
+mkdir -p ~/.cursor/plugins/local
+cp -r lighthouse/plugins/cursor/lighthouse-memory ~/.cursor/plugins/local/
+```
+
+Set the plugin's `LIGHTHOUSE_API_KEY` variable to your project key under **Plugins**, **Configure**. A team can also import the repository as a marketplace: it lists the plugin in `.cursor-plugin/marketplace.json`.
+
+### Codex
+
+Add the repository as a plugin marketplace, then install the plugin from `/plugins` in Codex. Codex asks for the project API key when you install it:
+
+```bash
+codex plugin marketplace add MitudruDutta/lighthouse
+```
+
+The plugin follows the Agent Plugins format, in `plugins/codex/lighthouse-memory/`; the marketplace that lists it is `.agents/plugins/marketplace.json`.
+
+### Another address
+
+The Cursor and Codex plugins connect to the local stack at `http://localhost:8200/mcp`. For another address, change `url` in the plugin's `mcp.json`. The Claude Code plugin reads the address from `LIGHTHOUSE_MEMORY_URL`.
 
 ## Your own MCP server on the library
 

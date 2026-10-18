@@ -13,6 +13,7 @@ export type Client = {
 };
 
 const json = (value: unknown) => JSON.stringify(value, null, 2);
+const bearer = (key: string) => ({ Authorization: `Bearer ${key}` });
 
 export const CLIENTS: Client[] = [
   {
@@ -41,6 +42,22 @@ export const CLIENTS: Client[] = [
     note: "Needs Node.js. Restart Claude Desktop after saving.",
   },
   {
+    id: "cursor",
+    name: "Cursor",
+    where: "~/.cursor/mcp.json or .cursor/mcp.json",
+    language: "json",
+    code: (url, key) => json({ mcpServers: { [SERVER]: { url, headers: bearer(key) } } }),
+  },
+  {
+    id: "codex",
+    name: "Codex",
+    where: "~/.codex/config.toml",
+    language: "toml",
+    code: (url) =>
+      `[mcp_servers.${SERVER}]\nurl = "${url}"\nbearer_token_env_var = "LIGHTHOUSE_API_KEY"`,
+    note: "Codex reads the key from the environment: export LIGHTHOUSE_API_KEY first.",
+  },
+  {
     id: "python",
     name: "Python",
     where: "Any agent framework, with the MCP SDK",
@@ -61,6 +78,56 @@ async def main():
 
 
 asyncio.run(main())`,
+  },
+];
+
+// The plugins in the repository's plugins/ folder: the MCP server and a skill for when to
+// remember, recall, and record episodes. Cursor and Codex plugins connect to the local stack's
+// endpoint; for another address, change the url in the plugin's mcp.json.
+export type Plugin = {
+  id: string;
+  name: string;
+  steps: { title: string; code: (api: string, key: string) => string; note?: string }[];
+};
+
+export const PLUGINS: Plugin[] = [
+  {
+    id: "claude-code",
+    name: "Claude Code",
+    steps: [
+      {
+        title: "In Claude Code",
+        code: () => "/plugin install lighthouse-memory --marketplace MitudruDutta/lighthouse",
+        note: "Before Claude Code 2.1.275: /plugin marketplace add MitudruDutta/lighthouse, then /plugin install lighthouse-memory@lighthouse.",
+      },
+      {
+        title: "Before starting Claude Code",
+        code: (api, key) => `export LIGHTHOUSE_MEMORY_URL=${api}\nexport LIGHTHOUSE_API_KEY=${key}`,
+      },
+    ],
+  },
+  {
+    id: "cursor",
+    name: "Cursor",
+    steps: [
+      {
+        title: "In a terminal",
+        code: () =>
+          "git clone https://github.com/MitudruDutta/lighthouse.git\nmkdir -p ~/.cursor/plugins/local\ncp -r lighthouse/plugins/cursor/lighthouse-memory ~/.cursor/plugins/local/",
+        note: "Then run Developer: Reload Window in Cursor, and set LIGHTHOUSE_API_KEY to your project key under Plugins, Configure.",
+      },
+    ],
+  },
+  {
+    id: "codex",
+    name: "Codex",
+    steps: [
+      {
+        title: "In a terminal",
+        code: () => "codex plugin marketplace add MitudruDutta/lighthouse",
+        note: "Then run codex, open /plugins, install Lighthouse Memory, and enter your project API key when it asks. Start a new session to use it.",
+      },
+    ],
   },
 ];
 

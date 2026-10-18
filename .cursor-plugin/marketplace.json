@@ -1,0 +1,16 @@
+{
+  "name": "lighthouse",
+  "owner": {
+    "name": "Mitudru Dutta"
+  },
+  "metadata": {
+    "description": "Plugins for Lighthouse Memory: versioned, connected memory for agents on FalkorDB."
+  },
+  "plugins": [
+    {
+      "name": "lighthouse-memory",
+      "source": "plugins/cursor/lighthouse-memory",
+      "description": "Gives Cursor a project's Lighthouse Memory over MCP, and a skill for when to remember, recall, and record episodes."
+    }
+  ]
+}
