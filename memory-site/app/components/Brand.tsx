@@ -1,3 +1,4 @@
+"use client";
 import Link from "next/link";
 export function Mark({ size = 28 }: { size?: number }) {
   return (
@@ -18,7 +19,17 @@ export function Mark({ size = 28 }: { size?: number }) {
 }
 export function Brand() {
   return (
-    <Link href="/" className="brand">
+    <Link
+      href="/"
+      className="brand"
+      onClick={(event) => {
+        // On the landing page already: go back to the top and drop any #section.
+        if (window.location.pathname !== "/") return;
+        event.preventDefault();
+        history.replaceState(history.state, "", "/");
+        window.scrollTo({ top: 0 });
+      }}
+    >
       <Mark />
       <span>
         Lighthouse<span className="brand-sub">Memory</span>

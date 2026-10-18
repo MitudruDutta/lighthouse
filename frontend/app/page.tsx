@@ -11,6 +11,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 
 import { HarborScene } from "./components/HarborScene";
+import { HomeLink } from "./components/HomeLink";
 import {
   AgentRelay,
   ConnectedDiagram,
@@ -41,12 +42,12 @@ export default function Landing() {
       </a>
       <div className="landing-shell">
         <header className="landing-nav">
-          <Link href="/" className="landing-brand">
+          <HomeLink className="landing-brand">
             <Logo size={33} />
             <span>
               Lighthouse<span>.</span>
             </span>
-          </Link>
+          </HomeLink>
           <nav aria-label="Product navigation">
             <a href="#capabilities">The product</a>
             <a href={MEMORY_URL}>
@@ -215,12 +216,12 @@ export default function Landing() {
         </main>
         <footer className="landing-footer">
           <div className="landing-footer-row">
-            <Link href="/" className="landing-brand">
+            <HomeLink className="landing-brand">
               <Logo size={27} />
               <span>
                 Lighthouse<span>.</span>
               </span>
-            </Link>
+            </HomeLink>
             <p>
               Maritime intelligence.
               <br />
