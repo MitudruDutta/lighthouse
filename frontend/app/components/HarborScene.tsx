@@ -161,6 +161,7 @@ export function HarborScene() {
       let reset = 0;
       const pointer = { x: 0, y: 0 };
       const cameraTarget = new T.Vector3();
+      const cameraFocus = new T.Vector3();
       const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
       const move = (event: PointerEvent) => {
         if (event.pointerType === "touch") return;
@@ -191,10 +192,13 @@ export function HarborScene() {
         routesGroup.visible = controls.current.routes;
         if (reset !== controls.current.reset) { pointer.x = 0; pointer.y = 0; reset = controls.current.reset; }
         const close = controls.current.view === "vessel";
-        const target = cameraTarget.set(close ? 12 : 20, close ? 12 : 23, close ? 17 : 28);
+        const focus = cameraFocus.set(close ? 1 : 0, 0, close ? 3 : 0);
+        // A narrow frame pulls the camera back so the whole harbour stays in view.
+        const fit = Math.max(1, 1.3 / camera.aspect);
+        const target = cameraTarget.set(close ? 11 : 20, close ? 12 : 23, close ? 14 : 28).multiplyScalar(fit).add(focus);
         if (moving) { target.x += pointer.x * 2; target.y -= pointer.y * 1.3; }
         camera.position.lerp(target, .045);
-        camera.lookAt(close ? 1 : 0, 0, close ? 3 : 0);
+        camera.lookAt(focus);
         renderer.render(scene, camera);
         if (!rendered) { rendered = true; setReady(true); }
       }
