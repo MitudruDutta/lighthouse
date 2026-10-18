@@ -2693,3 +2693,9 @@
   font-size: 11px;
   color: var(--ink-3);
 }
+
+.ops-watch-status {
+  margin: 0 0 10px;
+  font-size: 12px;
+  color: var(--ink-3);
+}

@@ -40,3 +40,32 @@ export async function saveProfile(
   revalidatePath("/desk");
   return { saved: "Your workspace preferences are saved." };
 }
+
+/** Follows or unfollows at once: the saved profile with this watchlist, and the rest
+ * of the profile as it was saved, not as the form holds it now. */
+export async function saveWatchlist(
+  ports: string[],
+  vessels: string[],
+): Promise<{ error?: string; saved?: string }> {
+  const token = await operationsToken();
+  if (!token) return { error: "Sign in to follow ports and vessels." };
+  const current = await desk<Record<string, unknown>>("/api/operations/profile", token);
+  if (!current.ok) return { error: "Your watchlist could not be saved. Please try again." };
+  const result = await desk(
+    "/api/operations/profile",
+    token,
+    { ...current.data, ports, vessels },
+    "PUT",
+  );
+  if (!result.ok)
+    return {
+      error:
+        result.status === 422
+          ? "Choose a port or vessel from the list."
+          : "Your watchlist could not be saved. Please try again.",
+    };
+  revalidatePath("/profile");
+  revalidatePath("/dashboard");
+  revalidatePath("/desk");
+  return { saved: "Watchlist saved." };
+}

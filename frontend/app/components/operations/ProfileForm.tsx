@@ -1,9 +1,9 @@
 "use client";
-import { useActionState, useState } from "react";
+import { useActionState, useState, useTransition } from "react";
 import GoogleButton from "../GoogleButton";
 import { useFormStatus } from "react-dom";
 import { ArrowRight, Check, Search, Ship, Star, X } from "lucide-react";
-import { saveProfile } from "@/app/(app)/profile/actions";
+import { saveProfile, saveWatchlist } from "@/app/(app)/profile/actions";
 import type { Profile } from "@/app/lib/operations";
 type Option = { key: string; name: string };
 function Save() {
@@ -27,10 +27,27 @@ export default function ProfileForm({
   const [state, action] = useActionState(saveProfile, {});
   const [ports, setPorts] = useState(profile.ports);
   const [vessels, setVessels] = useState(profile.vessels);
+  // Following saves at once; a refused change is taken back.
+  const [watch, setWatch] = useState<{ error?: string; saved?: string }>({});
+  const [saving, startSaving] = useTransition();
+  function follow(nextPorts: string[], nextVessels: string[]) {
+    const before = [ports, vessels];
+    setPorts(nextPorts);
+    setVessels(nextVessels);
+    startSaving(async () => {
+      const result = await saveWatchlist(nextPorts, nextVessels);
+      setWatch(result);
+      if (result.error) {
+        setPorts(before[0]);
+        setVessels(before[1]);
+      }
+    });
+  }
   const [kind, setKind] = useState<"ports" | "vessels">("ports");
   const [query, setQuery] = useState("");
   const selected = kind === "ports" ? ports : vessels;
-  const setSelected = kind === "ports" ? setPorts : setVessels;
+  const setSelected = (next: string[]) =>
+    kind === "ports" ? follow(next, vessels) : follow(ports, next);
   const found = options[kind]
     .filter((o) =>
       `${o.name} ${o.key}`.toLowerCase().includes(query.toLowerCase()),
@@ -154,6 +171,15 @@ export default function ProfileForm({
               </button>
             ))}
           </div>
+          <p className="ops-watch-status" role="status" aria-live="polite">
+            {saving
+              ? "Saving…"
+              : watch.error
+                ? watch.error
+                : watch.saved
+                  ? "Saved. Related cases appear under Watching."
+                  : "Following saves at once."}
+          </p>
           <div className="ops-watch-chips">
             {selected.map((key) => (
               <span key={key}>
