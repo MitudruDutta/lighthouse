@@ -18,8 +18,7 @@ TAG=${TAG:-$(git rev-parse --short HEAD)$(git diff --quiet HEAD -- . ':!deploy' 
 aws ssm get-parameter --name /lighthouse/env --with-decryption --query Parameter.Value --output text > "$here/.env.aws"
 chmod 600 "$here/.env.aws"
 setting() { grep -E "^$1=" "$here/.env.aws" | tail -1 | cut -d= -f2-; }
-REGISTRY=$(setting REGISTRY) TAG=$TAG APP_HOST=$(setting APP_HOST) MEMORY_HOST=$(setting MEMORY_HOST) \
-  DOCS_HOST=$(setting DOCS_HOST) AWS=$AWS PROFILE=$PROFILE REGION=$REGION "$here/push-images.sh"
+REGISTRY=$(setting REGISTRY) TAG=$TAG AWS=$AWS PROFILE=$PROFILE REGION=$REGION "$here/push-images.sh"
 sed -i "s/^TAG=.*/TAG=$TAG/" "$here/.env.aws"
 aws ssm put-parameter --name /lighthouse/env --type SecureString --overwrite --value "$(file "$here/.env.aws")" >/dev/null
 
@@ -38,4 +37,4 @@ COMMAND=$(aws ssm send-command --instance-ids "$INSTANCE" --document-name AWS-Ru
 aws ssm wait command-executed --command-id "$COMMAND" --instance-id "$INSTANCE" || true
 aws ssm get-command-invocation --command-id "$COMMAND" --instance-id "$INSTANCE" \
   --query '[Status,StandardOutputContent,StandardErrorContent]' --output text | tail -20
-echo "deployed $TAG to $INSTANCE: https://$(setting APP_HOST)"
+echo "deployed $TAG to $INSTANCE: https://$(setting API_HOST)/docs"

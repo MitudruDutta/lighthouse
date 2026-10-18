@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Create, or find, everything Lighthouse needs in one AWS Region, and start it on one EC2
-# host. Safe to run again: each step uses what is there before it creates anything.
+# Create, or find, everything the Lighthouse backend needs in one AWS Region, and start it on
+# one EC2 host. The three websites run on Vercel. Safe to run again: each step uses what is
+# there before it creates anything.
 #
 #   AWS=/path/to/aws PROFILE=lighthouse REGION=ap-south-1 deploy/aws/provision.sh
 #
@@ -28,7 +29,7 @@ TAG=${TAG:-$(git rev-parse --short HEAD)$(git diff --quiet HEAD -- . ':!deploy' 
 echo "account $ACCOUNT, region $REGION, images $REGISTRY:$TAG"
 
 step "ECR repositories"
-for repo in lighthouse-backend lighthouse-screen lighthouse-memory-screen lighthouse-docs; do
+for repo in lighthouse-backend; do
   if ! aws ecr describe-repositories --repository-names "$repo" >/dev/null 2>&1; then
     aws ecr create-repository --repository-name "$repo" --image-scanning-configuration scanOnPush=true \
       --encryption-configuration encryptionType=AES256 --query repository.repositoryUri --output text
@@ -45,10 +46,14 @@ if [ "$ALLOCATION" = "None" ]; then
     --tag-specifications "ResourceType=elastic-ip,Tags=[{Key=Name,Value=$NAME}]" --query AllocationId --output text)
 fi
 IP=$(aws ec2 describe-addresses --allocation-ids "$ALLOCATION" --query 'Addresses[0].PublicIp' --output text)
-# sslip.io names resolve to the address they spell, so each site has a host name with HTTPS.
+# sslip.io names resolve to the address they spell, so each API has a host name with HTTPS.
 DOMAIN=${DOMAIN:-${IP//./-}.sslip.io}
-APP_HOST=app.$DOMAIN MEMORY_HOST=memory.$DOMAIN DOCS_HOST=docs.$DOMAIN API_HOST=api.$DOMAIN
-echo "address $IP: https://$APP_HOST"
+API_HOST=api.$DOMAIN OPS_HOST=ops.$DOMAIN
+# The websites, on Vercel. The Memory site also serves the Memory API under its own address.
+APP_URL=${APP_URL:-https://lighthouse-intelligence.vercel.app}
+MEMORY_URL=${MEMORY_URL:-https://lighthouse-memory.vercel.app}
+DOCS_URL=${DOCS_URL:-https://lighthouse-memory-docs.vercel.app}
+echo "address $IP: https://$API_HOST (Memory API), https://$OPS_HOST (operations API)"
 
 step "Settings in SSM Parameter Store (/lighthouse/env)"
 if aws ssm get-parameter --name /lighthouse/env >/dev/null 2>&1 && [ -z "${RESET_ENV:-}" ]; then
@@ -66,14 +71,12 @@ else
     done
     echo "REGISTRY=$REGISTRY"
     echo "TAG=$TAG"
-    echo "APP_HOST=$APP_HOST"
-    echo "MEMORY_HOST=$MEMORY_HOST"
-    echo "DOCS_HOST=$DOCS_HOST"
     echo "API_HOST=$API_HOST"
-    echo "LIGHTHOUSE_APP_URL=https://$APP_HOST"
-    echo "MEMORY_SITE_URL=https://$MEMORY_HOST"
-    echo "LIGHTHOUSE_DOCS_URL=https://$DOCS_HOST"
-    echo "MEMORY_PUBLIC_API=https://$API_HOST"
+    echo "OPS_HOST=$OPS_HOST"
+    echo "LIGHTHOUSE_APP_URL=$APP_URL"
+    echo "MEMORY_SITE_URL=$MEMORY_URL"
+    echo "LIGHTHOUSE_DOCS_URL=$DOCS_URL"
+    echo "MEMORY_PUBLIC_API=$MEMORY_URL"
     echo "FALKORDB_PASSWORD=$(secret)"
     echo "LIGHTHOUSE_PROXY_TOKEN=$(secret)"
     echo "LIGHTHOUSE_OPERATOR_TOKEN=$(secret)"
@@ -87,8 +90,7 @@ aws ssm put-parameter --name /lighthouse/env --type SecureString --overwrite \
   --value "$(file "$here/.env.aws")" >/dev/null
 
 step "Images"
-REGISTRY=$REGISTRY TAG=$TAG APP_HOST=$APP_HOST MEMORY_HOST=$MEMORY_HOST DOCS_HOST=$DOCS_HOST \
-  AWS=$AWS PROFILE=$PROFILE REGION=$REGION "$here/push-images.sh"
+REGISTRY=$REGISTRY TAG=$TAG AWS=$AWS PROFILE=$PROFILE REGION=$REGION "$here/push-images.sh"
 
 step "Instance role"
 if ! aws iam get-role --role-name lighthouse-host >/dev/null 2>&1; then
@@ -145,6 +147,7 @@ aws ec2 associate-address --allocation-id "$ALLOCATION" --instance-id "$INSTANCE
 
 step "Ready"
 echo "The first start takes a few minutes. Then:"
-echo "  https://$APP_HOST  https://$MEMORY_HOST  https://$DOCS_HOST  https://$API_HOST/docs"
-echo "Google sign-in: add https://$APP_HOST/api/auth/google/callback and https://$MEMORY_HOST/api/auth/google/callback"
+echo "  https://$API_HOST/docs  https://$OPS_HOST/readyz"
+echo "On Vercel, set LIGHTHOUSE_API=https://$OPS_HOST (maritime console) and MEMORY_API=https://$API_HOST (Memory site)."
+echo "Google sign-in: add $APP_URL/api/auth/google/callback and $MEMORY_URL/api/auth/google/callback"
 echo "  to the OAuth client's authorized redirect URIs."

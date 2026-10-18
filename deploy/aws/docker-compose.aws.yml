@@ -1,9 +1,9 @@
-# Lighthouse on one EC2 host. With the base file:
+# The Lighthouse backend on one EC2 host; the websites run on Vercel. With the base file:
 #
 #   docker compose -f docker-compose.yml -f docker-compose.aws.yml up -d --no-build
 #
 # The images come from ECR (REGISTRY and TAG in .env), nothing but Caddy listens on the host,
-# and Caddy serves each site over HTTPS with a certificate it obtains and renews itself.
+# and Caddy serves the two APIs over HTTPS with certificates it obtains and renews itself.
 
 x-backend-image: &backend-image ${REGISTRY}/lighthouse-backend:${TAG}
 
@@ -30,30 +30,26 @@ services:
     image: *backend-image
     ports: !reset []
 
+  # The websites run on Vercel: these never start here.
   screen:
-    image: ${REGISTRY}/lighthouse-screen:${TAG}
-    ports: !reset []
+    profiles: [websites]
   memory-screen:
-    image: ${REGISTRY}/lighthouse-memory-screen:${TAG}
-    ports: !reset []
+    profiles: [websites]
   docs:
-    image: ${REGISTRY}/lighthouse-docs:${TAG}
-    ports: !reset []
+    profiles: [websites]
 
   caddy:
     image: caddy:2.8.4
     restart: unless-stopped
     ports: ["80:80", "443:443"]
     environment:
-      APP_HOST: ${APP_HOST}
-      MEMORY_HOST: ${MEMORY_HOST}
-      DOCS_HOST: ${DOCS_HOST}
       API_HOST: ${API_HOST}
+      OPS_HOST: ${OPS_HOST}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
       - caddy_config:/config
-    depends_on: [screen, memory-screen, docs, memory-api]
+    depends_on: [api, memory-api]
 
 volumes:
   caddy_data:
