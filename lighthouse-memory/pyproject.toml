@@ -1,6 +1,6 @@
 [project]
 name = "lighthouse-graph"
-version = "0.1.0"
+version = "0.1.1"
 description = "Agent memory on FalkorDB for structured events: versioned by rule, no LLM on the write path"
 readme = "README.md"
 license = "Apache-2.0"
