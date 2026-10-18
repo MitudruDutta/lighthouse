@@ -46,7 +46,7 @@ export const PLANS: Plan[] = [
       `${LIMITS.workspaces} workspaces, ${LIMITS.projectsPerWorkspace} projects each`,
       `${LIMITS.keysPerProject} active API keys per project`,
       `${LIMITS.requestsPerMinute} requests a minute per key`,
-      "MCP for Claude, Cursor, VS Code, Codex",
+      "MCP server and Claude Code plugin",
       "Console, memory explorer, usage",
     ],
     action: "Start building",

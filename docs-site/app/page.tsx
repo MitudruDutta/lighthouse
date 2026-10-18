@@ -122,7 +122,7 @@ export default function Home() {
             </tr>
             <tr>
               <td>MCP endpoint and Claude Code plugin</td>
-              <td>Give Claude, Cursor, VS Code, or Codex a project&apos;s memory.</td>
+              <td>Give Claude Code or Claude Desktop a project&apos;s memory.</td>
               <td>
                 <Link href="/mcp">Agents</Link>
               </td>

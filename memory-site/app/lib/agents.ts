@@ -13,7 +13,6 @@ export type Client = {
 };
 
 const json = (value: unknown) => JSON.stringify(value, null, 2);
-const bearer = (key: string) => ({ Authorization: `Bearer ${key}` });
 
 export const CLIENTS: Client[] = [
   {
@@ -40,45 +39,6 @@ export const CLIENTS: Client[] = [
         },
       }),
     note: "Needs Node.js. Restart Claude Desktop after saving.",
-  },
-  {
-    id: "cursor",
-    name: "Cursor",
-    where: "~/.cursor/mcp.json or .cursor/mcp.json",
-    language: "json",
-    code: (url, key) => json({ mcpServers: { [SERVER]: { url, headers: bearer(key) } } }),
-  },
-  {
-    id: "vscode",
-    name: "VS Code",
-    where: ".vscode/mcp.json",
-    language: "json",
-    code: (url, key) =>
-      json({ servers: { [SERVER]: { type: "http", url, headers: bearer(key) } } }),
-  },
-  {
-    id: "windsurf",
-    name: "Windsurf",
-    where: "~/.codeium/windsurf/mcp_config.json",
-    language: "json",
-    code: (url, key) =>
-      json({ mcpServers: { [SERVER]: { serverUrl: url, headers: bearer(key) } } }),
-  },
-  {
-    id: "codex",
-    name: "Codex",
-    where: "~/.codex/config.toml",
-    language: "toml",
-    code: (url) =>
-      `[mcp_servers.${SERVER}]\nurl = "${url}"\nbearer_token_env_var = "LIGHTHOUSE_API_KEY"`,
-    note: "Codex reads the key from the environment: export LIGHTHOUSE_API_KEY first.",
-  },
-  {
-    id: "gemini",
-    name: "Gemini CLI",
-    where: "~/.gemini/settings.json",
-    language: "json",
-    code: (url, key) => json({ mcpServers: { [SERVER]: { httpUrl: url, headers: bearer(key) } } }),
   },
   {
     id: "python",

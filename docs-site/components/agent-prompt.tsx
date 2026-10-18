@@ -20,7 +20,7 @@ Hosted Memory API and MCP server, instead of a local FalkorDB: ${docs}/memory-ap
 Ask me before you decide what to store. Use only functions the reference lists.`;
 }
 
-/** A button that copies the setup prompt, for pasting into Claude Code, Cursor, or Codex. */
+/** A button that copies the setup prompt, for pasting into Claude Code. */
 export function AgentPrompt() {
   const [copied, setCopied] = useState(false);
   return (
@@ -39,8 +39,8 @@ export function AgentPrompt() {
     >
       <Bot size={17} aria-hidden />
       <span>
-        <strong>{copied ? "Copied. Paste it into your agent" : "Copy setup prompt for your agent"}</strong>
-        <small>Claude Code, Cursor, Codex, or any coding agent</small>
+        <strong>{copied ? "Copied. Paste it into your agent" : "Copy setup prompt for Claude Code"}</strong>
+        <small>Paste it into Claude Code; it sets up the library</small>
       </span>
       {copied ? <Check size={15} aria-hidden /> : <Copy size={15} aria-hidden />}
     </button>

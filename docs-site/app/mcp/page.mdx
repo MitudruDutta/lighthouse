@@ -40,41 +40,6 @@ claude mcp add --transport http lighthouse-memory https://memory.example.com/mcp
   --header "Authorization: Bearer YOUR_PROJECT_API_KEY"
 ```
 
-**Cursor** (`~/.cursor/mcp.json`), **Gemini CLI** (`~/.gemini/settings.json`, with `httpUrl` for `url`), and **Windsurf** (`~/.codeium/windsurf/mcp_config.json`, with `serverUrl` for `url`):
-
-```json
-{
-  "mcpServers": {
-    "lighthouse-memory": {
-      "url": "https://memory.example.com/mcp",
-      "headers": { "Authorization": "Bearer YOUR_PROJECT_API_KEY" }
-    }
-  }
-}
-```
-
-**VS Code** (`.vscode/mcp.json`):
-
-```json
-{
-  "servers": {
-    "lighthouse-memory": {
-      "type": "http",
-      "url": "https://memory.example.com/mcp",
-      "headers": { "Authorization": "Bearer YOUR_PROJECT_API_KEY" }
-    }
-  }
-}
-```
-
-**Codex** (`~/.codex/config.toml`) reads the key from the environment variable it names:
-
-```toml
-[mcp_servers.lighthouse-memory]
-url = "https://memory.example.com/mcp"
-bearer_token_env_var = "LIGHTHOUSE_API_KEY"
-```
-
 **Claude Desktop** connects to a server that needs a header through `mcp-remote`, which needs Node.js. In `claude_desktop_config.json`:
 
 ```json

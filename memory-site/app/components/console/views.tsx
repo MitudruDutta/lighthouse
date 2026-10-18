@@ -81,7 +81,7 @@ export function OverviewView({ s }: { s: State }) {
     { done: s.projects.length > 0, title: "Create a project", text: "One graph per agent or app.", act: s.newProject },
     { done: s.keys.length > 0, title: "Create an API key", text: "Scoped to read, write, or both.", act: () => s.go("keys") },
     { done: s.facts.length > 0, title: "Write a first memory", text: "From the console, the API, or an agent.", act: () => s.editFact(null) },
-    { done: calls > 0, title: "Connect an agent", text: "Claude, Cursor, VS Code, Codex over MCP.", act: () => s.go("agents") },
+    { done: calls > 0, title: "Connect an agent", text: "Claude Code over MCP, or the HTTP API.", act: () => s.go("agents") },
   ];
   const left = steps.filter((step) => !step.done).length;
   if (!s.project)
@@ -113,7 +113,7 @@ export function OverviewView({ s }: { s: State }) {
         {[
           { title: "Add a memory", text: "A fact, with its links", icon: Plus, act: () => s.editFact(null) },
           { title: "Create an API key", text: "One per agent", icon: KeyRound, act: () => s.newKey() },
-          { title: "Connect an agent", text: "Claude, Cursor, Codex", icon: Bot, act: () => s.go("agents") },
+          { title: "Connect an agent", text: "Claude Code plugin", icon: Bot, act: () => s.go("agents") },
           { title: "Explore memory", text: "Search, links, versions", icon: Search, act: () => s.go("memory") },
         ].map(({ title, text, icon: Icon, act }) => (
           <button key={title} type="button" className="cx-action" onClick={act}>

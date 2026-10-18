@@ -35,7 +35,7 @@ import {
 const TITLES: Record<string, [string, string]> = {
   overview: ["Overview", "What this project remembers, and who uses it."],
   memory: ["Memory explorer", "Facts, their links, and every version they had."],
-  agents: ["Agents & MCP", "Connect Claude, Cursor, VS Code, Codex, or your own agent."],
+  agents: ["Agents & MCP", "Connect Claude Code, Claude Desktop, or your own agent."],
   keys: ["API keys", "Who can read and write this project’s memory."],
   usage: ["Usage", "Operations recorded by the Memory API, MCP, and the console."],
   projects: ["Projects", "One graph each, with its own keys and usage."],

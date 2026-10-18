@@ -36,12 +36,12 @@ List responses include `data` and `limit`. No pagination is currently available.
 
 ## Coordinate agents
 
-A project key also acts as one agent, named by the key: create one key per agent, such as `watcher` or `desk`. The key decides who wrote an entry, who holds a task, and who gives or accepts a handoff. A request cannot name another writer.
+A project key also acts as one agent, named by the key: create one key per agent, such as `watcher` or `reviewer`. The key decides who wrote an entry, who holds a task, and who gives or accepts a handoff. A request cannot name another writer.
 
 An episode records one event in order. Start it about memories that exist, append entries that cite their evidence, and close it with an outcome:
 
 ```bash
-curl "$LIGHTHOUSE_MEMORY_URL/v1/episodes/overload-1/entries"   -H "Authorization: Bearer $LIGHTHOUSE_MEMORY_KEY"   -H "Content-Type: application/json"   -d '{"type":"observation","values":{"expected":5},"cites":{"memories":["berth-vc2"],"entries":[],"episodes":[]}}'
+curl "$LIGHTHOUSE_MEMORY_URL/v1/episodes/overload-1/entries"   -H "Authorization: Bearer $LIGHTHOUSE_MEMORY_KEY"   -H "Content-Type: application/json"   -d '{"type":"observation","values":{"expected":5},"cites":{"memories":["pump-2"],"entries":[],"episodes":[]}}'
 ```
 
 | Method | Endpoint                               | Scope          | Result                                                                 |
@@ -50,7 +50,7 @@ curl "$LIGHTHOUSE_MEMORY_URL/v1/episodes/overload-1/entries"   -H "Authorization
 | POST   | `/v1/episodes/overload-1/entries`      | `memory:write` | Appends an entry; the receipt names it `overload-1/1`, `overload-1/2`… |
 | POST   | `/v1/episodes/overload-1/close`        | `memory:write` | Records `{"outcome":{…}}` as the last entry; the episode takes no more |
 | GET    | `/v1/episodes/overload-1`              | `memory:read`  | The episode with its entries in order, each with what it cites         |
-| GET    | `/v1/memories/berth-vc2/episodes`      | `memory:read`  | Episodes about one memory, newest first, each with its outcome         |
+| GET    | `/v1/memories/pump-2/episodes`         | `memory:read`  | Episodes about one memory, newest first, each with its outcome         |
 | POST   | `/v1/tasks`                            | `memory:write` | `{"id","kind","about","after":[task ids]}` adds an open task           |
 | POST   | `/v1/tasks/claim`                      | `memory:write` | `{"kind","lease"}` gives this agent the oldest free task, or `null`    |
 | POST   | `/v1/tasks/review-1/complete`          | `memory:write` | Marks the task done; only the agent that holds it can                  |
@@ -69,7 +69,7 @@ Episode, task, and handoff ids follow the same rule without `/`, because an entr
 
 Each project key permits 120 authenticated requests per UTC minute. Invalid credentials return `401`; insufficient scope, or a handoff given to another agent, returns `403`; an unknown episode or handoff returns `404`; a closed episode, or a task this agent does not hold, returns `409`; invalid input or a reference that does not exist returns `422`; excessive request size returns `413`; request limits return `429`. Service failures return a safe `503` message, with diagnostic details kept in server logs.
 
-The same operations are MCP tools at `/mcp`, for agent clients such as Claude Code, Cursor, VS Code, and Codex: see [agents, MCP, and plugins](/mcp).
+The same operations are MCP tools at `/mcp`, for Claude Code, Claude Desktop, and your own agents: see [agents, MCP, and plugins](/mcp).
 
 The HTTP service covers structured writes, text search, history, connection paths, episodes, tasks, and handoffs. Lessons, playbooks, promotion, conversations, and semantic recall are available through the [Python library](/reference), not these HTTP endpoints.
 
