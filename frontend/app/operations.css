@@ -2028,6 +2028,10 @@
   color-scheme: dark;
 }
 :root[data-theme="dark"] .console .card { box-shadow: none; }
+/* The sign-in and sign-up form sits on its own panel: dark too, with fields to match. */
+:root[data-theme="dark"] .console .ops-auth-form { background: var(--night-2); }
+:root[data-theme="dark"] .console .ops-auth-form input { background: #0f211f; border-color: var(--dark-line); color: var(--ink); }
+:root[data-theme="dark"] .console .ops-auth-switch > a { color: var(--dark-green); }
 :root[data-theme="dark"] .console .map-land { fill: #1f3a35; stroke: #2e5049; }
 :root[data-theme="dark"] .console table.grid th { background: #10201f; }
 :root[data-theme="dark"] .console table.grid tbody tr:hover { background: #172d2a; }
