@@ -257,6 +257,50 @@ MATCH (l:Lesson {id: $lesson})-[:SUPPORTED_BY]->(e:Episode)-[:HAS]->(entry:Entry
 RETURN e.id, entry.seq, entry.type ORDER BY e.id, entry.seq
 ```
 
+### How the agents query the graph
+
+The Desk agent never writes Cypher. It picks one of 20 typed tools over MCP (`backend/app/mcp_server.py`). Each tool calls one Lighthouse Memory function, and that function runs a fixed, parameterised Cypher query. The rule-based Watcher and Port Watcher call the same functions directly after each poll.
+
+```mermaid
+flowchart LR
+  ASK[Operator question] --> DESK[Desk agent]
+  DESK -->|picks a typed MCP tool| TOOLS
+  WATCH[Watcher and Port Watcher] -->|call directly after each poll| TOOLS
+  subgraph TOOLS [Library calls behind the tools]
+    FIND(find)
+    LOOK(look, versions)
+    POINT(pointing)
+    PATH(connected)
+    RANK(central, incidents)
+    MEM(episodes_about, lessons_about)
+    WRITE(note, raise_task, hand_over)
+  end
+  FIND -->|full-text index| NAMED[Vessel, Port, Berth]
+  LOOK -->|"HAS_STATE in a time window"| S[State]
+  POINT -->|"AT, MADE_BY, CALLS_AT"| PC[PortCall]
+  PATH -->|shortestPath| PC
+  RANK -->|"algo.pageRank, algo.WCC"| PC
+  MEM -->|ABOUT| EP[Episode, Lesson]
+  WRITE -->|"CITES, POINTS_TO"| EN[Entry, Task, Handoff]
+```
+
+| Tool | Question it answers | Cypher it runs |
+| --- | --- | --- |
+| `find` | Which vessel, port, or berth has this name? | `CALL db.idx.fulltext.queryNodes('Vessel', $terms) YIELD node, score` |
+| `look` | What was this port call at a given time? | `MATCH (:PortCall {id: $key})-[:HAS_STATE]->(s:State) WHERE s.valid_from <= localdatetime($when) AND (s.valid_to IS NULL OR s.valid_to > localdatetime($when))` |
+| `versions` | How did it change, and who changed it? | `MATCH (:PortCall {id: $key})-[:HAS_STATE]->(s:State) RETURN s ORDER BY s.valid_from` |
+| `pointing` | Which port calls are at this berth now? | `MATCH (x:PortCall)-[o:AT]->(:Berth {key: $key}) WHERE o.valid_to IS NULL RETURN x.id` |
+| `connected` | How are two entities linked? | `WITH shortestPath((a)-[:MADE_BY\|CALLS_AT\|AT\|CAME_FROM\|BOUND_FOR*..6]-(b)) AS p` |
+| `central` | Which port calls matter most? | `CALL algo.pageRank('Entity', $relation) YIELD node, score` |
+| `incidents` | Which problems are connected? | `CALL algo.WCC($config) YIELD node, componentId` |
+| `episodes_about` | What happened here before? | `MATCH (:Berth {key: $key})<-[:ABOUT]-(ep:Episode)` |
+| `lessons_about` | What was learned about this port? | `MATCH (:Port {locode: $key})<-[:ABOUT]-(l:Lesson)` |
+| `note` | Record an assessment with its evidence | `CREATE (n:Entry)` linked by `(n)-[:CITES {as_of}]->(evidence)` |
+| `hand_over` | Pass the case to another agent | `(h:Handoff)-[:TO]->(:Agent)` and `(h)-[:POINTS_TO {as_of}]->(evidence)` |
+| Watcher (rule) | Is a berth expected to hold more ships than ever? | `MATCH (pc:PortCall)-[at:AT]->(b:Berth) WHERE at.valid_to IS NULL` |
+
+The agent's name on every write comes from the server, never from the model, and no tool accepts a raw query or deletes anything.
+
 ## Agents
 
 | Agent | Role |
