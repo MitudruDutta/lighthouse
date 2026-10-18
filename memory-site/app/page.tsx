@@ -45,7 +45,7 @@ const FEATURES = [
 ];
 // From the measures in the repository's measurements/ folder, run against FalkorDB 6.0.2.
 const MEASURED = [
-  ["0", "model calls to write 300 port calls"],
+  ["0", "model calls to write 300 events"],
   ["5.2 ms", "to write one, at the median"],
   ["0 of 500", "tasks claimed twice by 16 racing agents"],
   ["0 of 7,711", "facts wrong after replaying their changes in order"],

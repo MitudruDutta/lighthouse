@@ -8,7 +8,7 @@ Every number here comes from the running system, and every one can be run again.
 
 | Claim | Measure | Result |
 | --- | --- | --- |
-| Writing needs no model | `writes`: 300 port calls of a live public feed, one at a time, counting model calls | 0 model calls. One write: 5.2 ms at the median, 7.8 ms at the 95th percentile. 1,168 port calls a second in one batch. |
+| Writing needs no model | `writes`: 300 events of a live public feed, one at a time, counting model calls | 0 model calls. One write: 5.2 ms at the median, 7.8 ms at the 95th percentile. 1,168 events a second in one batch. |
 | History is exact | `history`: 500 entities and 7,711 changes, written in time order | 7,711 facts read back, 0 wrong. |
 | Late rows are never placed wrong | The same 7,711 changes, shuffled so that rows arrive late | 3,167 late rows `inserted` in their place. 2,271 rows came after a later row had repeated the State they fall in; each was refused as `stale` and kept as a WriteFailure. 829 read-backs differ from the source, and every one of them involves a refused row: none is wrong without a record of why. |
 | Agents never double-claim | `claims`: 16 agents, each on its own connection, race for 500 tasks | 500 claims won, 0 tasks won twice. |
@@ -18,15 +18,15 @@ Every number here comes from the running system, and every one can be run again.
 
 ## A result that went against us
 
-`memory` replays 400 days of a public dataset of daily port activity through two agents built on the library: one watches the ports, one writes lessons from what ended. Each time a port turns unusually quiet or busy, each way of guessing says whether it is back to usual within 3 days, and the guess is scored when the spell ends.
+`memory` replays 400 days of a public dataset of daily activity counts for many places through two agents built on the library: one watches the counts, one writes lessons from what ended. Each time a place turns unusually quiet or busy, each way of guessing says whether it is back to usual within 3 days, and the guess is scored when the spell ends.
 
 | Guess | Right | 95% interval |
 | --- | --- | --- |
 | Always "it passes" (no memory) | 5,141 of 5,258 (97.8%) | 97.3 to 98.1% |
-| The lesson written about the port (memory) | 5,141 of 5,258 (97.8%) | 97.3 to 98.1% |
-| The port's own past spells (memory) | 5,123 of 5,258 (97.4%) | 97.0 to 97.8% |
+| The lesson written about the place (memory) | 5,141 of 5,258 (97.8%) | 97.3 to 98.1% |
+| The place's own past spells (memory) | 5,123 of 5,258 (97.4%) | 97.0 to 97.8% |
 
-**Memory did not help on this task.** A quiet or busy port almost always recovers within three days, so a guess with no memory is already near the ceiling; the lessons said the same as the base rate every time, and the port's own past did slightly worse. It is published as measured. Showing that memory helps needs a task where a port's past changes the answer.
+**Memory did not help on this task.** A quiet or busy place almost always recovers within three days, so a guess with no memory is already near the ceiling; the lessons said the same as the base rate every time, and the place's own past did slightly worse. It is published as measured. Showing that memory helps needs a task where a place's past changes the answer.
 
 ## Comparing with other memory stacks
 

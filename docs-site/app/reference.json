@@ -141,7 +141,7 @@
      "name": "search",
      "kind": "function",
      "signature": "(graph: falkordb.graph.Graph, kind: lighthouse.kinds.Kind, question: str, limit: int = 10, match: str = 'all') -> list[dict]",
-     "doc": "Entities of `kind` whose text has the words of `question`, best first:\n[{\"key\", \"score\", \"values\"}]. \"values\" holds the current values of the entity.\n\n  match  \"all\": every word must be there. \"any\": one word is enough.\n\nWords are matched whole and in their base form: \"tankers\" finds \"tanker\". A question\nwithout a letter or digit finds nothing."
+     "doc": "Entities of `kind` whose text has the words of `question`, best first:\n[{\"key\", \"score\", \"values\"}]. \"values\" holds the current values of the entity.\n\n  match  \"all\": every word must be there. \"any\": one word is enough.\n\nWords are matched whole and in their base form: \"sensors\" finds \"sensor\". A question\nwithout a letter or digit finds nothing."
     },
     {
      "name": "search_entries",

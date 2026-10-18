@@ -7,16 +7,16 @@ import { useState } from "react";
 // everything that rested on it. The records are examples; the calls and their answers are
 // the library's.
 const VERSIONS = [
-  { at: "09:14", value: 4, by: "watcher" },
-  { at: "11:02", value: 6, by: "watcher" },
-  { at: "13:40", value: 5, by: "reviewer" },
+  { at: "09:14", value: 41, by: "watcher" },
+  { at: "11:02", value: 78, by: "watcher" },
+  { at: "13:40", value: 52, by: "reviewer" },
 ];
 const NODES = [
-  { id: "obs", x: 70, y: 70, kind: "Observation", text: "Berth VC2 expects 6 ships", hit: true },
-  { id: "dec", x: 300, y: 70, kind: "Decision", text: "Move two calls to VC3", hit: true },
-  { id: "hand", x: 530, y: 70, kind: "Handoff", text: "Desk: warn the agents", hit: true },
-  { id: "lesson", x: 300, y: 205, kind: "Lesson", text: "VC2 overloads on Fridays", hit: true },
-  { id: "other", x: 530, y: 205, kind: "Observation", text: "VC3 holds 5 ships", hit: false },
+  { id: "obs", x: 70, y: 70, kind: "Observation", text: "Sensor-01 reads 78\u00a0°C", hit: true },
+  { id: "dec", x: 300, y: 70, kind: "Decision", text: "Shut down pump 2", hit: true },
+  { id: "hand", x: 530, y: 70, kind: "Handoff", text: "Ops: send a technician", hit: true },
+  { id: "lesson", x: 300, y: 205, kind: "Lesson", text: "Pump 2 runs hot at noon", hit: true },
+  { id: "other", x: 530, y: 205, kind: "Observation", text: "Sensor-02 reads 44\u00a0°C", hit: false },
 ];
 const EDGES: [string, string][] = [
   ["obs", "dec"],
@@ -82,14 +82,14 @@ export function BlastRadius() {
             </button>
             <pre aria-label="The library call">
               {retracted
-                ? `invalidate_entry(graph, "vc2-friday/1",
-    by="reviewer", reason="feed sent a wrong ETA")
+                ? `invalidate_entry(graph, "pump-room/1",
+    by="reviewer", reason="sensor sent a bad reading")
 {"status": "invalidated",
  "impact": {
-   "downstream_entries": ["vc2-friday/2"],
-   "handoffs": ["warn-desk"],
-   "lessons": ["vc2-fridays"], ...}}`
-                : `impact_of_entry(graph, "vc2-friday/1")`}
+   "downstream_entries": ["pump-room/2"],
+   "handoffs": ["send-technician"],
+   "lessons": ["pump-2-noon"], ...}}`
+                : `impact_of_entry(graph, "pump-room/1")`}
             </pre>
           </div>
         </div>
@@ -103,7 +103,7 @@ export function BlastRadius() {
                 onClick={() => setMoment(index)}
               >
                 <i />
-                <strong>{item.value} ships</strong>
+                <strong>{item.value}&nbsp;°C</strong>
                 <small>
                   {item.at} · {item.by}
                 </small>
@@ -122,11 +122,11 @@ export function BlastRadius() {
             <b>{version.at}</b>
           </label>
           <pre aria-label="The library call">
-            {`as_of(graph, BERTH, "VC2", when)  # when: ${version.at}
-{"expected": ${version.value}, "by": "${version.by}", ...}`}
+            {`as_of(graph, DEVICE, "sensor-01", when)  # when: ${version.at}
+{"temperature": ${version.value}, "by": "${version.by}", ...}`}
           </pre>
           <p>
-            Every version stays. An agent that acted at {version.at} saw {version.value} ships;
+            Every version stays. An agent that acted at {version.at} saw {version.value}&nbsp;°C;
             you can ask what it saw, and who said so, long after the fact changed.
           </p>
         </div>

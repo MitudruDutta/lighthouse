@@ -8,7 +8,7 @@ What was said, for each user, in order. The functions take the graph that holds 
 from lighthouse import say, messages, context, summarize, said, said_about
 
 say(graph, "ann", "main", "user", "why is d1 hot?", by="ann", mentions=[(DEVICE, "d1")])
-say(graph, "ann", "main", "assistant", "the fan stopped", by="desk", mentions=[(DEVICE, "d1")])
+say(graph, "ann", "main", "assistant", "the fan stopped", by="assistant", mentions=[(DEVICE, "d1")])
 [m["text"] for m in messages(graph, "ann", "main")]  # ["why is d1 hot?", "the fan stopped"]
 said_about(graph, "ann", (DEVICE, "d1"))[0]["text"]   # "the fan stopped": newest first
 ```
@@ -40,7 +40,7 @@ def your_model_sums_up(texts):  # your model: the texts in, a short summary out
 
 kept = messages(graph, "ann", "main")
 summarize(graph, "ann", "main", your_model_sums_up([m["text"] for m in kept]),
-          upto=kept[-1]["seq"], by="desk")
+          upto=kept[-1]["seq"], by="assistant")
 context(graph, "ann", "main")["summary"]  # "ann asked why d1 was hot; the fan had stopped"
 ```
 

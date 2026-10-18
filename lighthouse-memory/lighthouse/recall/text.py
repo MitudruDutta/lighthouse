@@ -51,7 +51,7 @@ def search(
 
       match  "all": every word must be there. "any": one word is enough.
 
-    Words are matched whole and in their base form: "tankers" finds "tanker". A question
+    Words are matched whole and in their base form: "sensors" finds "sensor". A question
     without a letter or digit finds nothing.
     """
     _searchable(kind)

@@ -34,11 +34,11 @@ A handoff points at what the receiver must read; it holds no copy.
 ```python
 from lighthouse import hand_off, handoffs_for, accept
 
-hand_off(graph, "h1", by="watcher", to="desk",
+hand_off(graph, "h1", by="watcher", to="reviewer",
          points_to=[("Episode", "d1-overheat"), (DEVICE, "d1")],
          values={"ask": "Is d1 about to fail?"})
-handoffs_for(graph, "desk")      # what waits for the desk, oldest first
-accept(graph, "h1", by="desk")   # {"id": "h1", "status": "accepted"}
+handoffs_for(graph, "reviewer")  # what waits for the reviewer, oldest first
+accept(graph, "h1", by="reviewer")  # {"id": "h1", "status": "accepted"}
 ```
 
 | Status     | Meaning                                                                     |

@@ -15,7 +15,7 @@ mine = tenant(db, "acme")       # the private graph of one tenant: "tenant:acme"
 
 - A tenant id is checked before it becomes a graph name: lowercase letters, digits, `_`, and `-`, starting with a letter or digit, at most 63. No id can name the shared graph or another tenant's.
 - Give each tenant its own graph for what is theirs, such as conversations and notes, and read what everyone shares from the world graph.
-- A mention in a message names a thing by label and key, not by an edge, so a message in a tenant's graph can name a ship in the world graph.
+- A mention in a message names a thing by label and key, not by an edge, so a message in a tenant's graph can name a device in the world graph.
 - The memory does not decide who may read: whoever holds a graph reads all of it. Hand each tenant only its own.
 
 ## Application boundary
