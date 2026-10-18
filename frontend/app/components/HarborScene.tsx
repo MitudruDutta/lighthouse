@@ -124,9 +124,24 @@ export function HarborScene() {
       const lantern = cylinder(beacon, .43, .43, .6, [0, 4.05, 0], "#dff58f");
       lantern.material = new T.MeshStandardMaterial({ color: "#ddf78a", emissive: "#b7e26d", emissiveIntensity: .6 });
       const roof = new T.Mesh(new T.ConeGeometry(.65, .6, 12), material("#315a48")); roof.position.y = 4.65; beacon.add(roof);
-      const beamMaterial = new T.MeshBasicMaterial({ color: "#e4f7a4", transparent: true, opacity: .055, side: T.DoubleSide, depthWrite: false });
-      const beam = new T.Mesh(new T.ConeGeometry(3.5, 15, 32, 1, true), beamMaterial);
-      beam.rotation.z = Math.PI / 2; beam.position.set(7.5, 4.05, 0); beacon.add(beam);
+      // The light: a soft cone with its tip in the lamp, turning about the lamp,
+      // brightest near the lamp and in the middle, fading toward the far end and the edges.
+      const beamMaterial = new T.ShaderMaterial({
+        uniforms: { color: { value: new T.Color("#eaffa8") } },
+        vertexShader: `varying float along; varying float facing; void main(){ along=uv.y; vec4 view=modelViewMatrix*vec4(position,1.); vec3 toCamera=isOrthographic?vec3(0.,0.,1.):normalize(-view.xyz); facing=abs(dot(normalize(normalMatrix*normal),toCamera)); gl_Position=projectionMatrix*view; }`,
+        fragmentShader: `uniform vec3 color; varying float along; varying float facing; void main(){ gl_FragColor=vec4(color,pow(along,1.8)*pow(facing,2.)*.3); }`,
+        transparent: true, depthWrite: false, side: T.DoubleSide, blending: T.AdditiveBlending, toneMapped: false,
+      });
+      const beam = new T.Group(); beam.position.y = 4.05; beacon.add(beam);
+      const cone = new T.Mesh(new T.ConeGeometry(1.8, 10, 32, 1, true), beamMaterial);
+      cone.rotation.z = Math.PI / 2; cone.position.x = 5; beam.add(cone);
+      const halo = document.createElement("canvas"); halo.width = halo.height = 64;
+      const paint = halo.getContext("2d")!;
+      const gradient = paint.createRadialGradient(32, 32, 0, 32, 32, 32);
+      gradient.addColorStop(0, "rgba(244,255,196,1)"); gradient.addColorStop(.35, "rgba(214,245,138,.4)"); gradient.addColorStop(1, "rgba(214,245,138,0)");
+      paint.fillStyle = gradient; paint.fillRect(0, 0, 64, 64);
+      const glow = new T.Sprite(new T.SpriteMaterial({ map: new T.CanvasTexture(halo), blending: T.AdditiveBlending, depthWrite: false, transparent: true, toneMapped: false }));
+      glow.scale.setScalar(3); glow.position.y = 4.05; beacon.add(glow);
       function ship(color: string) {
         const ship = new T.Group();
         const hull = new T.Shape();
@@ -215,7 +230,7 @@ export function HarborScene() {
             for (const item of Array.isArray(material) ? material : [material]) allMaterials.add(item);
           }
         });
-        geometries.forEach((geometry) => geometry.dispose()); allMaterials.forEach((material) => material.dispose());
+        geometries.forEach((geometry) => geometry.dispose()); allMaterials.forEach((material) => { (material as InstanceType<typeof T.SpriteMaterial>).map?.dispose(); material.dispose(); });
         renderer.dispose(); renderer.forceContextLoss(); renderer.domElement.remove();
       };
     }).catch(() => { if (!disposed) setUnavailable(true); });

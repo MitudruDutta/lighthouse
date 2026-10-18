@@ -184,25 +184,83 @@ export function MemoryBeacon({
         const lamp = new T.PointLight(0xffb45d, 5, 8);
         lamp.position.set(0, 1.88, 0);
         tower.add(lamp);
+        // Light beams: soft cones from the lamp, brightest at the lamp and in the middle,
+        // fading toward the far end and the edges.
+        const beamMaterial = new T.ShaderMaterial({
+          uniforms: { color: { value: new T.Color(0xffc27a) } },
+          vertexShader: `varying float along; varying float facing;
+            void main() {
+              along = uv.y;
+              vec4 view = modelViewMatrix * vec4(position, 1.0);
+              vec3 toCamera = isOrthographic ? vec3(0.0, 0.0, 1.0) : normalize(-view.xyz);
+              facing = abs(dot(normalize(normalMatrix * normal), toCamera));
+              gl_Position = projectionMatrix * view;
+            }`,
+          fragmentShader: `uniform vec3 color; varying float along; varying float facing;
+            void main() { gl_FragColor = vec4(color, pow(along, 1.4) * pow(facing, 2.0) * 0.5); }`,
+          transparent: true,
+          depthWrite: false,
+          side: T.DoubleSide,
+          blending: T.AdditiveBlending,
+          toneMapped: false,
+        });
         const beams = new T.Group();
         beams.position.y = 1.88;
         tower.add(beams);
         for (const direction of [1, -1]) {
           const beam = new T.Mesh(
-            new T.ConeGeometry(0.72, 4, 24, 1, true),
-            new T.MeshBasicMaterial({
-              color: 0xffbc76,
-              transparent: true,
-              opacity: 0.045,
-              side: T.DoubleSide,
-              depthWrite: false,
-              blending: T.AdditiveBlending,
-            }),
+            new T.ConeGeometry(0.62, 3.4, 32, 1, true),
+            beamMaterial,
           );
+          // The tip sits in the lamp; the cone opens outward.
           beam.rotation.z = (direction * Math.PI) / 2;
-          beam.position.x = -direction * 2;
+          beam.position.x = (direction * 3.4) / 2;
           beams.add(beam);
         }
+        const halo = document.createElement("canvas");
+        halo.width = halo.height = 64;
+        const paint = halo.getContext("2d")!;
+        const gradient = paint.createRadialGradient(32, 32, 0, 32, 32, 32);
+        gradient.addColorStop(0, "rgba(255,226,170,1)");
+        gradient.addColorStop(0.35, "rgba(255,178,96,0.45)");
+        gradient.addColorStop(1, "rgba(255,150,70,0)");
+        paint.fillStyle = gradient;
+        paint.fillRect(0, 0, 64, 64);
+        const glowTexture = new T.CanvasTexture(halo);
+        const glow = new T.Sprite(
+          new T.SpriteMaterial({
+            map: glowTexture,
+            blending: T.AdditiveBlending,
+            depthWrite: false,
+            transparent: true,
+            toneMapped: false,
+          }),
+        );
+        glow.scale.setScalar(1.7);
+        glow.position.y = 1.88;
+        tower.add(glow);
+        // A soft shadow grounds the base.
+        const shade = document.createElement("canvas");
+        shade.width = shade.height = 64;
+        const shadePaint = shade.getContext("2d")!;
+        const shadow = shadePaint.createRadialGradient(32, 32, 0, 32, 32, 32);
+        shadow.addColorStop(0, "rgba(20,10,18,0.55)");
+        shadow.addColorStop(1, "rgba(20,10,18,0)");
+        shadePaint.fillStyle = shadow;
+        shadePaint.fillRect(0, 0, 64, 64);
+        const shadowTexture = new T.CanvasTexture(shade);
+        const ground = new T.Mesh(
+          new T.PlaneGeometry(3.6, 3.6),
+          new T.MeshBasicMaterial({
+            map: shadowTexture,
+            transparent: true,
+            depthWrite: false,
+            toneMapped: false,
+          }),
+        );
+        ground.rotation.x = -Math.PI / 2;
+        ground.position.y = -0.42;
+        world.add(ground);
         const orbits: InstanceType<typeof T.Mesh>[] = [];
         for (let i = 0; i < 3; i++) {
           const ring = new T.Mesh(
@@ -426,6 +484,9 @@ export function MemoryBeacon({
           });
           geometries.forEach((geometry) => geometry.dispose());
           surfaces.forEach((surface) => surface.dispose());
+          glowTexture.dispose();
+          glow.material.dispose();
+          shadowTexture.dispose();
           renderer.dispose();
           canvas.remove();
         };
