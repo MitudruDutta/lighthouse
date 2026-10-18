@@ -1,6 +1,6 @@
 import { ArrowRight, BookOpen, Code2, GitBranch, Layers3 } from "lucide-react";
 import Link from "next/link";
-import { InstallCommand } from "@/components/install-command";
+import { AgentPrompt } from "@/components/agent-prompt";
 
 const PATHS = [
   {
@@ -46,11 +46,11 @@ export default function Home() {
             Start building{" "}
             <ArrowRight size={13} className="inline ml-2" aria-hidden />
           </Link>
-          <InstallCommand command="pip install lighthouse-graph" />
+          <AgentPrompt />
         </div>
         <p className="hero-note">
-          Python 3.12 or later and a running FalkorDB. Import it as{" "}
-          <code>lighthouse</code>.
+          The prompt has your agent install <code>lighthouse-graph</code>, start
+          FalkorDB, and write a first memory. Python 3.12 or later.
         </p>
       </div>
       <h2 id="choose-your-path">Choose your path</h2>

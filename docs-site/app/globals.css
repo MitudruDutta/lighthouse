@@ -744,43 +744,41 @@ a {
   align-items: center;
   gap: 12px;
 }
-.install-command {
+.agent-prompt {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  min-width: 0;
+  gap: 12px;
   max-width: 100%;
   border: 1px solid var(--border);
   border-radius: 6px;
   background: var(--card);
-  padding: 4px 4px 4px 14px;
-}
-.install-command code {
-  font: 14px var(--font-mono);
+  padding: 8px 14px;
   color: var(--foreground);
-  /* Not the chip of code in a sentence: the frame around it is the chip. */
-  background: none;
-  border: 0;
-  padding: 0;
-  white-space: nowrap;
-  overflow-x: auto;
-}
-.install-command code > span {
-  color: var(--muted-foreground);
-}
-.install-command button {
-  display: grid;
-  place-items: center;
-  width: 34px;
-  height: 34px;
-  flex-shrink: 0;
-  border-radius: 5px;
-  color: var(--muted-foreground);
+  text-align: left;
   cursor: pointer;
 }
-.install-command button:hover {
-  color: var(--foreground);
-  background: var(--muted);
+.agent-prompt:hover {
+  border-color: var(--primary);
+}
+.agent-prompt > svg {
+  flex-shrink: 0;
+  color: var(--muted-foreground);
+}
+.agent-prompt > svg:first-child {
+  color: var(--primary);
+}
+.agent-prompt span {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+.agent-prompt strong {
+  font-size: 14px;
+  font-weight: 600;
+}
+.agent-prompt small {
+  font-size: 12px;
+  color: var(--muted-foreground);
 }
 .docs-home-hero > p.hero-note {
   margin-top: 12px;
