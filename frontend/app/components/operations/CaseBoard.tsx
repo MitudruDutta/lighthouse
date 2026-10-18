@@ -11,6 +11,7 @@ import {
   Filter,
   Radio,
   Search,
+  Ship,
   ShieldCheck,
   Sparkles,
   Star,
@@ -41,12 +42,15 @@ export default function CaseBoard({
   now,
   globalDay,
   feedAt,
+  live,
   investigations = false,
 }: {
   queue: Queue;
   now: string;
   globalDay?: string | null;
   feedAt?: string | null;
+  // Cargo ships and tankers in the busiest ports, from live AIS positions.
+  live?: { at: string; ports: number; ships_now: number } | null;
   investigations?: boolean;
 }) {
   const [view, setView] = useState<string>(queue.profile.view ?? "attention");
@@ -75,12 +79,6 @@ export default function CaseBoard({
         .includes(search.toLowerCase())
     );
   });
-  const lag = globalDay
-    ? Math.max(
-        0,
-        Math.floor((utcTime(now.slice(0, 10)) - utcTime(globalDay)) / 86400000),
-      )
-    : null;
   return (
     <div className="ops-workspace">
       <header className="ops-page-heading">
@@ -240,8 +238,18 @@ export default function CaseBoard({
               ? date(globalDay, queue.profile.timezone)
               : "awaiting data"}
           </strong>
-          {lag !== null && lag > 0 ? <b>{lag} days behind today</b> : null}
         </span>
+        {live ? (
+          <span>
+            <Ship size={15} />
+            Ships in port now{" "}
+            <Link href="/ports" className="link">
+              <strong>
+                {live.ships_now.toLocaleString("en-GB")} at {live.ports} ports
+              </strong>
+            </Link>
+          </span>
+        ) : null}
         <Link href="/sources">
           View source dates
           <ArrowUpRight size={14} />

@@ -59,7 +59,6 @@ async function Health() {
   const global = status.last_world_poll;
   const feedFresh = isFresh(feed?.at, status.now, 15) && status.availability.feed;
   const globalFresh = isFresh(global?.at, status.now, 90) && status.availability.portwatch;
-  const lag = world?.newest_day ? Math.max(0, Math.floor((utcTime(status.now.slice(0, 10)) - utcTime(world.newest_day)) / 86_400_000)) : null;
   return <>
     <section className="card flex flex-wrap items-center gap-4 !bg-[var(--info-bg)]" aria-label="Import summary">
       {feedFresh && globalFresh ? <CheckCircle2 size={22} className="text-[var(--mint)]" aria-hidden /> : <TriangleAlert size={22} className="text-[var(--coral)]" aria-hidden />}
@@ -76,7 +75,7 @@ async function Health() {
       </Card>
       <Card>
         <header className="flex items-start justify-between gap-3"><div className="flex items-center gap-3"><span className="rounded-lg bg-[var(--learn-bg)] p-2.5 text-[var(--violet)]"><Globe2 size={20} aria-hidden /></span><div><h2 className="text-base font-semibold">Global port activity</h2><p className="mt-0.5 text-xs text-faint">IMF · PortWatch</p></div></div><Badge tone={globalFresh ? "closed" : "busy"}>{!global ? "Awaiting data" : global.state === "running" || global.state === "updating" ? "Updating" : globalFresh ? "Checked" : "Updates delayed"}</Badge></header>
-        <dl className="my-6 grid grid-cols-2 gap-x-4 gap-y-5 text-xs"><div><dt className="text-faint">Latest source check</dt><dd className="mt-1 font-medium">{ago(global?.at, now)}</dd></div><div><dt className="text-faint">Usual check cadence</dt><dd className="mt-1 font-medium">Hourly</dd></div><div><dt className="text-faint">Latest observation day</dt><dd className="mt-1 font-medium"><When at={world?.newest_day} day />{lag !== null ? <span className="mt-1 block text-[10px] font-normal text-faint">{lag === 0 ? "Today’s source data" : `${lag} days behind today · source publication delay`}</span> : null}</dd></div><div><dt className="text-faint">Days added this update</dt><dd className="mt-1 font-medium">{global ? global.days.length : "—"}</dd></div></dl>
+        <dl className="my-6 grid grid-cols-2 gap-x-4 gap-y-5 text-xs"><div><dt className="text-faint">Latest source check</dt><dd className="mt-1 font-medium">{ago(global?.at, now)}</dd></div><div><dt className="text-faint">Usual check cadence</dt><dd className="mt-1 font-medium">Hourly</dd></div><div><dt className="text-faint">Latest observation day</dt><dd className="mt-1 font-medium"><When at={world?.newest_day} day /></dd></div><div><dt className="text-faint">Days added this update</dt><dd className="mt-1 font-medium">{global ? global.days.length : "—"}</dd></div></dl>
         {!globalFresh ? <p className="mb-4 rounded-lg bg-[var(--warn-bg)] p-3 text-xs text-[var(--coral)]">New activity may take longer to appear. The latest available observation date is shown above.</p> : null}
         <h3 className="eyebrow border-t border-[var(--edge)] pt-4">Latest observations</h3><Receipts values={global?.rows} />
         <div className="mt-4 rounded-lg bg-[var(--rule-soft)] p-3 text-xs leading-relaxed text-muted">Daily calls by ship type and estimated cargo tonnes. Historical evidence remains available as new observations arrive.</div>

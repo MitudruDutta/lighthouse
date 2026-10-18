@@ -303,14 +303,6 @@
   font-weight: 500;
   color: var(--ink);
 }
-.ops-data-strip b {
-  font-size: 11px;
-  font-weight: 500;
-  background: #f5e8ca;
-  color: #805916;
-  padding: 1px 7px;
-  border-radius: 4px;
-}
 .ops-data-strip > a {
   margin-left: auto;
   display: flex;
@@ -2045,7 +2037,6 @@
 :root[data-theme="dark"] .console .ops-primary:hover { background: #c9e57f; }
 :root[data-theme="dark"] .console .ops-outline:hover { background: var(--dark-tint); }
 :root[data-theme="dark"] .console .ops-outline > span { background: var(--dark-chip); }
-:root[data-theme="dark"] .console .ops-data-strip b,
 :root[data-theme="dark"] .console .ops-status.needs_review { background: #3a2d12; color: #f0c76e; }
 :root[data-theme="dark"] .console .ops-tabs > button[aria-pressed="true"] { background: var(--dark-chip); color: var(--ink); border-color: var(--dark-line); }
 :root[data-theme="dark"] .console .ops-filter-inputs > label,

@@ -34,6 +34,7 @@ async function Body() {
       now={status.now}
       globalDay={status.last_world_poll?.newest}
       feedAt={status.last_poll?.at}
+      live={status.last_ais}
     />
   );
 }
