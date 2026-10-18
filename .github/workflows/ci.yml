@@ -26,7 +26,7 @@ env:
 
 jobs:
   python:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     services:
       falkordb:
@@ -38,7 +38,7 @@ jobs:
           --health-retries 20
     steps:
       - uses: actions/checkout@v5
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@v7
       - name: Memory library
         working-directory: lighthouse-memory
         run: |
@@ -55,7 +55,7 @@ jobs:
         run: python3 -m unittest discover -s tests -v
 
   web:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     strategy:
       fail-fast: false
@@ -88,7 +88,7 @@ jobs:
         run: git diff --exit-code -- app/search-index.json
 
   images:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v5
@@ -97,7 +97,7 @@ jobs:
 
   mutation:
     if: github.event_name == 'workflow_dispatch' && inputs.mutation
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 150
     services:
       falkordb:
@@ -108,6 +108,6 @@ jobs:
           --health-retries 20
     steps:
       - uses: actions/checkout@v5
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@v7
       - run: uv sync --locked --project backend
       - run: uv run --project backend python mutation/mutate.py mutation/.work
