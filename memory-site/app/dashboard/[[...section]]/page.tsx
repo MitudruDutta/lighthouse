@@ -53,7 +53,7 @@ export default async function Page({
       requestedWorkspace={query.workspace}
       tab={query.tab}
       docs={DOCS}
-      publicApi={process.env.MEMORY_PUBLIC_API ?? "http://localhost:8200"}
+      publicApi={process.env.MEMORY_PUBLIC_API ?? "https://lighthouse-memory.vercel.app"}
     />
   );
 }

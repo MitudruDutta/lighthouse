@@ -4,6 +4,6 @@ import { googleFlow } from "./google-server";
 export const google = googleFlow(
   AUTH_API + "/google",
   DESK_COOKIE,
-  process.env.LIGHTHOUSE_APP_URL ?? "http://localhost:3000",
+  process.env.LIGHTHOUSE_APP_URL ?? "https://lighthouse-intelligence.vercel.app",
   "/profile",
 );

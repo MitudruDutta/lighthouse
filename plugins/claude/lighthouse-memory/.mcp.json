@@ -2,7 +2,7 @@
   "mcpServers": {
     "lighthouse-memory": {
       "type": "http",
-      "url": "${LIGHTHOUSE_MEMORY_URL}/mcp",
+      "url": "${LIGHTHOUSE_MEMORY_URL:-https://lighthouse-memory.vercel.app}/mcp",
       "headers": {
         "Authorization": "Bearer ${LIGHTHOUSE_API_KEY}"
       }

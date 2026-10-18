@@ -6,7 +6,7 @@ Agents reach Lighthouse Memory in two ways. The hosted Memory service has an MCP
 
 ## The hosted MCP endpoint
 
-The Memory service answers MCP over streamable HTTP at `/mcp`, beside its HTTP API: `https://<your memory service>/mcp`, or `http://localhost:8200/mcp` for a local one. The console shows the address of yours under **Agents & MCP**.
+The Memory service answers MCP over streamable HTTP at `/mcp`, beside its HTTP API. The hosted service is at `https://lighthouse-memory.vercel.app/mcp`; a stack you run yourself answers at its own address, such as `http://localhost:8200/mcp` on your computer. The console shows the address under **Agents & MCP**.
 
 - **The key is the agent.** Send a project API key as a bearer token. The key chooses the project, its scopes choose what the tools may do, and its name is the agent's name in every entry, claim, and handoff. Create one key per agent and name it after the agent. A tool cannot write under another name.
 - **The same rules as the HTTP API.** Each MCP request counts against the key's 120 requests a minute and shows in the project's usage. Refusals give the same short messages as the HTTP API; details stay in the service's logs.
@@ -31,12 +31,12 @@ A key with read access only can call the read tools; a write tool answers that t
 
 ## Connect a client
 
-Replace the address and `YOUR_PROJECT_API_KEY` with yours. The console fills both in when you create a key for an agent on its **Agents & MCP** page.
+Replace `YOUR_PROJECT_API_KEY` with your project key, and the address with yours if you run the service yourself. The console fills both in when you create a key for an agent on its **Agents & MCP** page.
 
 **Claude Code**, in a terminal:
 
 ```bash
-claude mcp add --transport http lighthouse-memory https://memory.example.com/mcp \
+claude mcp add --transport http lighthouse-memory https://lighthouse-memory.vercel.app/mcp \
   --header "Authorization: Bearer YOUR_PROJECT_API_KEY"
 ```
 
@@ -46,7 +46,7 @@ claude mcp add --transport http lighthouse-memory https://memory.example.com/mcp
 {
   "mcpServers": {
     "lighthouse-memory": {
-      "url": "https://memory.example.com/mcp",
+      "url": "https://lighthouse-memory.vercel.app/mcp",
       "headers": { "Authorization": "Bearer YOUR_PROJECT_API_KEY" }
     }
   }
@@ -57,7 +57,7 @@ claude mcp add --transport http lighthouse-memory https://memory.example.com/mcp
 
 ```toml
 [mcp_servers.lighthouse-memory]
-url = "https://memory.example.com/mcp"
+url = "https://lighthouse-memory.vercel.app/mcp"
 bearer_token_env_var = "LIGHTHOUSE_API_KEY"
 ```
 
@@ -68,7 +68,7 @@ bearer_token_env_var = "LIGHTHOUSE_API_KEY"
   "mcpServers": {
     "lighthouse-memory": {
       "command": "npx",
-      "args": ["-y", "mcp-remote", "https://memory.example.com/mcp",
+      "args": ["-y", "mcp-remote", "https://lighthouse-memory.vercel.app/mcp",
                "--header", "Authorization: Bearer YOUR_PROJECT_API_KEY"]
     }
   }
@@ -87,7 +87,7 @@ import asyncio
 from mcp import ClientSession
 from mcp.client.streamable_http import streamablehttp_client
 
-URL = "https://memory.example.com/mcp"
+URL = "https://lighthouse-memory.vercel.app/mcp"
 HEADERS = {"Authorization": "Bearer YOUR_PROJECT_API_KEY"}
 
 
@@ -117,7 +117,7 @@ In Claude Code:
 Before Claude Code 2.1.275, add the marketplace first: `/plugin marketplace add MitudruDutta/lighthouse`, then `/plugin install lighthouse-memory@lighthouse`. The plugin reads its address and key from the environment:
 
 ```bash
-export LIGHTHOUSE_MEMORY_URL=https://memory.example.com
+export LIGHTHOUSE_MEMORY_URL=https://lighthouse-memory.vercel.app
 export LIGHTHOUSE_API_KEY=YOUR_PROJECT_API_KEY
 ```
 
@@ -145,9 +145,9 @@ codex plugin marketplace add MitudruDutta/lighthouse
 
 The plugin follows the Agent Plugins format, in `plugins/codex/lighthouse-memory/`; the marketplace that lists it is `.agents/plugins/marketplace.json`.
 
-### Another address
+### Your own service
 
-The Cursor and Codex plugins connect to the local stack at `http://localhost:8200/mcp`. For another address, change `url` in the plugin's `mcp.json`. The Claude Code plugin reads the address from `LIGHTHOUSE_MEMORY_URL`.
+The plugins connect to the hosted service at `https://lighthouse-memory.vercel.app/mcp`. For a service you run yourself, change `url` in the Cursor or Codex plugin's `mcp.json`, or set `LIGHTHOUSE_MEMORY_URL` for the Claude Code plugin.
 
 ## Your own MCP server on the library
 

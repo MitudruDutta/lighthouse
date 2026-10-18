@@ -12,7 +12,7 @@ A key selects exactly one project graph. Clients cannot change the project using
 
 ## Store a memory
 
-Use your service address as `LIGHTHOUSE_MEMORY_URL` and your key as `LIGHTHOUSE_MEMORY_KEY`. This example is a request format; no request is sent by this page.
+Use the service address as `LIGHTHOUSE_MEMORY_URL` (`https://lighthouse-memory.vercel.app` for the hosted service) and your key as `LIGHTHOUSE_MEMORY_KEY`. This example is a request format; no request is sent by this page.
 
 ```bash
 curl "$LIGHTHOUSE_MEMORY_URL/v1/memories" \
@@ -69,7 +69,7 @@ Episode, task, and handoff ids follow the same rule without `/`, because an entr
 
 Each project key permits 120 authenticated requests per UTC minute. Invalid credentials return `401`; insufficient scope, or a handoff given to another agent, returns `403`; an unknown episode or handoff returns `404`; a closed episode, or a task this agent does not hold, returns `409`; invalid input or a reference that does not exist returns `422`; excessive request size returns `413`; request limits return `429`. Service failures return a safe `503` message, with diagnostic details kept in server logs.
 
-The same operations are MCP tools at `/mcp`, for Claude Code, Cursor, Codex, Claude Desktop, and your own agents: see [agents, MCP, and plugins](/mcp).
+The same operations are MCP tools at `https://lighthouse-memory.vercel.app/mcp`, for Claude Code, Cursor, Codex, Claude Desktop, and your own agents: see [agents, MCP, and plugins](/mcp).
 
 The HTTP service covers structured writes, text search, history, connection paths, episodes, tasks, and handoffs. Lessons, playbooks, promotion, conversations, and semantic recall are available through the [Python library](/reference), not these HTTP endpoints.
 

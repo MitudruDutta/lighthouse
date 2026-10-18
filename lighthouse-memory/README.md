@@ -12,7 +12,7 @@ Temporal, graph-native memory for AI agents, built on [FalkorDB](https://www.fal
 
 Lighthouse Memory turns structured events into versioned facts by rule, with no LLM on the write path. Every earlier version is kept, every write returns a receipt, and agents recall by traversal, by words, or by meaning. Agents also coordinate through the same graph: atomic task claims, handoffs that point at evidence, and episodes that record what they saw and did.
 
-The package is published on PyPI as `lighthouse-graph` and imported as `lighthouse`.
+The package is published on PyPI as `lighthouse-graph` and imported as `lighthouse`. Documentation: [lighthouse-memory-docs.vercel.app](https://lighthouse-memory-docs.vercel.app).
 
 ## Contents
 
@@ -353,14 +353,14 @@ The same rows always give the same history, however often and in whatever order 
 | Impact and trust | `impact_of_state`, `impact_of_entry`, `invalidate_entry`, `agent_trust` |
 | Time | `stamp`, `now` |
 
-Signatures and behaviour of every function are in the Python API reference of the documentation site, generated from the package.
+Signatures and behaviour of every function are in the [Python API reference](https://lighthouse-memory-docs.vercel.app/reference), generated from the package.
 
 ## Hosted API, MCP, and Claude Code
 
-The library connects directly to FalkorDB and needs no API key. For agents that should not hold database credentials, the Lighthouse Memory service in this repository wraps the same operations:
+The library connects directly to FalkorDB and needs no API key. For agents that should not hold database credentials, the hosted Lighthouse Memory service at [lighthouse-memory.vercel.app](https://lighthouse-memory.vercel.app) wraps the same operations; create a project and an API key in its console:
 
-- **HTTP API** with project API keys and scopes: memories, history, connection paths, episodes, tasks, and handoffs.
-- **MCP server** at `/mcp` on the same service, with a project key as the bearer token.
+- **HTTP API** at `https://lighthouse-memory.vercel.app/v1`, with project API keys and scopes: memories, history, connection paths, episodes, tasks, and handoffs.
+- **MCP server** at `https://lighthouse-memory.vercel.app/mcp`, with a project key as the bearer token.
 - **Plugins for Claude Code, Cursor, and Codex** in the repository's `plugins/` folder. Each connects the agent to the MCP server and adds a skill for using it.
 
 ## Guarantees

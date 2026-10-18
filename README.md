@@ -15,8 +15,21 @@ This repository holds two products:
 
 Built for Graph Hacks (WeMakeDevs × FalkorDB), Track 01 (Agents That Act on Connected Data) and Track 02 (Agent Memory and Coordination).
 
+## Live
+
+| Site | Address |
+| --- | --- |
+| Maritime Intelligence console | [lighthouse-intelligence.vercel.app](https://lighthouse-intelligence.vercel.app) |
+| Lighthouse Memory website and developer console | [lighthouse-memory.vercel.app](https://lighthouse-memory.vercel.app) |
+| Lighthouse Memory documentation | [lighthouse-memory-docs.vercel.app](https://lighthouse-memory-docs.vercel.app) |
+| Memory API and MCP server | `https://lighthouse-memory.vercel.app/v1` and `https://lighthouse-memory.vercel.app/mcp` ([API reference](https://lighthouse-memory.vercel.app/docs)) |
+| Python package | [`lighthouse-graph` on PyPI](https://pypi.org/project/lighthouse-graph/) |
+
+Create an account on either site; the same account works on both.
+
 ## Contents
 
+- [Live](#live)
 - [Architecture](#architecture)
 - [Setup](#setup)
 - [Graph data model](#graph-data-model)
@@ -61,12 +74,14 @@ flowchart LR
   API --> W
   API --> T
   MAPI --> M
-  API --> SC[screen :3000<br/>Maritime Intelligence]
-  MAPI --> MS[memory-screen :3003<br/>Memory console]
-  DOCS[docs :3002]
+  API --> SC[Maritime Intelligence<br/>console]
+  MAPI --> MS[Memory website<br/>and console]
+  DOCS[Memory docs]
 ```
 
-| Service | Port (localhost) | Role |
+In production the three websites run on Vercel and the backend runs on one AWS EC2 host; the Memory website also serves the Memory API and MCP server under its own address. Locally, Docker Compose runs everything on one machine.
+
+| Service | Local port | Role |
 | --- | --- | --- |
 | `falkordb` | 26379, Browser on 23000 | The database. Every service reads and writes here |
 | `api` | 8100 | Maritime API: read routes for the console, cases, profiles, and the Desk |
@@ -74,11 +89,11 @@ flowchart LR
 | `ais` | | Counts cargo ships and tankers in port at the 50 busiest ports from live AIS positions |
 | `desk` | | The model-driven Desk agent, which uses graph tools over MCP |
 | `memory-api` | 8200 | Lighthouse Memory service: project API keys, HTTP API, and MCP server at `/mcp` |
-| `screen` | 3000 | Maritime Intelligence console |
-| `memory-screen` | 3003 | Lighthouse Memory website and developer console |
-| `docs` | 3002 | Lighthouse Memory documentation |
+| `screen` | 3000 | Maritime Intelligence console; [lighthouse-intelligence.vercel.app](https://lighthouse-intelligence.vercel.app) in production |
+| `memory-screen` | 3003 | Lighthouse Memory website and developer console; [lighthouse-memory.vercel.app](https://lighthouse-memory.vercel.app) in production |
+| `docs` | 3002 | Lighthouse Memory documentation; [lighthouse-memory-docs.vercel.app](https://lighthouse-memory-docs.vercel.app) in production |
 
-All ports are bound to `127.0.0.1`.
+Locally, all ports are bound to `127.0.0.1`.
 
 ## Setup
 
@@ -89,7 +104,7 @@ All ports are bound to `127.0.0.1`.
 
 No local Python or Node.js installation is needed to run the stack.
 
-### Quick start
+### Run it locally
 
 ```bash
 git clone https://github.com/MitudruDutta/lighthouse.git
@@ -97,7 +112,7 @@ cd lighthouse
 ./setup.sh
 ```
 
-`setup.sh` creates `.env` from `.env.example` with private local credentials, optionally asks for a model API key, builds the images, starts every service, and waits until each is healthy. Then open:
+`setup.sh` creates `.env` from `.env.example` with private local credentials, optionally asks for a model API key, builds the images, starts every service, and waits until each is healthy. Then open the local copies:
 
 | Site | URL |
 | --- | --- |
@@ -126,7 +141,7 @@ Settings live in `.env`. The defaults run everything locally; these are the ones
 | --- | --- |
 | `AISSTREAM_API_KEY` | Live ship counts in port. Free key from [aisstream.io](https://aisstream.io) under API Keys. Without it, the global view uses IMF PortWatch alone |
 | `LIGHTHOUSE_MODEL_PROVIDER`, `LIGHTHOUSE_MODEL`, and a provider key such as `ANTHROPIC_API_KEY` | The model for the Desk agent. Monitoring, imports, and rule-based agents work without one |
-| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Optional Google sign-in for both sites. Register `http://localhost:3000/api/auth/google/callback` and `http://localhost:3003/api/auth/google/callback` as redirect URIs |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Optional Google sign-in for both sites. Register each site's `/api/auth/google/callback` as a redirect URI: `https://lighthouse-intelligence.vercel.app/api/auth/google/callback` and `https://lighthouse-memory.vercel.app/api/auth/google/callback` in production, `http://localhost:3000/api/auth/google/callback` and `http://localhost:3003/api/auth/google/callback` locally |
 | `FALKORDB_USERNAME`, `FALKORDB_PASSWORD` | Required for any database another machine can reach |
 | `*_PORT` | Host ports, if the defaults are taken |
 
@@ -137,7 +152,7 @@ pip install lighthouse-graph
 docker run -p 6379:6379 -it --rm falkordb/falkordb:6.0.2
 ```
 
-See [`lighthouse-memory/README.md`](lighthouse-memory/README.md) for the quick start and API, or connect an agent to the hosted service: create a project and an API key in the Memory console, then install the plugin for your agent from [`plugins/`](plugins): Claude Code, Cursor, or Codex. The console's **Agents & MCP** page shows the steps with your key filled in.
+See [`lighthouse-memory/README.md`](lighthouse-memory/README.md) and the [documentation](https://lighthouse-memory-docs.vercel.app) for the quick start and API. To connect an agent to the hosted service instead, create a project and an API key in the [Memory console](https://lighthouse-memory.vercel.app), then install the plugin for your agent from [`plugins/`](plugins): Claude Code, Cursor, or Codex. The console's **Agents & MCP** page shows the steps with your key filled in.
 
 ## Graph data model
 
@@ -305,12 +320,32 @@ One result went against us, and is published as measured: replaying 400 days of 
 
 ## Deployment
 
-`deploy/aws/` runs the stack on one EC2 host with the same Compose file, images from ECR, and Caddy serving HTTPS for the app, Memory site, docs, and Memory API. FalkorDB and the operations API get no public port, and secrets are kept in SSM Parameter Store.
+Production runs in two places:
+
+| Part | Where | Address |
+| --- | --- | --- |
+| Maritime Intelligence console (`frontend/`) | Vercel project `lighthouse-intelligence` | https://lighthouse-intelligence.vercel.app |
+| Lighthouse Memory website (`memory-site/`) | Vercel project `lighthouse-memory` | https://lighthouse-memory.vercel.app |
+| Lighthouse Memory documentation (`docs-site/`) | Vercel project `lighthouse-memory-docs` | https://lighthouse-memory-docs.vercel.app |
+| Backend: FalkorDB, APIs, feed importers, agents | One AWS EC2 host, behind Caddy with HTTPS | `api.<ip>.sslip.io` (Memory API), `ops.<ip>.sslip.io` (operations API) |
+
+**Backend.** `deploy/aws/provision.sh` creates the ECR repository, an Elastic IP, the settings (one SecureString in SSM Parameter Store, `/lighthouse/env`), the backend image, a role that can read only its own settings, a security group with only ports 80 and 443, and a `t3.small` host reached through Session Manager, without SSH. FalkorDB gets a password and no public port. `deploy/aws/update.sh` ships later releases.
 
 ```bash
-AWS=aws PROFILE=lighthouse REGION=ap-south-1 deploy/aws/provision.sh   # first deployment
-AWS=aws PROFILE=lighthouse REGION=ap-south-1 deploy/aws/update.sh      # later releases
+aws login --profile lighthouse
+AWS=aws PROFILE=lighthouse REGION=ap-south-1 deploy/aws/provision.sh   # first time; safe to run again
+AWS=aws PROFILE=lighthouse REGION=ap-south-1 deploy/aws/update.sh      # every later release
 ```
+
+**Websites.** Each Vercel project builds one folder. Their settings:
+
+| Project | Variables |
+| --- | --- |
+| `lighthouse-intelligence` | `LIGHTHOUSE_API` (the operations API), `LIGHTHOUSE_APP_URL`, `LIGHTHOUSE_PROXY_TOKEN`, `NEXT_PUBLIC_LIGHTHOUSE_DOCS_URL`, `NEXT_PUBLIC_LIGHTHOUSE_MEMORY_URL` |
+| `lighthouse-memory` | `MEMORY_API` (the Memory API; the site serves `/v1`, `/mcp`, and `/docs` from it), `MEMORY_SITE_URL`, `MEMORY_PUBLIC_API`, `LIGHTHOUSE_PROXY_TOKEN`, `NEXT_PUBLIC_MEMORY_DOCS_URL` |
+| `lighthouse-memory-docs` | `NEXT_PUBLIC_MEMORY_CONSOLE_URL` |
+
+`LIGHTHOUSE_PROXY_TOKEN` is the value in the backend's settings. For Google sign-in, add `https://lighthouse-intelligence.vercel.app/api/auth/google/callback` and `https://lighthouse-memory.vercel.app/api/auth/google/callback` to the OAuth client's authorized redirect URIs.
 
 ## Development
 

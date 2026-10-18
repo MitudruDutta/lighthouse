@@ -16,7 +16,7 @@ import { BlastRadius } from "./components/BlastRadius";
 import { PLANS } from "./lib/plans";
 import { signedIn } from "./lib/session";
 import "./standout.css";
-const DOCS = process.env.NEXT_PUBLIC_MEMORY_DOCS_URL ?? "http://localhost:3002";
+const DOCS = process.env.NEXT_PUBLIC_MEMORY_DOCS_URL ?? "https://lighthouse-memory-docs.vercel.app";
 const FEATURES = [
   {
     icon: History,

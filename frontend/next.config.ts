@@ -7,7 +7,7 @@ const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
   async redirects() {
-    return [{ source: "/docs/:path*", destination: `${process.env.NEXT_PUBLIC_LIGHTHOUSE_DOCS_URL ?? "http://localhost:3002"}/:path*`, permanent: false }];
+    return [{ source: "/docs/:path*", destination: `${process.env.NEXT_PUBLIC_LIGHTHOUSE_DOCS_URL ?? "https://lighthouse-memory-docs.vercel.app"}/:path*`, permanent: false }];
   },
   // The documentation is written in MDX, as pages of its own.
   pageExtensions: ["ts", "tsx", "mdx"],

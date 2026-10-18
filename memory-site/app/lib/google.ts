@@ -3,6 +3,6 @@ import { googleFlow } from "./google-server";
 export const google = googleFlow(
   API + "/auth/google",
   COOKIE,
-  process.env.MEMORY_SITE_URL ?? "http://localhost:3003",
+  process.env.MEMORY_SITE_URL ?? "https://lighthouse-memory.vercel.app",
   "/dashboard/settings",
 );

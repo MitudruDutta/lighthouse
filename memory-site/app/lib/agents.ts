@@ -82,8 +82,8 @@ asyncio.run(main())`,
 ];
 
 // The plugins in the repository's plugins/ folder: the MCP server and a skill for when to
-// remember, recall, and record episodes. Cursor and Codex plugins connect to the local stack's
-// endpoint; for another address, change the url in the plugin's mcp.json.
+// remember, recall, and record episodes. They connect to the hosted service; for another
+// address, change the url in the plugin's mcp.json, or LIGHTHOUSE_MEMORY_URL for Claude Code.
 export type Plugin = {
   id: string;
   name: string;

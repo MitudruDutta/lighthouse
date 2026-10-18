@@ -9,7 +9,7 @@ import { useNotebookLayout } from "fumadocs-ui/layouts/notebook";
 import { ThemeToggle } from "./theme-toggle";
 import { Mark } from "./mark";
 const CONSOLE =
-  process.env.NEXT_PUBLIC_MEMORY_CONSOLE_URL ?? "http://localhost:3003";
+  process.env.NEXT_PUBLIC_MEMORY_CONSOLE_URL ?? "https://lighthouse-memory.vercel.app";
 export function DocsHeader() {
   const { slots } = useNotebookLayout();
   const Trigger = slots.sidebar.trigger;

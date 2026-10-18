@@ -2,7 +2,7 @@ import "server-only";
 export const API = process.env.MEMORY_API ?? "http://127.0.0.1:8200";
 export const COOKIE = "lighthouse_memory_session";
 export const DOCS =
-  process.env.NEXT_PUBLIC_MEMORY_DOCS_URL ?? "http://localhost:3002";
+  process.env.NEXT_PUBLIC_MEMORY_DOCS_URL ?? "https://lighthouse-memory-docs.vercel.app";
 export async function request(
   path: string,
   token?: string,

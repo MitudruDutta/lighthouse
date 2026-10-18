@@ -3,7 +3,7 @@
   "mcpServers": {
     "lighthouse-memory": {
       "type": "streamable-http",
-      "url": "http://localhost:8200/mcp",
+      "url": "https://lighthouse-memory.vercel.app/mcp",
       "extensions": {
         "com.openai": {
           "auth": { "type": "api_key", "headerScheme": "bearer" }
