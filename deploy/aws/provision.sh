@@ -16,7 +16,8 @@ NAME=lighthouse
 TYPE=${TYPE:-t3.small}
 here=deploy/aws
 
-aws() { "$AWS" --profile "$PROFILE" --region "$REGION" "$@" | tr -d '\r'; }
+# `command` runs the CLI itself: with AWS=aws, a plain call would recurse into this function.
+aws() { command "$AWS" --profile "$PROFILE" --region "$REGION" "$@" | tr -d '\r'; }
 # A Windows aws.exe run from WSL needs Windows paths for file:// arguments.
 file() { if [[ "$AWS" == *.exe ]] && command -v wslpath >/dev/null; then echo "file://$(wslpath -w "$1")"; else echo "file://$1"; fi; }
 step() { printf '\n== %s\n' "$*"; }

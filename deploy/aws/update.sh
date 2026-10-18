@@ -10,7 +10,8 @@ AWS=${AWS:-aws}
 PROFILE=${PROFILE:-lighthouse}
 REGION=${REGION:-ap-south-1}
 here=deploy/aws
-aws() { "$AWS" --profile "$PROFILE" --region "$REGION" "$@" | tr -d '\r'; }
+# `command` runs the CLI itself: with AWS=aws, a plain call would recurse into this function.
+aws() { command "$AWS" --profile "$PROFILE" --region "$REGION" "$@" | tr -d '\r'; }
 file() { if [[ "$AWS" == *.exe ]] && command -v wslpath >/dev/null; then echo "file://$(wslpath -w "$1")"; else echo "file://$1"; fi; }
 
 TAG=${TAG:-$(git rev-parse --short HEAD)$(git diff --quiet HEAD -- . ':!deploy' || echo -dirty)}
