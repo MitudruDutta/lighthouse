@@ -77,15 +77,33 @@ DEVICE = Kind("Device", key="serial", text=("note",))
 graph = FalkorDB(host="127.0.0.1", port=6379).select_graph("demo")
 ensure_schema(graph, [DEVICE])  # once per graph, before the first write
 
-remember(graph, DEVICE, by="inventory", rows=[
-    {"key": "d1", "t": "2026-01-01T00:00:00Z", "values": {"status": "ok", "note": "pump room sensor"}},
-])
-remember(graph, DEVICE, by="inventory", rows=[
-    {"key": "d1", "t": "2026-01-02T00:00:00Z", "values": {"status": "hot", "note": "pump room sensor"}},
-])
+remember(
+    graph,
+    DEVICE,
+    by="inventory",
+    rows=[
+        {
+            "key": "d1",
+            "t": "2026-01-01T00:00:00Z",
+            "values": {"status": "ok", "note": "pump room sensor"},
+        },
+    ],
+)
+remember(
+    graph,
+    DEVICE,
+    by="inventory",
+    rows=[
+        {
+            "key": "d1",
+            "t": "2026-01-02T00:00:00Z",
+            "values": {"status": "hot", "note": "pump room sensor"},
+        },
+    ],
+)
 
-history(graph, DEVICE, "d1")                          # both versions, oldest first
-as_of(graph, DEVICE, "d1", "2026-01-01T12:00:00Z")    # the version that held then: status "ok"
+history(graph, DEVICE, "d1")  # both versions, oldest first
+as_of(graph, DEVICE, "d1", "2026-01-01T12:00:00Z")  # the version that held then: status "ok"
 ```
 
 The example below covers the whole surface. It runs as written against the FalkorDB of this repository's Compose file (port 26379), and `tests/test_readme.py` checks every result it prints.
