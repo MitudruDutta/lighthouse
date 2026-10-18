@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Lighthouse">
+  <rect width="32" height="32" rx="7" fill="#f8f5ef"/>
+  <g transform="translate(2.4 2.4) scale(0.85)">
+    <path d="M13 12h6l3 17H10l3-17Z" fill="#b73f20"/>
+    <path d="M12 7h8v5h-8zM11 7l5-4 5 4M3 5l6 3M29 5l-6 3M2 13h6M24 13h6" fill="none" stroke="#b73f20" stroke-width="1.8"/>
+    <path d="M14 18h4M13 24h6" stroke="#f8f5ef" stroke-width="2"/>
+  </g>
+</svg>

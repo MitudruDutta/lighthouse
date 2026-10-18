@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Lighthouse Maritime Intelligence">
+  <defs>
+    <linearGradient id="beam" x1="0" x2="1" y1="0" y2="0">
+      <stop offset="0" stop-color="#ddf78a" stop-opacity="0.9"/>
+      <stop offset="1" stop-color="#ddf78a" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <rect x="0.5" y="0.5" width="31" height="31" rx="7.5" fill="#22433b" stroke="#527064"/>
+  <path d="M13 11 L30 5 L30 17 Z" fill="url(#beam)"/>
+  <path d="M11 25 L12.4 12 H15.6 L17 25 Z" fill="#e8eef7"/>
+  <rect x="11.6" y="8.6" width="4.8" height="3.6" rx="1" fill="#ddf78a"/>
+  <path d="M7 25.5 H21" stroke="#8fbaa5" stroke-width="1.6" stroke-linecap="round"/>
+</svg>
