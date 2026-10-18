@@ -236,151 +236,9 @@
 }
 .signal-stage {
   position: relative;
-  aspect-ratio: 640 / 460;
+  aspect-ratio: 640 / 330;
   min-width: 0;
   overflow: hidden;
-}
-.signal-lines {
-  position: absolute;
-  width: 100%;
-  height: 100%;
-  inset: 0;
-}
-.signal-center {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  width: 28%;
-  display: grid;
-  place-items: center;
-  gap: 10px;
-  text-align: center;
-  color: #ffc397;
-}
-.signal-center > span {
-  font: 11px var(--font-mono);
-  letter-spacing: 0.16em;
-}
-.signal-center > svg {
-  width: clamp(40px, 4vw, 74px);
-  height: auto;
-}
-.signal-center > small {
-  font-size: 12px;
-  color: #cbb09d;
-}
-.signal-card {
-  position: absolute;
-  border: 1px solid #b99a7e4a;
-  background: #42333bfa;
-  border-radius: 9px;
-  padding: clamp(12px, 1.2vw, 23px);
-  width: 38%;
-  box-shadow: 0 10px 26px #1d16282b;
-}
-.signal-card > span {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  color: #d9a98b;
-  font: 11px var(--font-mono);
-  letter-spacing: 0.05em;
-  margin-bottom: 13px;
-}
-.signal-card > strong {
-  font-size: clamp(13px, 1.15vw, 20px);
-  font-weight: 500;
-  display: block;
-  letter-spacing: -0.02em;
-}
-.signal-card > p {
-  color: #c0aa9e;
-  font-size: clamp(10px, 0.8vw, 14px);
-  margin: 8px 0 15px;
-  line-height: 1.6;
-}
-.signal-card > small {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-  color: #f0c5a4;
-  font-size: 12px;
-}
-.signal-card > small i {
-  width: 4px;
-  height: 4px;
-  background: #e4bc90;
-  border-radius: 50%;
-}
-.signal-input {
-  top: 7%;
-  left: 5%;
-  animation: signal-float 7s ease-in-out infinite;
-}
-.signal-evidence {
-  right: 4%;
-  bottom: 9%;
-  animation: signal-float 7s ease-in-out -3s infinite;
-}
-.signal-history {
-  right: 5%;
-  top: 8%;
-  width: 34%;
-  background: #f1ddc3;
-  color: #49352e;
-  transform: rotate(5deg);
-}
-.signal-history > span {
-  color: #85654f;
-}
-.signal-history > strong {
-  font-size: 15px;
-}
-.mini-states {
-  display: flex;
-  gap: 5px;
-  align-items: center;
-  margin-top: 12px;
-}
-.mini-states i {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #b84a28;
-  opacity: 0.3;
-}
-.mini-states i:nth-child(2) {
-  opacity: 0.6;
-}
-.mini-states i:nth-child(3) {
-  opacity: 1;
-}
-.mini-states > span {
-  font: 11px var(--font-mono);
-  margin-left: auto;
-}
-.signal-tag {
-  position: absolute;
-  left: 5%;
-  bottom: 10%;
-  font: 11px var(--font-mono);
-  letter-spacing: 0.05em;
-  color: #a48b80;
-  writing-mode: vertical-rl;
-  transform: rotate(180deg);
-}
-.signal-path {
-  stroke-dasharray: 4 7;
-  animation: signal-path 10s linear infinite;
-}
-.signal-travellers {
-  animation: signal-pulse 3s ease-in-out infinite;
-}
-.signal-ring {
-  stroke-dasharray: 3 8;
-  transform-origin: 320px 230px;
-  animation: signal-orbit 30s linear infinite;
 }
 .flow-tabs {
   display: grid;
@@ -424,26 +282,6 @@
 }
 .is-paused * {
   animation-play-state: paused !important;
-}
-@keyframes signal-float {
-  50% {
-    translate: 0 -6px;
-  }
-}
-@keyframes signal-path {
-  to {
-    stroke-dashoffset: -110;
-  }
-}
-@keyframes signal-pulse {
-  50% {
-    opacity: 0.25;
-  }
-}
-@keyframes signal-orbit {
-  to {
-    rotate: 360deg;
-  }
 }
 .compatibility {
   padding: 27px var(--gutter);
@@ -965,18 +803,6 @@
   .hero-copy > p {
     max-width: 620px;
   }
-  .signal-card > span {
-    font-size: 12px;
-  }
-  .signal-card > small {
-    font-size: 12px;
-  }
-  .signal-center > small {
-    font-size: 12px;
-  }
-  .signal-center > span {
-    font-size: 12px;
-  }
   .flow-caption {
     font-size: 12px;
   }
@@ -1003,33 +829,6 @@
     font-size: 12px;
     padding-inline: 16px;
     gap: 10px;
-  }
-  .signal-card {
-    padding: 12px;
-  }
-  .signal-card > span {
-    font-size: 12px;
-    gap: 5px;
-    margin-bottom: 9px;
-  }
-  .signal-card > p {
-    font-size: 12px;
-    margin-bottom: 9px;
-  }
-  .signal-card > small {
-    font-size: 12px;
-  }
-  .signal-history > strong {
-    font-size: 13px;
-  }
-  .signal-center {
-    gap: 6px;
-  }
-  .signal-center > small {
-    font-size: 12px;
-  }
-  .signal-center > span {
-    font-size: 12px;
   }
   .flow-tabs button {
     font-size: 12px;
@@ -1130,30 +929,6 @@
   }
   .signal-stage {
     aspect-ratio: 640/420;
-  }
-  .signal-card {
-    padding: 20px;
-  }
-  .signal-card > span {
-    font-size: 12px;
-  }
-  .signal-card > strong {
-    font-size: 18px;
-  }
-  .signal-card > p {
-    font-size: 12px;
-  }
-  .signal-card > small {
-    font-size: 12px;
-  }
-  .signal-center > svg {
-    width: 55px;
-  }
-  .signal-center > small {
-    font-size: 12px;
-  }
-  .signal-center > span {
-    font-size: 12px;
   }
   .flow-tabs button {
     font-size: 12px;
@@ -1332,64 +1107,6 @@
   }
   .signal-stage {
     aspect-ratio: 640 / 490;
-  }
-  .signal-card {
-    padding: 12px;
-    width: 41%;
-  }
-  .signal-card > span {
-    font-size: 12px;
-    gap: 4px;
-    margin-bottom: 9px;
-  }
-  .signal-card > span svg {
-    width: 10px;
-    height: 10px;
-  }
-  .signal-card > strong {
-    font-size: 12px;
-  }
-  .signal-card > p {
-    font-size: 12px;
-    margin: 6px 0 9px;
-  }
-  .signal-card > small {
-    font-size: 12px;
-    gap: 4px;
-  }
-  .signal-history {
-    width: 36%;
-  }
-  .signal-history > strong {
-    font-size: 12px;
-  }
-  .mini-states {
-    gap: 3px;
-  }
-  .mini-states i {
-    width: 5px;
-    height: 5px;
-  }
-  .mini-states > span {
-    font-size: 12px;
-  }
-  .signal-center > svg {
-    width: 36px;
-  }
-  .signal-center > span {
-    font-size: 12px;
-  }
-  .signal-center > small {
-    font-size: 12px;
-  }
-  .signal-center {
-    gap: 6px;
-  }
-  .signal-evidence {
-    bottom: 7%;
-  }
-  .signal-tag {
-    font-size: 12px;
   }
   .flow-tabs {
     padding: 0 12px 12px;
@@ -1651,27 +1368,6 @@
 }
 .flow-toolbar {
   font-size: 12px;
-}
-.signal-card > span {
-  font-size: 10px;
-}
-.signal-card > strong {
-  font-size: clamp(16px, 1.25vw, 22px);
-}
-.signal-card > p {
-  font-size: clamp(12px, 0.9vw, 16px);
-}
-.signal-card > small {
-  font-size: 11px;
-}
-.signal-center > span {
-  font-size: 10px;
-}
-.signal-center > small {
-  font-size: 11px;
-}
-.signal-tag {
-  font-size: 10px;
 }
 .flow-tabs button {
   font-size: 14px;
@@ -1963,18 +1659,6 @@
   .hero-proof small {
     font-size: 12px;
   }
-  .signal-card > span {
-    font-size: 9px;
-  }
-  .signal-card > p {
-    font-size: 11px;
-  }
-  .signal-card > small {
-    font-size: 10px;
-  }
-  .signal-tag {
-    display: none;
-  }
   .flow-caption > span {
     display: none;
   }
@@ -1998,21 +1682,6 @@
   }
   .hero-proof small {
     font-size: 12px;
-  }
-  .signal-card > span {
-    font-size: 10px;
-  }
-  .signal-card > strong {
-    font-size: 19px;
-  }
-  .signal-card > p {
-    font-size: 13px;
-  }
-  .signal-card > small {
-    font-size: 12px;
-  }
-  .signal-center > small {
-    font-size: 11px;
   }
   .flow-tabs button {
     font-size: 14px;
@@ -2067,43 +1736,6 @@
   }
   .signal-stage {
     aspect-ratio: 640/680;
-  }
-  .signal-card {
-    width: 58%;
-    padding: 15px;
-  }
-  .signal-card > span {
-    font-size: 9px;
-    margin-bottom: 10px;
-  }
-  .signal-card > strong {
-    font-size: 16px;
-  }
-  .signal-card > p {
-    font-size: 12px;
-    line-height: 1.6;
-    margin-bottom: 11px;
-  }
-  .signal-card > small {
-    font-size: 10px;
-  }
-  .signal-history {
-    display: none;
-  }
-  .signal-input {
-    top: 5%;
-  }
-  .signal-evidence {
-    bottom: 5%;
-  }
-  .signal-center > svg {
-    width: 43px;
-  }
-  .signal-center > span {
-    font-size: 9px;
-  }
-  .signal-center > small {
-    display: none;
   }
   .flow-toolbar {
     font-size: 11px;
@@ -2313,92 +1945,78 @@
   background: #d69b70;
   animation-delay: -1s;
 }
-.signal-card {
-  transform-style: preserve-3d;
-  z-index: 3;
-  border-color: #b98d6b70;
-  background: linear-gradient(140deg, #57404bf2, #3e2e39f5);
-  box-shadow:
-    7px 10px 0 #21172255,
-    0 24px 35px #190e2440,
-    inset 0 1px 0 #f4cda520;
-  backface-visibility: hidden;
-  will-change: transform;
+.signal-trail {
+  position: relative;
+  z-index: 4;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 22px;
+  margin: 0;
+  padding: 14px 20px 2px;
+  list-style: none;
+  border-top: 1px solid #ffffff12;
 }
-.signal-card::before {
+.signal-trail li {
+  position: relative;
+  min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid #b98d6b40;
+  border-radius: 12px;
+  background: #30252ccc;
+  animation: trail-step 6s ease-in-out infinite;
+}
+.signal-trail li:nth-child(2) {
+  animation-delay: 2s;
+}
+.signal-trail li:nth-child(3) {
+  animation-delay: 4s;
+}
+.signal-trail li:not(:last-child)::after {
   content: "";
   position: absolute;
-  inset: -1px;
-  border: 1px solid #d9ab7d40;
-  border-radius: inherit;
-  transform: translateZ(-8px);
-  background: #33252e;
-  z-index: -1;
+  top: 50%;
+  right: -15px;
+  width: 7px;
+  height: 7px;
+  border-top: 1.5px solid #dfb08d;
+  border-right: 1.5px solid #dfb08d;
+  transform: translateY(-50%) rotate(45deg);
 }
-.signal-card > span {
+.signal-trail span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font: 10px var(--font-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   color: #dfb08d;
-  font-size: 11px;
-  transform: translateZ(14px);
 }
-.signal-card > strong {
-  font-size: clamp(18px, 1.35vw, 25px);
+.signal-trail strong {
+  display: block;
+  margin-top: 7px;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.3;
   color: #ffead6;
-  transform: translateZ(25px);
 }
-.signal-card > p {
-  color: #d7b9a8;
-  font-size: clamp(13px, 0.95vw, 16px);
-  transform: translateZ(18px);
-}
-.signal-card > small {
-  color: #edc29b;
+.signal-trail small {
+  display: block;
+  margin-top: 4px;
   font-size: 12px;
-  transform: translateZ(15px);
+  color: #d7b9a8;
 }
-.signal-input {
-  top: 7%;
-  left: 5%;
-  width: 38%;
-  animation: evidence-float-a 7s ease-in-out infinite;
-}
-.signal-history {
-  right: 5%;
-  top: 8%;
-  width: 33%;
-  background: linear-gradient(140deg, #ffe5be, #e8c497);
-  border-color: #ffdeb0;
-  animation: evidence-float-b 9s ease-in-out infinite;
-  box-shadow:
-    -6px 9px 0 #a6744b70,
-    0 25px 40px #190e2430,
-    inset 0 1px 0 #fff5de;
-}
-.signal-history::before {
-  background: #c99363;
-  border-color: #e2b07e;
-}
-.signal-history > span {
-  color: #886143;
-}
-.signal-history > strong {
-  color: #493122;
-  font-size: clamp(17px, 1.3vw, 24px);
-}
-.mini-states {
-  transform: translateZ(19px);
-}
-.mini-states > span {
-  font-size: 11px;
-  color: #805b3d;
-}
-.signal-evidence {
-  right: 4%;
-  bottom: 7%;
-  width: 42%;
-  animation: evidence-float-c 8s ease-in-out infinite;
-}
-.signal-tag {
-  display: none;
+@keyframes trail-step {
+  0%,
+  38%,
+  100% {
+    border-color: #b98d6b40;
+    background: #30252ccc;
+  }
+  8%,
+  30% {
+    border-color: #f3d4ae;
+    background: #4a363d;
+  }
 }
 .flow-tabs {
   position: relative;
@@ -2450,39 +2068,6 @@
 .history-preview > div:nth-of-type(3) {
   animation: memory-highlight 6s ease-in-out -2s infinite;
 }
-@keyframes evidence-float-a {
-  0%,
-  100% {
-    transform: translate3d(0, 5px, 35px) rotateX(7deg) rotateY(12deg)
-      rotateZ(-2deg);
-  }
-  50% {
-    transform: translate3d(3px, -8px, 52px) rotateX(3deg) rotateY(7deg)
-      rotateZ(-1deg);
-  }
-}
-@keyframes evidence-float-b {
-  0%,
-  100% {
-    transform: translate3d(0, -3px, 55px) rotateX(9deg) rotateY(-14deg)
-      rotateZ(7deg);
-  }
-  50% {
-    transform: translate3d(-5px, 9px, 34px) rotateX(4deg) rotateY(-9deg)
-      rotateZ(4deg);
-  }
-}
-@keyframes evidence-float-c {
-  0%,
-  100% {
-    transform: translate3d(0, 5px, 52px) rotateX(5deg) rotateY(-10deg)
-      rotateZ(2deg);
-  }
-  50% {
-    transform: translate3d(-3px, -8px, 68px) rotateX(9deg) rotateY(-5deg)
-      rotateZ(1deg);
-  }
-}
 @keyframes fallback-orbit {
   to {
     rotate: 360deg;
@@ -2512,105 +2097,37 @@
   .signal-stage {
     height: clamp(480px, 27vw, 690px);
   }
-  .signal-card > span {
-    font-size: 12px;
-  }
-  .signal-card > strong {
-    font-size: 25px;
-  }
-  .signal-card > p {
-    font-size: 16px;
-  }
-  .signal-card > small {
-    font-size: 13px;
-  }
-}
-@media (max-width: 1100px) {
-  .signal-card {
-    padding: 14px;
-  }
-  .signal-card > span {
-    font-size: 9px;
-  }
-  .signal-card > strong {
-    font-size: 16px;
-  }
-  .signal-card > p {
-    font-size: 11px;
-  }
-  .signal-card > small {
-    font-size: 10px;
-  }
-  .signal-history > strong {
-    font-size: 16px;
-  }
-  .mini-states > span {
-    font-size: 9px;
-  }
-}
-@media (max-width: 800px) {
-  .signal-card {
-    padding: 20px;
-  }
-  .signal-card > span {
-    font-size: 11px;
-  }
-  .signal-card > strong {
-    font-size: 21px;
-  }
-  .signal-card > p {
-    font-size: 14px;
-  }
-  .signal-card > small {
-    font-size: 12px;
-  }
-  .signal-history > strong {
-    font-size: 20px;
-  }
-  .mini-states > span {
-    font-size: 11px;
-  }
 }
 @media (max-width: 500px) {
   .signal-stage {
-    aspect-ratio: 640 / 720;
+    aspect-ratio: 640 / 540;
     perspective: 750px;
   }
-  .signal-card {
-    padding: 14px;
+  .signal-trail {
+    gap: 14px;
+    padding: 12px 12px 0;
   }
-  .signal-input {
-    width: 47%;
-    top: 6%;
-    left: 5%;
+  .signal-trail li {
+    padding: 9px 10px;
+    border-radius: 10px;
   }
-  .signal-input > p {
+  .signal-trail li:not(:last-child)::after {
+    right: -11px;
+    width: 5px;
+    height: 5px;
+  }
+  .signal-trail span {
+    font-size: 8px;
+    gap: 4px;
+  }
+  .signal-trail span svg {
     display: none;
   }
-  .signal-input > strong {
-    margin-bottom: 11px;
-  }
-  .signal-history {
-    display: none;
-  }
-  .signal-evidence {
-    width: 55%;
-    right: 5%;
-    bottom: 5%;
-  }
-  .signal-card > span {
-    font-size: 9px;
-    margin-bottom: 10px;
-  }
-  .signal-card > strong {
-    font-size: 16px;
-  }
-  .signal-card > p {
+  .signal-trail strong {
     font-size: 12px;
-    margin: 7px 0 10px;
   }
-  .signal-card > small {
-    font-size: 10px;
+  .signal-trail small {
+    display: none;
   }
   .flow-tabs {
     padding: 9px 12px 15px;

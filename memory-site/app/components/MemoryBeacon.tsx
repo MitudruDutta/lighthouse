@@ -353,7 +353,8 @@ export function MemoryBeacon({
             height = element.clientHeight;
           if (!width || !height) return;
           renderer.setSize(width, height, false);
-          const halfHeight = 3.8;
+          // A narrow frame zooms out so the orbits stay in view.
+          const halfHeight = 3 * Math.max(1, 1.6 / (width / height));
           camera.left = (-halfHeight * width) / height;
           camera.right = -camera.left;
           camera.top = halfHeight;

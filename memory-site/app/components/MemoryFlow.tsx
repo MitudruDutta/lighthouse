@@ -17,30 +17,34 @@ const MODES = [
     name: "Write",
     icon: Layers3,
     label: "A fact changes. Its history stays.",
-    left: "Observation",
-    middle: "Versioned state",
-    right: "Evidence retained",
-    code: `remember(graph, DEVICE, by="agent", rows=[\n    {"key": "sensor-01", "t": now(),\n     "values": {"status": "reviewed"}}\n])`,
+    steps: [
+      ["Observation", "Deployment needs review.", "Context received"],
+      ["Preserved state", "Nothing lost.", "v1 → v2 → v3"],
+      ["Connected evidence", "Evidence retained", "Linked to its source"],
+    ],
   },
   {
     name: "Recall",
     icon: Search,
     label: "Follow relationships. Retrieve the context.",
-    left: "Question",
-    middle: "Connected evidence",
-    right: "Relevant context",
-    code: `connection(graph,\n    (DEVICE, "sensor-01"),\n    (ROOM, "control-room"),\n    max_hops=6,\n)`,
+    steps: [
+      ["Question", "Why was this flagged?", "Asked by an agent"],
+      ["Graph walk", "Connected evidence", "Observation → change"],
+      ["Answer", "Relevant context", "Every step traceable"],
+    ],
   },
   {
     name: "Coordinate",
     icon: GitBranch,
     label: "Pass the work. Keep the evidence.",
-    left: "Agent A",
-    middle: "Atomic task claim",
-    right: "Agent B",
-    code: `task = claim(graph, "reviewer", "triage", lease=600)\n\nhand_off(graph, "handoff-01",\n    by="watcher", to="reviewer",\n    points_to=[("Episode", "incident-01")],\n)`,
+    steps: [
+      ["Watcher", "New evidence found.", "Agent A"],
+      ["Task claim", "Atomic task claim", "One owner, with a lease"],
+      ["Hand-off", "Ready for the next agent.", "Agent B"],
+    ],
   },
 ];
+const STEP_ICONS = [Layers3, HistoryIcon, GitBranch];
 export function MemoryFlow() {
   const [active, setActive] = useState(0);
   const [paused, setPaused] = useState(false);
@@ -72,55 +76,22 @@ export function MemoryFlow() {
       </div>
       <div className="signal-stage">
         <MemoryBeacon paused={paused} mode={active} />
-        <div className="signal-card signal-input">
-          <span>
-            <Layers3 size={13} />
-            {active === 2 ? "WATCHER" : "OBSERVATION"}
-          </span>
-          <strong>{mode.left}</strong>
-          <p>
-            {active === 0
-              ? "Deployment needs review."
-              : active === 1
-                ? "Why was this flagged?"
-                : "New evidence found."}
-          </p>
-          <small>
-            <i /> Context received
-          </small>
-        </div>
-        <div className="signal-card signal-history">
-          <span>
-            <HistoryIcon size={13} />
-            PRESERVED STATE
-          </span>
-          <strong>Nothing lost.</strong>
-          <div className="mini-states">
-            <i />
-            <i />
-            <i />
-            <span>v1 → v2 → v3</span>
-          </div>
-        </div>
-        <div className="signal-card signal-evidence">
-          <span>
-            <GitBranch size={13} />
-            CONNECTED EVIDENCE
-          </span>
-          <strong>{mode.right}</strong>
-          <p>
-            {active === 0
-              ? "Decision linked to its source."
-              : active === 1
-                ? "Observation → change → decision"
-                : "Ready for the next agent."}
-          </p>
-          <small>
-            <Check size={12} /> Traceable by design
-          </small>
-        </div>
-        <div className="signal-tag">FALKORDB / PERSISTENT GRAPH</div>
       </div>
+      <ol className="signal-trail" key={active} aria-label={`${mode.name}, step by step`}>
+        {mode.steps.map(([kicker, title, detail], index) => {
+          const Icon = STEP_ICONS[index];
+          return (
+            <li key={kicker}>
+              <span>
+                <Icon size={12} aria-hidden />
+                {kicker}
+              </span>
+              <strong>{title}</strong>
+              <small>{detail}</small>
+            </li>
+          );
+        })}
+      </ol>
       <div
         className="flow-tabs"
         role="group"
