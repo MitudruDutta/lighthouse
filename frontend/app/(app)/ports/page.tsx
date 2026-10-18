@@ -3,7 +3,7 @@ import { Suspense } from "react";
 
 import { Card, Loading, When } from "@/app/components/ui";
 import { PortTable } from "@/app/components/PortTable";
-import { WorldMap } from "@/app/components/WorldMap";
+import { PortMaps } from "@/app/components/PortMaps";
 import { type Live, type PortRow, type World, api, maybe } from "@/app/lib/api";
 
 const QUICK = [
@@ -53,10 +53,7 @@ async function Body({ searchParams }: PageProps<"/ports">) {
   const sorted = [...countries.entries()].sort((a, b) => a[1].name.localeCompare(b[1].name));
   return (
     <>
-      <details className="ops-map-context">
-        <summary>Explore the global activity map <span>Observations through <When at={world.newest_day} day /></span></summary>
-        <WorldMap world={world} />
-      </details>
+      <PortMaps world={world} live={live} />
       {busiestNow.length ? (
         <Card title="Cargo ships and tankers in port now" aside={<>Live AIS · <When at={live?.at} /></>}>
           <ul className="live-ports">
